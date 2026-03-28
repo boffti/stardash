@@ -7,6 +7,7 @@ import { DashboardHeader } from "./dashboard-header"
 import { RepoGrid } from "./repo-grid"
 import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
+import { ReadmeViewer } from "./readme-viewer"
 import { mockRepos, mockCollections, mockTags } from "@/lib/mock-data"
 import { StarredRepo } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,7 @@ export function Dashboard() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
+  const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
 
   // Get unique languages for filter
   const languages = useMemo(() => {
@@ -111,6 +113,15 @@ export function Dashboard() {
   const handleCloseDetail = () => {
     setDetailPanelOpen(false)
     setTimeout(() => setSelectedRepo(null), 200)
+  }
+
+  const handleViewReadme = () => {
+    setDetailPanelOpen(false)
+    setReadmeViewerOpen(true)
+  }
+
+  const handleCloseReadme = () => {
+    setReadmeViewerOpen(false)
   }
 
   const clearAllFilters = () => {
@@ -226,8 +237,16 @@ export function Dashboard() {
         repo={selectedRepo}
         open={detailPanelOpen}
         onClose={handleCloseDetail}
+        onViewReadme={handleViewReadme}
         collections={mockCollections}
         tags={mockTags}
+      />
+
+      {/* README Viewer */}
+      <ReadmeViewer
+        repo={selectedRepo}
+        open={readmeViewerOpen}
+        onClose={handleCloseReadme}
       />
     </SidebarProvider>
   )

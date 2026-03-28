@@ -19,12 +19,14 @@ import {
   Github,
   Copy,
   Check,
+  BookOpen,
 } from "lucide-react"
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +49,7 @@ interface RepoDetailPanelProps {
   repo: StarredRepo | null
   open: boolean
   onClose: () => void
+  onViewReadme: () => void
   collections: Collection[]
   tags: Tag[]
 }
@@ -62,6 +65,7 @@ export function RepoDetailPanel({
   repo,
   open,
   onClose,
+  onViewReadme,
   collections,
   tags,
 }: RepoDetailPanelProps) {
@@ -97,6 +101,9 @@ export function RepoDetailPanel({
                     <SheetTitle className="font-mono text-lg truncate">
                       {repo.name}
                     </SheetTitle>
+                    <SheetDescription className="sr-only">
+                      Repository details and organization options
+                    </SheetDescription>
                   </div>
                 </div>
                 <Button
@@ -116,7 +123,7 @@ export function RepoDetailPanel({
             </p>
 
             {/* Quick Actions */}
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
                 <a
                   href={`https://github.com/${repo.fullName}`}
@@ -126,6 +133,15 @@ export function RepoDetailPanel({
                   <Github className="h-3.5 w-3.5" />
                   View on GitHub
                 </a>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-1.5"
+                onClick={onViewReadme}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                View README
               </Button>
               {repo.homepage && (
                 <Button variant="outline" size="sm" className="gap-1.5" asChild>

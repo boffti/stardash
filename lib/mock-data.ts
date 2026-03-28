@@ -42,6 +42,38 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Main framework for all my projects. Keep an eye on App Router updates.',
     tags: [mockTags[2]],
     collections: ['2'],
+    readme: `# Next.js
+
+The React Framework for Production.
+
+## Getting Started
+
+\`\`\`bash
+npx create-next-app@latest
+\`\`\`
+
+## Features
+
+- **Hybrid SSG and SSR**: Pre-render pages at build time (SSG) or request time (SSR) in a single project.
+- **Incremental Static Regeneration**: Update static pages after you've built your site, without rebuilding the entire site.
+- **TypeScript Support**: Automatic TypeScript configuration and compilation.
+- **Fast Refresh**: Fast, reliable live-editing experience.
+- **File-system Routing**: Every component in the \`pages\` directory becomes a route.
+- **API Routes**: Build your API within Next.js. Serverless functions handle requests.
+- **Built-in CSS Support**: Import CSS files, CSS Modules, Sass, and styled-jsx.
+- **Code Splitting**: Automatic code splitting for faster page loads.
+
+## Documentation
+
+Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.
+
+## Community
+
+The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
+
+## Contributing
+
+Please see our [contributing.md](/contributing.md).`,
   },
   {
     id: '2',
@@ -65,6 +97,29 @@ export const mockRepos: StarredRepo[] = [
     notes: null,
     tags: [mockTags[0], mockTags[1]],
     collections: ['1'],
+    readme: `# OpenAI Cookbook
+
+The OpenAI Cookbook shares example code for accomplishing common tasks with the OpenAI API.
+
+## Guides & Examples
+
+- **How to format inputs to ChatGPT models**
+- **How to stream completions**
+- **How to count tokens with tiktoken**
+- **Embedding long inputs**
+- **How to build an AI that can answer questions about your website**
+
+## Getting Started
+
+Most code examples are written in Python. Install the OpenAI Python library:
+
+\`\`\`bash
+pip install openai
+\`\`\`
+
+## Contributing
+
+We welcome contributions! Please open an issue or submit a PR.`,
   },
   {
     id: '3',
@@ -88,6 +143,7 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Want to learn Rust for CLI tools and WASM projects.',
     tags: [mockTags[6]],
     collections: ['5'],
+    readme: null,
   },
   {
     id: '4',
@@ -111,6 +167,33 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Great examples for Claude integrations. Used the RAG notebook for my project.',
     tags: [mockTags[0], mockTags[1]],
     collections: ['1'],
+    readme: `# Anthropic Cookbook
+
+A collection of notebooks/recipes showcasing some fun and effective ways of using Claude.
+
+## Featured Notebooks
+
+### RAG with Claude
+Learn how to implement Retrieval-Augmented Generation with Claude for more accurate, grounded responses.
+
+### Tool Use
+Discover how to give Claude access to external tools and APIs.
+
+### Prompt Engineering
+Best practices for crafting effective prompts.
+
+## Getting Started
+
+\`\`\`python
+from anthropic import Anthropic
+
+client = Anthropic()
+message = client.messages.create(
+    model="claude-3-opus-20240229",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello, Claude"}]
+)
+\`\`\``,
   },
   {
     id: '5',
@@ -134,6 +217,37 @@ export const mockRepos: StarredRepo[] = [
     notes: null,
     tags: [mockTags[2], mockTags[5]],
     collections: ['2'],
+    readme: `# shadcn/ui
+
+Beautifully designed components that you can copy and paste into your apps.
+
+## Installation
+
+\`\`\`bash
+npx shadcn@latest init
+\`\`\`
+
+## Usage
+
+\`\`\`bash
+npx shadcn@latest add button
+\`\`\`
+
+Then import and use:
+
+\`\`\`tsx
+import { Button } from "@/components/ui/button"
+
+export default function Home() {
+  return <Button>Click me</Button>
+}
+\`\`\`
+
+## Philosophy
+
+- **Copy and paste** - You own the code. Customize everything.
+- **Accessible** - Built with Radix UI primitives.
+- **Themeable** - Use CSS variables for theming.`,
   },
   {
     id: '6',
@@ -157,6 +271,7 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Using for auth and database in multiple projects.',
     tags: [mockTags[4]],
     collections: ['4'],
+    readme: null,
   },
   {
     id: '7',
@@ -180,6 +295,7 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Replaced pip and poetry with uv. So much faster!',
     tags: [mockTags[6], mockTags[7], mockTags[3]],
     collections: ['3'],
+    readme: null,
   },
   {
     id: '8',
@@ -203,6 +319,7 @@ export const mockRepos: StarredRepo[] = [
     notes: null,
     tags: [mockTags[3], mockTags[6]],
     collections: ['3'],
+    readme: null,
   },
   {
     id: '9',
@@ -226,6 +343,7 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Tried for RAG project but switched to simpler approach with direct API calls.',
     tags: [mockTags[0], mockTags[1], mockTags[7]],
     collections: ['1'],
+    readme: null,
   },
   {
     id: '10',
@@ -249,6 +367,7 @@ export const mockRepos: StarredRepo[] = [
     notes: null,
     tags: [mockTags[2], mockTags[5]],
     collections: ['2'],
+    readme: null,
   },
   {
     id: '11',
@@ -272,6 +391,7 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Running local models for development and testing.',
     tags: [mockTags[0], mockTags[1]],
     collections: ['1'],
+    readme: null,
   },
   {
     id: '12',
@@ -295,5 +415,6 @@ export const mockRepos: StarredRepo[] = [
     notes: 'Want to try as Prisma alternative for better edge compatibility.',
     tags: [mockTags[4], mockTags[5]],
     collections: ['4'],
+    readme: null,
   },
 ]
