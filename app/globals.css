@@ -132,4 +132,15 @@ html {
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Text selection styling */
+  ::selection {
+    background-color: oklch(0.55 0.18 145 / 0.3);
+    color: inherit;
+  }
+  
+  .dark ::selection {
+    background-color: oklch(0.7 0.15 145 / 0.3);
+    color: inherit;
+  }
 }
