@@ -84,12 +84,12 @@ export function RepoDetailPanel({
 
   return (
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg p-0 border-l border-border">
+      <SheetContent className="w-full sm:max-w-lg p-0 border-l border-border overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-6">
             <SheetHeader className="space-y-0 pb-0">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 pr-8">
                   <Avatar className="h-10 w-10 shrink-0">
                     <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
                     <AvatarFallback>
@@ -97,7 +97,7 @@ export function RepoDetailPanel({
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground">{repo.owner}</p>
+                    <p className="text-sm text-muted-foreground truncate">{repo.owner}</p>
                     <SheetTitle className="font-mono text-lg truncate">
                       {repo.name}
                     </SheetTitle>
@@ -106,14 +106,6 @@ export function RepoDetailPanel({
                     </SheetDescription>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 h-8 w-8"
-                  onClick={onClose}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
             </SheetHeader>
 
@@ -233,8 +225,8 @@ export function RepoDetailPanel({
             {/* Clone URL */}
             <div className="mt-6">
               <p className="text-sm font-medium mb-2">Clone</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono truncate">
+              <div className="flex items-center gap-2 min-w-0">
+                <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono truncate min-w-0 block">
                   git clone https://github.com/{repo.fullName}.git
                 </code>
                 <Button

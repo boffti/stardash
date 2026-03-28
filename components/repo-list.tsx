@@ -49,13 +49,13 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border">
-            <TableHead className="w-[300px]">Repository</TableHead>
-            <TableHead className="w-[120px]">Language</TableHead>
-            <TableHead className="w-[100px] text-right">Stars</TableHead>
-            <TableHead className="w-[120px]">Last Updated</TableHead>
-            <TableHead className="w-[120px]">Date Starred</TableHead>
-            <TableHead className="w-[140px]">Status</TableHead>
-            <TableHead>Tags</TableHead>
+            <TableHead className="w-[35%]">Repository</TableHead>
+            <TableHead className="w-[12%]">Language</TableHead>
+            <TableHead className="w-[8%] text-right">Stars</TableHead>
+            <TableHead className="w-[15%]">Last Updated</TableHead>
+            <TableHead className="w-[12%]">Date Starred</TableHead>
+            <TableHead className="w-[10%]">Status</TableHead>
+            <TableHead className="w-[8%]">Tags</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -67,7 +67,7 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
                 className="cursor-pointer border-border hover:bg-muted/50"
                 onClick={() => onRepoClick(repo)}
               >
-                <TableCell>
+                <TableCell className="py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-6 w-6 shrink-0">
                       <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
@@ -87,7 +87,7 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   {repo.language && (
                     <div className="flex items-center gap-1.5">
                       <span
@@ -98,19 +98,19 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
                     </div>
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-3 text-right">
                   <div className="flex items-center justify-end gap-1 text-sm">
                     <Star className="h-3 w-3 text-muted-foreground" />
                     <span>{formatNumber(repo.stargazersCount)}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="py-3 text-sm text-muted-foreground">
                   {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="py-3 text-sm text-muted-foreground">
                   {format(new Date(repo.starredAt), "MMM d, yyyy")}
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   {statusConfig && (
                     <Badge
                       variant="outline"
@@ -120,7 +120,7 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   <div className="flex flex-wrap gap-1">
                     {repo.tags.slice(0, 2).map((tag) => (
                       <Badge

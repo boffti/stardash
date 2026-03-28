@@ -80,7 +80,7 @@ export function DashboardHeader({
         </Select>
 
         <Select value={sortBy} onValueChange={onSortChange}>
-          <SelectTrigger className="w-44 bg-secondary border-0">
+          <SelectTrigger className="w-52 bg-secondary border-0">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -101,10 +101,10 @@ export function DashboardHeader({
           onValueChange={(value) => value && onViewModeChange(value as "grid" | "list")}
           className="bg-secondary rounded-md p-0.5"
         >
-          <ToggleGroupItem value="grid" aria-label="Grid view" className="h-7 w-7 p-0 data-[state=on]:bg-background">
+          <ToggleGroupItem value="grid" aria-label="Grid view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
             <LayoutGrid className="h-4 w-4" />
           </ToggleGroupItem>
-          <ToggleGroupItem value="list" aria-label="List view" className="h-7 w-7 p-0 data-[state=on]:bg-background">
+          <ToggleGroupItem value="list" aria-label="List view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
             <List className="h-4 w-4" />
           </ToggleGroupItem>
         </ToggleGroup>
