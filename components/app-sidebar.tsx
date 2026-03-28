@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   Plus,
   ChevronDown,
-  Settings,
 } from "lucide-react"
 import {
   Sidebar,
@@ -22,7 +21,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
   SidebarMenuBadge,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
@@ -192,17 +190,6 @@ export function AppSidebar({
           </Collapsible>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border p-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   )
 }
