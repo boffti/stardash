@@ -15,6 +15,7 @@ import {
 import { StarredRepo, STATUS_LABELS } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react"
 
 interface RepoCardProps {
   repo: StarredRepo
@@ -30,6 +31,11 @@ function formatNumber(num: number): string {
 
 export function RepoCard({ repo, onClick }: RepoCardProps) {
   const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
+  const [timeString, setTimeString] = useState("recently")
+
+  useEffect(() => {
+    setTimeString(formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true }))
+  }, [repo.pushedAt])
 
   return (
     <Card
@@ -40,7 +46,7 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4 h-full flex flex-col">
+      <CardContent className="p-3 h-full flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -161,7 +167,7 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
           {/* Last Updated */}
           <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground/60">
             <Clock className="h-3 w-3" />
-            <span>Updated {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
+            <span>Updated {timeString}</span>
           </div>
         </div>
       </CardContent>
