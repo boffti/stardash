@@ -1,6 +1,7 @@
 "use client"
 
-import { ExternalLink, Github, FileText } from "lucide-react"
+import { ExternalLink, Github, FileText, Loader2 } from "lucide-react"
+import useSWR from "swr"
 import {
   Sheet,
   SheetContent,
@@ -22,8 +23,21 @@ interface ReadmeViewerProps {
   onClose: () => void
 }
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
 export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
+  // Fetch README when the viewer is open and we have a repo
+  const { data, isLoading } = useSWR<{ readme: string | null }>(
+    open && repo ? `/api/github/readme?owner=${repo.owner}&repo=${repo.name}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  )
+
   if (!repo) return null
+
+  const readme = data?.readme
 
   return (
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
@@ -68,10 +82,15 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
           {/* Content */}
           <ScrollArea className="flex-1">
             <div className="p-6">
-              {repo.readme ? (
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading README...</p>
+                </div>
+              ) : readme ? (
                 <article className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3 prose-h2:text-xl prose-h2:mt-8 prose-h3:text-lg prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-li:text-muted-foreground prose-strong:text-foreground prose-ul:my-2 prose-li:my-0.5">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {repo.readme}
+                    {readme}
                   </ReactMarkdown>
                 </article>
               ) : (
@@ -81,7 +100,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                   </EmptyMedia>
                   <EmptyTitle>No README available</EmptyTitle>
                   <EmptyDescription>
-                    This repository doesn&apos;t have a README file cached yet.
+                    This repository doesn&apos;t have a README file.
                   </EmptyDescription>
                   <Button variant="outline" size="sm" className="mt-4 gap-1.5" asChild>
                     <a

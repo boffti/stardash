@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import useSWR from "swr"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { DashboardHeader } from "./dashboard-header"
@@ -8,16 +9,19 @@ import { RepoGrid } from "./repo-grid"
 import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
-import { mockRepos, mockCollections, mockTags } from "@/lib/mock-data"
+import { mockCollections, mockTags } from "@/lib/mock-data"
 import { StarredRepo } from "@/lib/types"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatDistanceToNow } from "date-fns"
 
 interface DashboardProps {
   user: User | null
 }
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -30,30 +34,45 @@ export function Dashboard({ user }: DashboardProps) {
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
 
+  // Fetch starred repos from GitHub API
+  const { data, error, isLoading, mutate } = useSWR<{
+    repos: StarredRepo[]
+    lastSynced: string
+    error?: string
+  }>("/api/github/starred", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
+
+  const repos = data?.repos || []
+  const lastSynced = data?.lastSynced
+    ? formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
+    : null
+
   // Get unique languages for filter
   const languages = useMemo(() => {
     const langs = new Set<string>()
-    mockRepos.forEach((repo) => {
+    repos.forEach((repo) => {
       if (repo.language) langs.add(repo.language)
     })
     return Array.from(langs).sort()
-  }, [])
+  }, [repos])
 
   // Count uncategorized repos
   const uncategorizedCount = useMemo(() => {
-    return mockRepos.filter(
+    return repos.filter(
       (repo) => repo.tags.length === 0 && repo.collections.length === 0
     ).length
-  }, [])
+  }, [repos])
 
   // Filter and sort repos
   const filteredRepos = useMemo(() => {
-    let repos = [...mockRepos]
+    let filtered = [...repos]
 
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      repos = repos.filter(
+      filtered = filtered.filter(
         (repo) =>
           repo.name.toLowerCase().includes(query) ||
           repo.owner.toLowerCase().includes(query) ||
@@ -65,23 +84,23 @@ export function Dashboard({ user }: DashboardProps) {
 
     // Language filter
     if (languageFilter) {
-      repos = repos.filter((repo) => repo.language === languageFilter)
+      filtered = filtered.filter((repo) => repo.language === languageFilter)
     }
 
     // Collection filter
     if (selectedCollection) {
-      repos = repos.filter((repo) => repo.collections.includes(selectedCollection))
+      filtered = filtered.filter((repo) => repo.collections.includes(selectedCollection))
     }
 
     // Tag filter
     if (selectedTag) {
-      repos = repos.filter((repo) =>
+      filtered = filtered.filter((repo) =>
         repo.tags.some((tag) => tag.id === selectedTag)
       )
     }
 
     // Sorting
-    repos.sort((a, b) => {
+    filtered.sort((a, b) => {
       switch (sortBy) {
         case "starred-desc":
           return new Date(b.starredAt).getTime() - new Date(a.starredAt).getTime()
@@ -101,14 +120,14 @@ export function Dashboard({ user }: DashboardProps) {
     })
 
     // Pinned repos first
-    repos.sort((a, b) => {
+    filtered.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1
       if (!a.isPinned && b.isPinned) return 1
       return 0
     })
 
-    return repos
-  }, [searchQuery, sortBy, languageFilter, selectedCollection, selectedTag])
+    return filtered
+  }, [repos, searchQuery, sortBy, languageFilter, selectedCollection, selectedTag])
 
   const handleRepoClick = (repo: StarredRepo) => {
     setSelectedRepo(repo)
@@ -136,6 +155,10 @@ export function Dashboard({ user }: DashboardProps) {
     setSelectedTag(null)
   }
 
+  const handleRefresh = () => {
+    mutate()
+  }
+
   const hasActiveFilters = searchQuery || languageFilter || selectedCollection || selectedTag
 
   const getActiveFilterLabel = () => {
@@ -159,7 +182,7 @@ export function Dashboard({ user }: DashboardProps) {
         selectedTag={selectedTag}
         onSelectCollection={setSelectedCollection}
         onSelectTag={setSelectedTag}
-        totalStars={mockRepos.length}
+        totalStars={repos.length}
         uncategorizedCount={uncategorizedCount}
       />
       <SidebarInset>
@@ -173,67 +196,117 @@ export function Dashboard({ user }: DashboardProps) {
           languageFilter={languageFilter}
           onLanguageFilterChange={setLanguageFilter}
           languages={languages}
-          lastSynced="2 hours ago"
+          lastSynced={lastSynced || "Never"}
           user={user}
+          onRefresh={handleRefresh}
+          isRefreshing={isLoading}
         />
         <main className="flex-1 p-6">
-          {/* Active Filters */}
-          {hasActiveFilters && (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Filters:</span>
-              {searchQuery && (
-                <Badge variant="secondary" className="gap-1">
-                  Search: {searchQuery}
-                  <X
-                    className="h-3 w-3 cursor-pointer"
-                    onClick={() => setSearchQuery("")}
-                  />
-                </Badge>
-              )}
-              {languageFilter && (
-                <Badge variant="secondary" className="gap-1">
-                  {languageFilter}
-                  <X
-                    className="h-3 w-3 cursor-pointer"
-                    onClick={() => setLanguageFilter(null)}
-                  />
-                </Badge>
-              )}
-              {(selectedCollection || selectedTag) && (
-                <Badge variant="secondary" className="gap-1">
-                  {getActiveFilterLabel()}
-                  <X
-                    className="h-3 w-3 cursor-pointer"
-                    onClick={() => {
-                      setSelectedCollection(null)
-                      setSelectedTag(null)
-                    }}
-                  />
-                </Badge>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={clearAllFilters}
-              >
-                Clear All
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground">Loading your starred repositories...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+              <p className="text-destructive">Failed to load starred repositories</p>
+              <Button variant="outline" onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
               </Button>
             </div>
           )}
 
-          {/* Results count */}
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {filteredRepos.length} {filteredRepos.length === 1 ? "repository" : "repositories"}
-            </p>
-          </div>
+          {/* API Error (e.g., token issues) */}
+          {data?.error && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+              <p className="text-destructive">{data.error}</p>
+              <p className="text-sm text-muted-foreground">
+                Your GitHub token may have expired. Please sign out and sign in again.
+              </p>
+            </div>
+          )}
 
-          {/* View */}
-          {viewMode === "grid" ? (
-            <RepoGrid repos={filteredRepos} onRepoClick={handleRepoClick} />
-          ) : (
-            <RepoList repos={filteredRepos} onRepoClick={handleRepoClick} />
+          {/* Content */}
+          {!isLoading && !error && !data?.error && (
+            <>
+              {/* Active Filters */}
+              {hasActiveFilters && (
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Filters:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="gap-1">
+                      Search: {searchQuery}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setSearchQuery("")}
+                      />
+                    </Badge>
+                  )}
+                  {languageFilter && (
+                    <Badge variant="secondary" className="gap-1">
+                      {languageFilter}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setLanguageFilter(null)}
+                      />
+                    </Badge>
+                  )}
+                  {(selectedCollection || selectedTag) && (
+                    <Badge variant="secondary" className="gap-1">
+                      {getActiveFilterLabel()}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => {
+                          setSelectedCollection(null)
+                          setSelectedTag(null)
+                        }}
+                      />
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={clearAllFilters}
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              )}
+
+              {/* Results count */}
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {filteredRepos.length} {filteredRepos.length === 1 ? "repository" : "repositories"}
+                </p>
+              </div>
+
+              {/* Empty State */}
+              {repos.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <p className="text-muted-foreground">No starred repositories found</p>
+                  <p className="text-sm text-muted-foreground">
+                    Star some repositories on GitHub and they will appear here!
+                  </p>
+                </div>
+              )}
+
+              {/* View */}
+              {repos.length > 0 && (
+                viewMode === "grid" ? (
+                  <RepoGrid repos={filteredRepos} onRepoClick={handleRepoClick} />
+                ) : (
+                  <RepoList repos={filteredRepos} onRepoClick={handleRepoClick} />
+                )
+              )}
+            </>
           )}
         </main>
       </SidebarInset>
