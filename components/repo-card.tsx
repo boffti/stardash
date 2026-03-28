@@ -1,0 +1,164 @@
+"use client"
+
+import { Star, GitFork, Clock, Pin, StickyNote, FolderPlus, MoreHorizontal } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { StarredRepo, STATUS_LABELS } from "@/lib/types"
+import { formatDistanceToNow } from "date-fns"
+import { cn } from "@/lib/utils"
+
+interface RepoCardProps {
+  repo: StarredRepo
+  onClick: () => void
+}
+
+function formatNumber(num: number): string {
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k"
+  }
+  return num.toString()
+}
+
+export function RepoCard({ repo, onClick }: RepoCardProps) {
+  const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
+
+  return (
+    <Card
+      className={cn(
+        "group relative cursor-pointer transition-all duration-200",
+        "hover:border-muted-foreground/30 hover:bg-card/80",
+        "border-border bg-card"
+      )}
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar className="h-6 w-6 shrink-0">
+              <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
+              <AvatarFallback className="text-xs">
+                {repo.owner[0].toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{repo.owner}</p>
+              <h3 className="font-mono font-medium text-sm truncate">{repo.name}</h3>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1 shrink-0">
+            {repo.isPinned && (
+              <Pin className="h-3 w-3 text-accent fill-accent" />
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem>
+                  <StickyNote className="mr-2 h-4 w-4" />
+                  Add Note
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  Add to Collection
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Pin className="mr-2 h-4 w-4" />
+                  {repo.isPinned ? "Unpin" : "Pin"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive">
+                  Remove Star
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="mt-3 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+          {repo.description || "No description available"}
+        </p>
+
+        {/* Tags */}
+        {repo.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {repo.tags.slice(0, 3).map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className="text-xs px-1.5 py-0 h-5 border-0"
+                style={{
+                  backgroundColor: `${tag.color}20`,
+                  color: tag.color,
+                }}
+              >
+                {tag.label}
+              </Badge>
+            ))}
+            {repo.tags.length > 3 && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+                +{repo.tags.length - 3}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {repo.language && (
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: repo.languageColor || "#64748b" }}
+                />
+                <span>{repo.language}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Star className="h-3 w-3" />
+              <span>{formatNumber(repo.stargazersCount)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <GitFork className="h-3 w-3" />
+              <span>{formatNumber(repo.forksCount)}</span>
+            </div>
+          </div>
+
+          {statusConfig && (
+            <Badge
+              variant="outline"
+              className={cn("text-xs px-1.5 py-0 h-5", statusConfig.color)}
+            >
+              {statusConfig.label}
+            </Badge>
+          )}
+        </div>
+
+        {/* Last Updated */}
+        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground/60">
+          <Clock className="h-3 w-3" />
+          <span>Updated {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
