@@ -35,6 +35,7 @@ function LoginContent() {
         provider: 'github',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'read:user user:email',
         },
       })
 
