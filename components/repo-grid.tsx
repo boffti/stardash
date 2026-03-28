@@ -2,7 +2,7 @@
 
 import { RepoCard } from "./repo-card"
 import { StarredRepo } from "@/lib/types"
-import { Empty, EmptyIcon, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Inbox } from "lucide-react"
 
 interface RepoGridProps {
@@ -14,9 +14,9 @@ export function RepoGrid({ repos, onRepoClick }: RepoGridProps) {
   if (repos.length === 0) {
     return (
       <Empty className="py-16">
-        <EmptyIcon>
+        <EmptyMedia variant="icon">
           <Inbox className="h-10 w-10" />
-        </EmptyIcon>
+        </EmptyMedia>
         <EmptyTitle>No repositories found</EmptyTitle>
         <EmptyDescription>
           Try adjusting your search or filters to find what you&apos;re looking for.

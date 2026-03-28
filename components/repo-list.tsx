@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { StarredRepo, STATUS_LABELS } from "@/lib/types"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { Empty, EmptyIcon, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Inbox } from "lucide-react"
 
 interface RepoListProps {
@@ -33,9 +33,9 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
   if (repos.length === 0) {
     return (
       <Empty className="py-16">
-        <EmptyIcon>
+        <EmptyMedia variant="icon">
           <Inbox className="h-10 w-10" />
-        </EmptyIcon>
+        </EmptyMedia>
         <EmptyTitle>No repositories found</EmptyTitle>
         <EmptyDescription>
           Try adjusting your search or filters to find what you&apos;re looking for.
