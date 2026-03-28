@@ -63,7 +63,7 @@ export function AppSidebar({
             <Star className="h-4 w-4 text-accent-foreground" />
           </div>
           <div>
-            <h1 className="font-semibold text-foreground">StarHub</h1>
+            <h1 className="font-semibold text-foreground">StarDash</h1>
             <p className="text-xs text-muted-foreground">Your GitHub stars</p>
           </div>
         </div>
