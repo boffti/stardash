@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   Plus,
   ChevronDown,
-  Settings,
 } from "lucide-react"
 import {
   Sidebar,
@@ -22,7 +21,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
   SidebarMenuBadge,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
@@ -65,7 +63,7 @@ export function AppSidebar({
             <Star className="h-4 w-4 text-accent-foreground" />
           </div>
           <div>
-            <h1 className="font-semibold text-foreground">StarHub</h1>
+            <h1 className="font-semibold text-foreground">StarDash</h1>
             <p className="text-xs text-muted-foreground">Your GitHub stars</p>
           </div>
         </div>
@@ -192,17 +190,6 @@ export function AppSidebar({
           </Collapsible>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border p-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   )
 }

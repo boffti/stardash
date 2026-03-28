@@ -129,7 +129,7 @@ export function RepoDetailPanel({
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="gap-1.5"
+                className="gap-1.5 focus-visible:ring-0 focus-visible:ring-offset-0"
                 onClick={onViewReadme}
               >
                 <BookOpen className="h-3.5 w-3.5" />

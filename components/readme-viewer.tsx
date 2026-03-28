@@ -1,6 +1,6 @@
 "use client"
 
-import { X, ExternalLink, Github, FileText } from "lucide-react"
+import { ExternalLink, Github, FileText } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -51,8 +51,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                   </SheetDescription>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
                   <a
                     href={`https://github.com/${repo.fullName}#readme`}
                     target="_blank"
@@ -63,15 +62,6 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onClose}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </SheetHeader>
 
@@ -79,7 +69,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
           <ScrollArea className="flex-1">
             <div className="p-6">
               {repo.readme ? (
-                <article className="prose prose-invert prose-sm max-w-none prose-headings:font-semibold prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3 prose-h2:text-xl prose-h2:mt-8 prose-h3:text-lg prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-li:text-muted-foreground prose-strong:text-foreground prose-ul:my-2 prose-li:my-0.5">
+                <article className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3 prose-h2:text-xl prose-h2:mt-8 prose-h3:text-lg prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-li:text-muted-foreground prose-strong:text-foreground prose-ul:my-2 prose-li:my-0.5">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {repo.readme}
                   </ReactMarkdown>
