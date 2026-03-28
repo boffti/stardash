@@ -10,11 +10,16 @@ import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { mockRepos, mockCollections, mockTags } from "@/lib/mock-data"
 import { StarredRepo } from "@/lib/types"
+import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function Dashboard() {
+interface DashboardProps {
+  user: User | null
+}
+
+export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
@@ -169,6 +174,7 @@ export function Dashboard() {
           onLanguageFilterChange={setLanguageFilter}
           languages={languages}
           lastSynced="2 hours ago"
+          user={user}
         />
         <main className="flex-1 p-6">
           {/* Active Filters */}

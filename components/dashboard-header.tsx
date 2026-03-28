@@ -1,9 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Search, LayoutGrid, List, RefreshCw, User, Github, Settings, Moon, Sun, Monitor } from "lucide-react"
-import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
+import { Search, LayoutGrid, List, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -12,21 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { UserMenu } from "@/components/user-menu"
+import type { User } from "@supabase/supabase-js"
 
 interface DashboardHeaderProps {
   searchQuery: string
@@ -39,6 +25,7 @@ interface DashboardHeaderProps {
   onLanguageFilterChange: (language: string | null) => void
   languages: string[]
   lastSynced: string
+  user: User | null
 }
 
 export function DashboardHeader({
@@ -52,13 +39,8 @@ export function DashboardHeader({
   onLanguageFilterChange,
   languages,
   lastSynced,
+  user,
 }: DashboardHeaderProps) {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -127,68 +109,7 @@ export function DashboardHeader({
           <span>Synced {lastSynced}</span>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="https://avatars.githubusercontent.com/u/1234567" alt="User" />
-                <AvatarFallback>
-                  <User className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-medium">developer</p>
-              <p className="text-xs text-muted-foreground">@developer</p>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Github className="mr-2 h-4 w-4" />
-              View GitHub
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Sync Stars
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="ml-6">Theme</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  <DropdownMenuItem onSelect={() => setTheme("light")}>
-                    <Sun className="mr-2 h-4 w-4" />
-                    Light
-                    {mounted && theme === "light" && <span className="ml-auto text-accent">&#10003;</span>}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setTheme("dark")}>
-                    <Moon className="mr-2 h-4 w-4" />
-                    Dark
-                    {mounted && theme === "dark" && <span className="ml-auto text-accent">&#10003;</span>}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setTheme("system")}>
-                    <Monitor className="mr-2 h-4 w-4" />
-                    System
-                    {mounted && theme === "system" && <span className="ml-auto text-accent">&#10003;</span>}
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <UserMenu user={user} />
       </div>
     </header>
   )
