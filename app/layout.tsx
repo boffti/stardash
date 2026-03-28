@@ -8,7 +8,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'StarHub - Your GitHub Stars, Organized',
+  title: 'StarDash - Your GitHub Stars, Organized',
   description: 'A personal developer dashboard that transforms your GitHub starred repositories into an organized, searchable, and AI-enhanced workspace.',
   generator: 'v0.app',
   icons: {
@@ -49,7 +49,7 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="dark"
           enableSystem
-          storageKey="starhub-theme"
+          storageKey="stardash-theme"
         >
           {children}
         </ThemeProvider>
