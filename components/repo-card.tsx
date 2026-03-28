@@ -40,13 +40,13 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
   return (
     <Card
       className={cn(
-        "group relative cursor-pointer transition-all duration-200 h-full",
+        "group relative cursor-pointer transition-all duration-200 h-full py-0",
         "hover:border-muted-foreground/30 hover:bg-card/80",
         "border-border bg-card"
       )}
       onClick={onClick}
     >
-      <CardContent className="px-3 py-2 h-full flex flex-col">
+      <CardContent className="p-4 h-full flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
