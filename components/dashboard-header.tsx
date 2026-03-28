@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Search, LayoutGrid, List, RefreshCw, User, Github, Settings, Moon, Sun, Monitor } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -52,9 +53,12 @@ export function DashboardHeader({
   languages,
   lastSynced,
 }: DashboardHeaderProps) {
-  const { theme, setTheme, resolvedTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
-  console.log("[v0] Current theme:", theme, "Resolved theme:", resolvedTheme)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -161,20 +165,20 @@ export function DashboardHeader({
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem onSelect={() => { console.log("[v0] Setting theme to light"); setTheme("light"); }}>
+                  <DropdownMenuItem onSelect={() => setTheme("light")}>
                     <Sun className="mr-2 h-4 w-4" />
                     Light
-                    {theme === "light" && <span className="ml-auto text-accent">&#10003;</span>}
+                    {mounted && theme === "light" && <span className="ml-auto text-accent">&#10003;</span>}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => { console.log("[v0] Setting theme to dark"); setTheme("dark"); }}>
+                  <DropdownMenuItem onSelect={() => setTheme("dark")}>
                     <Moon className="mr-2 h-4 w-4" />
                     Dark
-                    {theme === "dark" && <span className="ml-auto text-accent">&#10003;</span>}
+                    {mounted && theme === "dark" && <span className="ml-auto text-accent">&#10003;</span>}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => { console.log("[v0] Setting theme to system"); setTheme("system"); }}>
+                  <DropdownMenuItem onSelect={() => setTheme("system")}>
                     <Monitor className="mr-2 h-4 w-4" />
                     System
-                    {theme === "system" && <span className="ml-auto text-accent">&#10003;</span>}
+                    {mounted && theme === "system" && <span className="ml-auto text-accent">&#10003;</span>}
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
