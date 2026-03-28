@@ -49,7 +49,7 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="dark"
           enableSystem
-          disableTransitionOnChange={false}
+          storageKey="starhub-theme"
         >
           {children}
         </ThemeProvider>

@@ -52,7 +52,9 @@ export function DashboardHeader({
   languages,
   lastSynced,
 }: DashboardHeaderProps) {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+
+  console.log("[v0] Current theme:", theme, "Resolved theme:", resolvedTheme)
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -159,17 +161,17 @@ export function DashboardHeader({
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem onClick={() => setTheme("light")}>
+                  <DropdownMenuItem onSelect={() => { console.log("[v0] Setting theme to light"); setTheme("light"); }}>
                     <Sun className="mr-2 h-4 w-4" />
                     Light
                     {theme === "light" && <span className="ml-auto text-accent">&#10003;</span>}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme("dark")}>
+                  <DropdownMenuItem onSelect={() => { console.log("[v0] Setting theme to dark"); setTheme("dark"); }}>
                     <Moon className="mr-2 h-4 w-4" />
                     Dark
                     {theme === "dark" && <span className="ml-auto text-accent">&#10003;</span>}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme("system")}>
+                  <DropdownMenuItem onSelect={() => { console.log("[v0] Setting theme to system"); setTheme("system"); }}>
                     <Monitor className="mr-2 h-4 w-4" />
                     System
                     {theme === "system" && <span className="ml-auto text-accent">&#10003;</span>}
