@@ -46,7 +46,7 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-3 h-full flex flex-col">
+      <CardContent className="px-3 py-2 h-full flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
