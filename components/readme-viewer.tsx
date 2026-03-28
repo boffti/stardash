@@ -1,6 +1,6 @@
 "use client"
 
-import { X, ExternalLink, Github, FileText } from "lucide-react"
+import { ExternalLink, Github, FileText } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -51,8 +51,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                   </SheetDescription>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
                   <a
                     href={`https://github.com/${repo.fullName}#readme`}
                     target="_blank"
@@ -63,15 +62,6 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onClose}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </SheetHeader>
 
