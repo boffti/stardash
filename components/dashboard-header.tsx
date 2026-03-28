@@ -26,6 +26,8 @@ interface DashboardHeaderProps {
   languages: string[]
   lastSynced: string
   user: User | null
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
 export function DashboardHeader({
@@ -40,6 +42,8 @@ export function DashboardHeader({
   languages,
   lastSynced,
   user,
+  onRefresh,
+  isRefreshing,
 }: DashboardHeaderProps) {
 
   return (
@@ -104,10 +108,14 @@ export function DashboardHeader({
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <RefreshCw className="h-3 w-3" />
+        <button
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
           <span>Synced {lastSynced}</span>
-        </div>
+        </button>
 
         <UserMenu user={user} />
       </div>
