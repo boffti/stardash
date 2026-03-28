@@ -34,13 +34,13 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
   return (
     <Card
       className={cn(
-        "group relative cursor-pointer transition-all duration-200",
+        "group relative cursor-pointer transition-all duration-200 h-full",
         "hover:border-muted-foreground/30 hover:bg-card/80",
         "border-border bg-card"
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4">
+      <CardContent className="p-4 h-full flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -92,71 +92,77 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
           </div>
         </div>
 
-        {/* Description */}
-        <p className="mt-3 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-          {repo.description || "No description available"}
-        </p>
-
-        {/* Tags */}
-        {repo.tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1">
-            {repo.tags.slice(0, 3).map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="outline"
-                className="text-xs px-1.5 py-0 h-5 border-0"
-                style={{
-                  backgroundColor: `${tag.color}20`,
-                  color: tag.color,
-                }}
-              >
-                {tag.label}
-              </Badge>
-            ))}
-            {repo.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
-                +{repo.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {repo.language && (
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: repo.languageColor || "#64748b" }}
-                />
-                <span>{repo.language}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              <Star className="h-3 w-3" />
-              <span>{formatNumber(repo.stargazersCount)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <GitFork className="h-3 w-3" />
-              <span>{formatNumber(repo.forksCount)}</span>
-            </div>
-          </div>
-
-          {statusConfig && (
-            <Badge
-              variant="outline"
-              className={cn("text-xs px-1.5 py-0 h-5", statusConfig.color)}
-            >
-              {statusConfig.label}
-            </Badge>
-          )}
+        {/* Description - fixed height area */}
+        <div className="mt-3 flex-1 min-h-[2.75rem]">
+          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+            {repo.description || "No description available"}
+          </p>
         </div>
 
-        {/* Last Updated */}
-        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground/60">
-          <Clock className="h-3 w-3" />
-          <span>Updated {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
+        {/* Tags - fixed height area */}
+        <div className="mt-3 h-5">
+          {repo.tags.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {repo.tags.slice(0, 3).map((tag) => (
+                <Badge
+                  key={tag.id}
+                  variant="outline"
+                  className="text-xs px-1.5 py-0 h-5 border-0"
+                  style={{
+                    backgroundColor: `${tag.color}20`,
+                    color: tag.color,
+                  }}
+                >
+                  {tag.label}
+                </Badge>
+              ))}
+              {repo.tags.length > 3 && (
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+                  +{repo.tags.length - 3}
+                </Badge>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Footer - always at bottom */}
+        <div className="mt-4 pt-3 border-t border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {repo.language && (
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: repo.languageColor || "#64748b" }}
+                  />
+                  <span>{repo.language}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1">
+                <Star className="h-3 w-3" />
+                <span>{formatNumber(repo.stargazersCount)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <GitFork className="h-3 w-3" />
+                <span>{formatNumber(repo.forksCount)}</span>
+              </div>
+            </div>
+
+            {statusConfig && (
+              <Badge
+                variant="outline"
+                className={cn("text-xs px-1.5 py-0 h-5", statusConfig.color)}
+              >
+                {statusConfig.label}
+              </Badge>
+            )}
+          </div>
+
+          {/* Last Updated */}
+          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground/60">
+            <Clock className="h-3 w-3" />
+            <span>Updated {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
