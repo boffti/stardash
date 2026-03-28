@@ -56,13 +56,13 @@ export async function getUserProfile() {
 export async function signOut() {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  redirect('/login')
+  redirect('/auth/login')
 }
 
 export async function requireAuth() {
   const user = await getUser()
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
   return user
 }
