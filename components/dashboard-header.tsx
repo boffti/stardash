@@ -80,7 +80,7 @@ export function DashboardHeader({
         </Select>
 
         <Select value={sortBy} onValueChange={onSortChange}>
-          <SelectTrigger className="w-44 bg-secondary border-0">
+          <SelectTrigger className="w-52 bg-secondary border-0">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
