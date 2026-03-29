@@ -40,9 +40,9 @@ export function DashboardHeader({
   lastSynced,
   user,
   onRefresh,
-  isRefreshing,
+  isRefreshing = false,
   onCategorize,
-  isCategorizing,
+  isCategorizing = false,
 }: DashboardHeaderProps) {
 
   return (
@@ -93,21 +93,23 @@ export function DashboardHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        {onCategorize && (
-          <button
-            onClick={onCategorize}
-            disabled={isCategorizing}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-            title="Auto-categorize with AI"
-          >
-            <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? 'animate-pulse text-violet-400' : ''}`} />
-            {isCategorizing && <span className="text-violet-400">Analyzing…</span>}
-          </button>
-        )}
+        <button
+          key="categorize-btn"
+          type="button"
+          onClick={onCategorize}
+          disabled={Boolean(isCategorizing)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          title="Auto-categorize with AI"
+        >
+          <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? 'animate-pulse text-violet-400' : ''}`} />
+          {isCategorizing && <span className="text-violet-400">Analyzing…</span>}
+        </button>
 
         <button
+          key="refresh-btn"
+          type="button"
           onClick={onRefresh}
-          disabled={isRefreshing}
+          disabled={Boolean(isRefreshing)}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           title={isRefreshing ? "Syncing…" : (lastSynced ?? "Sync")}
         >
