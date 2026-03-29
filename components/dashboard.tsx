@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import useSWR from "swr"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
@@ -13,15 +13,34 @@ import { mockCollections, mockTags } from "@/lib/mock-data"
 import { StarredRepo } from "@/lib/types"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+} from "@/components/ui/pagination"
 import { formatDistanceToNow } from "date-fns"
+import { getCachedRepos, setCachedRepos, clearCachedRepos } from "@/lib/repo-cache"
 
 interface DashboardProps {
   user: User | null
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+function makefetcher(userId: string | undefined) {
+  return async (url: string) => {
+    if (userId) {
+      const cached = getCachedRepos(userId)
+      if (cached) return { repos: cached.repos, lastSynced: cached.cachedAt, fromCache: true }
+    }
+    const data = await fetch(url).then((res) => res.json())
+    if (userId && data.repos) setCachedRepos(userId, data.repos)
+    return data
+  }
+}
 
 export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -33,20 +52,23 @@ export function Dashboard({ user }: DashboardProps) {
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
+  const [pageSize, setPageSize] = useState<number | "all">(25)
+  const [currentPage, setCurrentPage] = useState(1)
 
-  // Fetch starred repos from GitHub API
+  // Fetch starred repos — checks localStorage cache before hitting GitHub API
   const { data, error, isLoading, mutate } = useSWR<{
     repos: StarredRepo[]
     lastSynced: string
+    fromCache?: boolean
     error?: string
-  }>("/api/github/starred", fetcher, {
+  }>("/api/github/starred", makefetcher(user?.id), {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   })
 
   const repos = data?.repos || []
   const lastSynced = data?.lastSynced
-    ? formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
+    ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
   // Get unique languages for filter
@@ -129,6 +151,29 @@ export function Dashboard({ user }: DashboardProps) {
     return filtered
   }, [repos, searchQuery, sortBy, languageFilter, selectedCollection, selectedTag])
 
+  // Reset to page 1 when filters/sort change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, sortBy, languageFilter, selectedCollection, selectedTag])
+
+  // Reset to page 1 when page size changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [pageSize])
+
+  // Pagination calculations
+  const totalPages = pageSize === "all" ? 1 : Math.ceil(filteredRepos.length / (pageSize as number))
+  const startIndex = pageSize === "all" ? 0 : (currentPage - 1) * (pageSize as number)
+  const endIndex = pageSize === "all" ? filteredRepos.length : Math.min(startIndex + (pageSize as number), filteredRepos.length)
+  const paginatedRepos = pageSize === "all" ? filteredRepos : filteredRepos.slice(startIndex, endIndex)
+
+  const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+    if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total]
+    if (current >= total - 3) return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total]
+    return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total]
+  }
+
   const handleRepoClick = (repo: StarredRepo) => {
     setSelectedRepo(repo)
     setDetailPanelOpen(true)
@@ -156,7 +201,8 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleRefresh = () => {
-    mutate()
+    if (user?.id) clearCachedRepos(user.id)
+    mutate(undefined, { revalidate: true })
   }
 
   const hasActiveFilters = searchQuery || languageFilter || selectedCollection || selectedTag
@@ -196,7 +242,7 @@ export function Dashboard({ user }: DashboardProps) {
           languageFilter={languageFilter}
           onLanguageFilterChange={setLanguageFilter}
           languages={languages}
-          lastSynced={lastSynced || "Never"}
+          lastSynced={lastSynced}
           user={user}
           onRefresh={handleRefresh}
           isRefreshing={isLoading}
@@ -281,11 +327,61 @@ export function Dashboard({ user }: DashboardProps) {
                 </div>
               )}
 
-              {/* Results count */}
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {filteredRepos.length} {filteredRepos.length === 1 ? "repository" : "repositories"}
+              {/* Results count + per-page selector + top pagination */}
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground shrink-0">
+                  {pageSize === "all" || filteredRepos.length === 0
+                    ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                    : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                  }
                 </p>
+                <div className="flex items-center gap-3">
+                  {/* Inline page nav */}
+                  {pageSize !== "all" && totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground tabular-nums">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Per page</span>
+                    <Select
+                      value={String(pageSize)}
+                      onValueChange={(val) => setPageSize(val === "all" ? "all" : Number(val))}
+                    >
+                      <SelectTrigger className="h-8 w-[80px] text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               {/* Empty State */}
@@ -301,10 +397,65 @@ export function Dashboard({ user }: DashboardProps) {
               {/* View */}
               {repos.length > 0 && (
                 viewMode === "grid" ? (
-                  <RepoGrid repos={filteredRepos} onRepoClick={handleRepoClick} />
+                  <RepoGrid repos={paginatedRepos} onRepoClick={handleRepoClick} />
                 ) : (
-                  <RepoList repos={filteredRepos} onRepoClick={handleRepoClick} />
+                  <RepoList repos={paginatedRepos} onRepoClick={handleRepoClick} />
                 )
+              )}
+
+              {/* Pagination controls */}
+              {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-center">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 px-2.5"
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          aria-label="Go to previous page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          <span className="hidden sm:block">Previous</span>
+                        </Button>
+                      </PaginationItem>
+
+                      {getPageNumbers(currentPage, totalPages).map((page, idx) =>
+                        page === "ellipsis" ? (
+                          <PaginationItem key={`ellipsis-${idx}`}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        ) : (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={page === currentPage}
+                              onClick={(e) => { e.preventDefault(); setCurrentPage(page as number) }}
+                              href="#"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      )}
+
+                      <PaginationItem>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 px-2.5"
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          aria-label="Go to next page"
+                        >
+                          <span className="hidden sm:block">Next</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
               )}
             </>
           )}
