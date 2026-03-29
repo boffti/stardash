@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/collapsible"
 import { Collection, Tag as TagType } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { CreateCollectionModal } from "./create-collection-modal"
+import { CreateTagModal } from "./create-tag-modal"
 
 const TAGS_VISIBLE_DEFAULT = 10
 
@@ -98,6 +100,8 @@ interface AppSidebarProps {
   totalStars: number
   uncategorizedCount: number
   onAICategorize?: () => void
+  onCreateCollection?: (name: string, emoji: string, color: string) => Promise<void>
+  onCreateTag?: (label: string) => Promise<void>
 }
 
 export function AppSidebar({
@@ -112,11 +116,15 @@ export function AppSidebar({
   totalStars,
   uncategorizedCount,
   onAICategorize,
+  onCreateCollection,
+  onCreateTag,
 }: AppSidebarProps) {
   const [collectionsOpen, setCollectionsOpen] = useState(true)
   const [tagsOpen, setTagsOpen] = useState(true)
   const [tagSearch, setTagSearch] = useState("")
   const [tagsExpanded, setTagsExpanded] = useState(false)
+  const [collectionModalOpen, setCollectionModalOpen] = useState(false)
+  const [tagModalOpen, setTagModalOpen] = useState(false)
 
   const filteredTags = tagSearch.trim()
     ? tags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase()))
@@ -203,7 +211,12 @@ export function AppSidebar({
                   Collections
                 </SidebarGroupLabel>
               </CollapsibleTrigger>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setCollectionModalOpen(true)}
+              >
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
@@ -254,7 +267,12 @@ export function AppSidebar({
                   Tags
                 </SidebarGroupLabel>
               </CollapsibleTrigger>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setTagModalOpen(true)}
+              >
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
@@ -334,6 +352,22 @@ export function AppSidebar({
           </Collapsible>
         </SidebarGroup>
       </SidebarContent>
+
+      {onCreateCollection && (
+        <CreateCollectionModal
+          open={collectionModalOpen}
+          onOpenChange={setCollectionModalOpen}
+          onCreate={onCreateCollection}
+        />
+      )}
+
+      {onCreateTag && (
+        <CreateTagModal
+          open={tagModalOpen}
+          onOpenChange={setTagModalOpen}
+          onCreate={onCreateTag}
+        />
+      )}
     </Sidebar>
   )
 }
