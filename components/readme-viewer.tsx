@@ -16,6 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { StarredRepo } from "@/lib/types"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import rehypeRaw from "rehype-raw"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 
 interface ReadmeViewerProps {
@@ -64,48 +65,51 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
-        <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+        <SheetHeader className="px-6 py-4 border-b border-border shrink-0 space-y-0">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
                 <AvatarFallback className="text-sm">
                   {repo.owner[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
-                <SheetTitle className="font-mono text-base truncate">
+              <div className="min-w-0 overflow-hidden">
+                <SheetTitle className="font-mono text-base truncate text-left">
                   {repo.owner}/{repo.name}
                 </SheetTitle>
-                <SheetDescription className="text-xs text-muted-foreground">
+                <SheetDescription className="text-xs text-muted-foreground text-left">
                   README.md
                 </SheetDescription>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="shrink-0 gap-1.5" asChild>
-              <a
-                href={`https://github.com/${repo.fullName}#readme`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Github className="h-3.5 w-3.5" />
-                View on GitHub
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                <a
+                  href={`https://github.com/${repo.fullName}#readme`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Github className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">View on GitHub</span>
+                  <span className="sm:hidden">GitHub</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
         {/* Scrollable content */}
         <ScrollArea className="flex-1 overflow-hidden">
-          <div className="p-6">
+          <div className="p-6 min-w-0">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 <p className="text-muted-foreground">Loading README...</p>
               </div>
             ) : readme ? (
-              <article className="prose dark:prose-invert prose-sm max-w-none
+              <article className="prose dark:prose-invert prose-sm max-w-full
                 prose-headings:font-semibold prose-headings:text-foreground
                 prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3
                 prose-h2:text-xl prose-h2:mt-8
@@ -116,22 +120,26 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                 prose-code:rounded prose-code:text-sm prose-code:font-mono
                 prose-code:before:content-none prose-code:after:content-none
                 prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg
-                prose-pre:overflow-x-auto
+                prose-pre:overflow-x-auto prose-pre:max-w-full
                 prose-li:text-muted-foreground
                 prose-strong:text-foreground
                 prose-ul:my-2 prose-li:my-0.5
                 prose-table:text-sm prose-thead:border-border prose-tr:border-border
                 prose-th:text-foreground prose-td:text-muted-foreground
+                prose-table:max-w-full prose-table:overflow-x-auto
                 prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground
-                prose-img:rounded-lg prose-img:max-w-full prose-hr:border-border"
+                prose-img:rounded-lg prose-img:max-w-full prose-hr:border-border
+                [&>*]:max-w-full [&>div]:max-w-full [&>table]:block [&>table]:overflow-x-auto
+                [&>pre]:max-w-full [&>pre>code]:whitespace-pre-wrap [&>pre>code]:break-words"
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
                   components={{
                     img: ({ src, alt }) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={resolveImageUrl(src, repo.owner, repo.name)}
+                        src={resolveImageUrl(src as string | undefined, repo.owner, repo.name)}
                         alt={alt ?? ""}
                         className="max-w-full h-auto rounded-lg"
                         loading="lazy"
