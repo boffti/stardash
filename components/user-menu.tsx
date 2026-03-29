@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
-import { Github, RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User } from 'lucide-react'
+import { Github, RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -22,9 +22,10 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 interface UserMenuProps {
   user: SupabaseUser | null
+  lastSynced?: string | null
 }
 
-export function UserMenu({ user }: UserMenuProps) {
+export function UserMenu({ user, lastSynced }: UserMenuProps) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
@@ -62,6 +63,12 @@ export function UserMenu({ user }: UserMenuProps) {
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium">{username}</p>
           <p className="text-xs text-muted-foreground">@{username}</p>
+          {lastSynced && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/60">
+              <Clock className="h-3 w-3" />
+              {lastSynced}
+            </p>
+          )}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

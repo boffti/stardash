@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, LayoutGrid, List, RefreshCw } from "lucide-react"
+import { Search, RefreshCw, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -10,7 +10,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { UserMenu } from "@/components/user-menu"
 import type { User } from "@supabase/supabase-js"
 
@@ -19,8 +18,6 @@ interface DashboardHeaderProps {
   onSearchChange: (query: string) => void
   sortBy: string
   onSortChange: (value: string) => void
-  viewMode: "grid" | "list"
-  onViewModeChange: (mode: "grid" | "list") => void
   languageFilter: string | null
   onLanguageFilterChange: (language: string | null) => void
   languages: string[]
@@ -28,6 +25,8 @@ interface DashboardHeaderProps {
   user: User | null
   onRefresh?: () => void
   isRefreshing?: boolean
+  onCategorize?: () => void
+  isCategorizing?: boolean
 }
 
 export function DashboardHeader({
@@ -35,8 +34,6 @@ export function DashboardHeader({
   onSearchChange,
   sortBy,
   onSortChange,
-  viewMode,
-  onViewModeChange,
   languageFilter,
   onLanguageFilterChange,
   languages,
@@ -44,13 +41,15 @@ export function DashboardHeader({
   user,
   onRefresh,
   isRefreshing,
+  onCategorize,
+  isCategorizing,
 }: DashboardHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="-ml-1" />
-        
+
         <div className="relative w-80">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -94,30 +93,29 @@ export function DashboardHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        <ToggleGroup
-          type="single"
-          value={viewMode}
-          onValueChange={(value) => value && onViewModeChange(value as "grid" | "list")}
-          className="bg-secondary rounded-md p-0.5"
-        >
-          <ToggleGroupItem value="grid" aria-label="Grid view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
-            <LayoutGrid className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="list" aria-label="List view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
-            <List className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+        {onCategorize && (
+          <button
+            onClick={onCategorize}
+            disabled={isCategorizing}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            title="Auto-categorize with AI"
+          >
+            <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? 'animate-pulse text-violet-400' : ''}`} />
+            {isCategorizing && <span className="text-violet-400">Analyzing…</span>}
+          </button>
+        )}
 
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          title={isRefreshing ? "Syncing…" : (lastSynced ?? "Sync")}
         >
-          <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>{isRefreshing ? "Syncing…" : (lastSynced ?? "")}</span>
+          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing && <span>Syncing…</span>}
         </button>
 
-        <UserMenu user={user} />
+        <UserMenu user={user} lastSynced={lastSynced} />
       </div>
     </header>
   )
