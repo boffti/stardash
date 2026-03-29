@@ -1,4 +1,27 @@
-export type RepoStatus = 
+export interface RepoUserMeta {
+  dbId: string
+  status: RepoStatus | null
+  isPinned: boolean
+  notes: string | null
+  tagIds: string[]
+  collectionIds: string[]
+}
+
+export interface UserMetadata {
+  tags: Tag[]
+  collections: Collection[]
+  repoMeta: Record<string, RepoUserMeta>
+}
+
+export interface CategorizationResult {
+  collections: Collection[]
+  allTags: Tag[]
+  repoTags: Record<string, Tag[]>
+  repoCollections: Record<string, string[]>
+  generatedAt: string
+}
+
+export type RepoStatus =
   | 'want-to-try'
   | 'currently-using'
   | 'tried-liked'

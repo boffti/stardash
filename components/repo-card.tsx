@@ -16,6 +16,7 @@ import { StarredRepo, STATUS_LABELS } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
+import { useDraggable } from "@dnd-kit/core"
 
 interface RepoCardProps {
   repo: StarredRepo
@@ -32,12 +33,14 @@ function formatNumber(num: number): string {
 export function RepoCard({ repo, onClick }: RepoCardProps) {
   const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
   const [timeString, setTimeString] = useState("recently")
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: repo.id })
 
   useEffect(() => {
     setTimeString(formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true }))
   }, [repo.pushedAt])
 
   return (
+    <div ref={setNodeRef} className={cn(isDragging && "opacity-40")}>
     <Card
       className={cn(
         "group relative cursor-pointer transition-all duration-200 h-full py-0",
@@ -66,6 +69,19 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
             {repo.isPinned && (
               <Pin className="h-3 w-3 text-accent fill-accent" />
             )}
+            <button
+              {...listeners}
+              {...attributes}
+              onClick={e => e.stopPropagation()}
+              className="h-6 w-6 opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground"
+              aria-label="Drag to assign"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/>
+                <circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/>
+                <circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/>
+              </svg>
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button
@@ -181,5 +197,6 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
         </div>
       </CardContent>
     </Card>
+    </div>
   )
 }
