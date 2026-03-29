@@ -28,12 +28,23 @@ interface ReadmeViewerProps {
 interface ReadmeResponse {
   readme: string | null
   error?: string
+  code?: string
+}
+
+class AuthError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'AuthError'
+  }
 }
 
 const fetcher = async (url: string): Promise<ReadmeResponse> => {
   const res = await fetch(url)
   const data = await res.json()
   if (!res.ok) {
+    if (res.status === 401 || data.code === 'GITHUB_AUTH_ERROR') {
+      throw new AuthError(data.error || 'GitHub authentication expired')
+    }
     throw new Error(data.error || 'Failed to fetch README')
   }
   return data
@@ -47,7 +58,7 @@ function resolveImageUrl(src: string | undefined, owner: string, repoName: strin
 }
 
 export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
-  const { data, isLoading } = useSWR<{ readme: string | null }>(
+  const { data, error, isLoading } = useSWR<ReadmeResponse>(
     open && repo ? `/api/github/readme?owner=${repo.owner}&repo=${repo.name}` : null,
     fetcher,
     { revalidateOnFocus: false }
@@ -56,6 +67,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
   if (!repo) return null
 
   const readme = data?.readme
+  const isAuthError = error instanceof AuthError
 
   return (
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
@@ -108,6 +120,25 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 <p className="text-muted-foreground">Loading README...</p>
               </div>
+            ) : isAuthError ? (
+              <Empty className="py-16">
+                <EmptyMedia variant="icon">
+                  <AlertCircle className="h-10 w-10 text-destructive" />
+                </EmptyMedia>
+                <EmptyTitle>Session Expired</EmptyTitle>
+                <EmptyDescription>
+                  Your GitHub session has expired. Please sign in again to view READMEs.
+                </EmptyDescription>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="mt-4 gap-1.5"
+                  onClick={() => window.location.href = '/auth/login'}
+                >
+                  <Github className="h-3.5 w-3.5" />
+                  Sign In Again
+                </Button>
+              </Empty>
             ) : readme ? (
               <article className="prose dark:prose-invert prose-sm max-w-full
                 prose-headings:font-semibold prose-headings:text-foreground

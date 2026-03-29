@@ -34,7 +34,13 @@ export async function GET() {
       .then(() => {})
 
     return NextResponse.json({ repos, lastSynced: new Date().toISOString() })
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('401')) {
+      return NextResponse.json(
+        { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },
+        { status: 401 }
+      )
+    }
     return NextResponse.json({ error: 'Failed to fetch starred repos' }, { status: 500 })
   }
 }

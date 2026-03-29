@@ -34,9 +34,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const readme = await fetchRepoReadme(providerToken, owner, repo)
+    const result = await fetchRepoReadme(providerToken, owner, repo)
 
-    return NextResponse.json({ readme })
+    // Handle auth error from GitHub API (token expired/revoked)
+    if (result.error === 'auth') {
+      return NextResponse.json(
+        { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },
+        { status: 401 }
+      )
+    }
+
+    // Return readme content (null if not found) or server error
+    return NextResponse.json({ 
+      readme: result.content,
+      error: result.error === 'server' ? 'Failed to fetch README' : undefined
+    })
   } catch {
     return NextResponse.json(
       { error: 'Failed to fetch README' },
