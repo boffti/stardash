@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchRepoReadme } from '@/lib/github'
+import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -25,18 +26,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const providerToken = session.provider_token
+    const tokenResult = await getValidGitHubToken(session.user.id)
     
-    if (!providerToken) {
+    if (tokenResult.error === 'expired') {
+      return NextResponse.json(
+        { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },
+        { status: 401 }
+      )
+    }
+    
+    if (tokenResult.error === 'not_found' || !tokenResult.token) {
       return NextResponse.json(
         { error: 'GitHub token not available' },
         { status: 401 }
       )
     }
 
-    const result = await fetchRepoReadme(providerToken, owner, repo)
+    const result = await fetchRepoReadme(tokenResult.token, owner, repo)
 
-    // Handle auth error from GitHub API (token expired/revoked)
     if (result.error === 'auth') {
       return NextResponse.json(
         { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },
@@ -44,7 +51,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Return readme content (null if not found) or server error
     return NextResponse.json({ 
       readme: result.content,
       error: result.error === 'server' ? 'Failed to fetch README' : undefined

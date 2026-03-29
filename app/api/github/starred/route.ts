@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchAllStarredRepos } from '@/lib/github'
+import { getValidGitHubToken } from '@/lib/tokens'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -12,18 +13,24 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const providerToken = session.provider_token
-
-    if (!providerToken) {
+    const tokenResult = await getValidGitHubToken(session.user.id)
+    
+    if (tokenResult.error === 'expired') {
+      return NextResponse.json(
+        { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },
+        { status: 401 }
+      )
+    }
+    
+    if (tokenResult.error === 'not_found' || !tokenResult.token) {
       return NextResponse.json(
         { error: 'GitHub token not available. Please re-authenticate.' },
         { status: 401 }
       )
     }
 
-    const repos = await fetchAllStarredRepos(providerToken)
+    const repos = await fetchAllStarredRepos(tokenResult.token)
 
-    // Update analytics on profile — fire and forget, don't block the response
     supabase
       .from('profiles')
       .update({
