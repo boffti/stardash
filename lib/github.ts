@@ -101,11 +101,16 @@ export async function fetchAllStarredRepos(accessToken: string): Promise<Starred
   return allRepos
 }
 
+export interface ReadmeResult {
+  content: string | null
+  error?: 'auth' | 'not_found' | 'server'
+}
+
 export async function fetchRepoReadme(
   accessToken: string,
   owner: string,
   repo: string
-): Promise<string | null> {
+): Promise<ReadmeResult> {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/readme`,
@@ -118,18 +123,28 @@ export async function fetchRepoReadme(
       }
     )
 
+    if (response.status === 401) {
+      return { content: null, error: 'auth' }
+    }
+
+    if (response.status === 404) {
+      return { content: null, error: 'not_found' }
+    }
+
     if (!response.ok) {
-      return null
+      return { content: null, error: 'server' }
     }
 
     const data = await response.json()
     if (!data.content || data.encoding !== 'base64') {
-      return null
+      return { content: null }
     }
 
     // GitHub API base64-encodes content with newlines — strip them before decoding
-    return Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+    return {
+      content: Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+    }
   } catch {
-    return null
+    return { content: null, error: 'server' }
   }
 }
