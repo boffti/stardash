@@ -105,9 +105,9 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
           </p>
         </div>
 
-        {/* Tags - fixed height area */}
-        <div className="mt-3 h-5">
-          {repo.tags.length > 0 ? (
+        {/* Tags + Topics */}
+        <div className="mt-3 min-h-5">
+          {(repo.tags.length > 0 || repo.topics.length > 0) && (
             <div className="flex flex-wrap gap-1">
               {repo.tags.slice(0, 3).map((tag) => (
                 <Badge
@@ -122,13 +122,22 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
                   {tag.label}
                 </Badge>
               ))}
-              {repo.tags.length > 3 && (
+              {repo.topics.slice(0, 3 - Math.min(repo.tags.length, 3)).map((topic) => (
+                <Badge
+                  key={topic}
+                  variant="secondary"
+                  className="text-xs px-1.5 py-0 h-5 font-normal"
+                >
+                  {topic}
+                </Badge>
+              ))}
+              {repo.tags.length + repo.topics.length > 3 && (
                 <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
-                  +{repo.tags.length - 3}
+                  +{repo.tags.length + repo.topics.length - 3}
                 </Badge>
               )}
             </div>
-          ) : null}
+          )}
         </div>
 
         {/* Footer - always at bottom */}

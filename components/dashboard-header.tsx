@@ -24,7 +24,7 @@ interface DashboardHeaderProps {
   languageFilter: string | null
   onLanguageFilterChange: (language: string | null) => void
   languages: string[]
-  lastSynced: string
+  lastSynced: string | null
   user: User | null
   onRefresh?: () => void
   isRefreshing?: boolean
@@ -114,7 +114,7 @@ export function DashboardHeader({
           className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>Synced {lastSynced}</span>
+          <span>{isRefreshing ? "Syncing…" : (lastSynced ?? "")}</span>
         </button>
 
         <UserMenu user={user} />
