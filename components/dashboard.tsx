@@ -9,13 +9,12 @@ import { RepoGrid } from "./repo-grid"
 import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
-import { mockCollections, mockTags } from "@/lib/mock-data"
-import { StarredRepo } from "@/lib/types"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Pagination,
   PaginationContent,
@@ -25,6 +24,19 @@ import {
 } from "@/components/ui/pagination"
 import { formatDistanceToNow } from "date-fns"
 import { getCachedRepos, setCachedRepos, clearCachedRepos } from "@/lib/repo-cache"
+import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo } from "@/lib/types"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
+import {
+  ensureRepo, updateRepoStatus, updateRepoNotes, togglePin,
+  createTag, assignTag, removeTag,
+  createCollection, assignCollection, removeCollection,
+  pickTagColor,
+} from "@/lib/user-metadata"
+import {
+  DndContext, DragOverlay, MouseSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core"
 
 interface DashboardProps {
   user: User | null
@@ -54,6 +66,22 @@ export function Dashboard({ user }: DashboardProps) {
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
   const [pageSize, setPageSize] = useState<number | "all">(25)
   const [currentPage, setCurrentPage] = useState(1)
+  const [categorization, setCategorization] = useState<CategorizationResult | null>(null)
+  const [isCategorizing, setIsCategorizing] = useState(false)
+  const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
+
+  const supabase = createClient()
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } })
+  )
+
+  // Fetch user metadata (tags, collections, repo assignments) from Supabase
+  const { data: metadata, mutate: mutateMetadata } = useSWR<UserMetadata>(
+    user?.id ? '/api/user/metadata' : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false }
+  )
 
   // Fetch starred repos — checks localStorage cache before hitting GitHub API
   const { data, error, isLoading, mutate } = useSWR<{
@@ -66,10 +94,53 @@ export function Dashboard({ user }: DashboardProps) {
     revalidateOnReconnect: false,
   })
 
-  const repos = data?.repos || []
+  // Load AI categorization from localStorage on mount
+  useEffect(() => {
+    if (!user?.id) return
+    try {
+      const stored = localStorage.getItem(`stardash_categorization_${user.id}`)
+      if (stored) setCategorization(JSON.parse(stored))
+    } catch {}
+  }, [user?.id])
+
+  const rawRepos = data?.repos || []
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
+
+  // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
+  const repos = useMemo(() => {
+    return rawRepos.map(repo => {
+      const dbMeta = metadata?.repoMeta[repo.id]
+      if (dbMeta) {
+        const dbTags = (metadata?.tags ?? []).filter(t => dbMeta.tagIds.includes(t.id))
+        return {
+          ...repo,
+          status: dbMeta.status ?? repo.status,
+          isPinned: dbMeta.isPinned,
+          notes: dbMeta.notes ?? repo.notes,
+          tags: dbTags,
+          collections: dbMeta.collectionIds,
+        }
+      }
+      // Fall back to AI categorization for repos not yet touched by user
+      if (categorization) {
+        return {
+          ...repo,
+          tags: categorization.repoTags[repo.id] ?? repo.tags,
+          collections: categorization.repoCollections[repo.id] ?? repo.collections,
+        }
+      }
+      return repo
+    })
+  }, [rawRepos, metadata, categorization])
+
+  const collections = (metadata?.collections ?? []).length > 0
+    ? metadata!.collections
+    : (categorization?.collections ?? [])
+  const allTags = (metadata?.tags ?? []).length > 0
+    ? metadata!.tags
+    : (categorization?.allTags ?? [])
 
   // Get unique languages for filter
   const languages = useMemo(() => {
@@ -205,31 +276,197 @@ export function Dashboard({ user }: DashboardProps) {
     mutate(undefined, { revalidate: true })
   }
 
+  const handleCategorize = async () => {
+    if (!rawRepos.length) return
+    setIsCategorizing(true)
+    try {
+      const response = await fetch('/api/ai/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repos: rawRepos }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to categorize')
+      setCategorization(result as CategorizationResult)
+      if (user?.id) {
+        localStorage.setItem(`stardash_categorization_${user.id}`, JSON.stringify(result))
+      }
+      toast.success(
+        `Created ${(result as CategorizationResult).collections.length} collections · tagged ${Object.keys((result as CategorizationResult).repoTags).length} repos`
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to categorize repositories')
+    } finally {
+      setIsCategorizing(false)
+    }
+  }
+
+  // Helper: get DB UUID for a repo, upserting if needed
+  const getDbId = async (repo: StarredRepo): Promise<string> => {
+    const existing = metadata?.repoMeta[repo.id]?.dbId
+    if (existing) return existing
+    const dbId = await ensureRepo(supabase, repo, user!.id)
+    mutateMetadata(prev => ({
+      tags: prev?.tags ?? [],
+      collections: prev?.collections ?? [],
+      repoMeta: {
+        ...(prev?.repoMeta ?? {}),
+        [repo.id]: { dbId, status: null, isPinned: false, notes: null, tagIds: [], collectionIds: [] },
+      },
+    }), { revalidate: false })
+    return dbId
+  }
+
+  const handleStatusChange = async (repo: StarredRepo, status: RepoStatus | null) => {
+    const dbId = await getDbId(repo)
+    mutateMetadata(prev => ({
+      ...prev!,
+      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
+    }), { revalidate: false })
+    try {
+      await updateRepoStatus(supabase, dbId, status)
+    } catch {
+      mutateMetadata()
+      toast.error('Failed to update status')
+    }
+  }
+
+  const handleNotesChange = async (repo: StarredRepo, notes: string) => {
+    const dbId = await getDbId(repo)
+    try {
+      await updateRepoNotes(supabase, dbId, notes)
+      mutateMetadata(prev => ({
+        ...prev!,
+        repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
+      }), { revalidate: false })
+    } catch {
+      toast.error('Failed to save notes')
+    }
+  }
+
+  const handlePinToggle = async (repo: StarredRepo) => {
+    const dbId = await getDbId(repo)
+    const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
+    mutateMetadata(prev => ({
+      ...prev!,
+      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
+    }), { revalidate: false })
+    try {
+      await togglePin(supabase, dbId, isPinned)
+    } catch {
+      mutateMetadata()
+      toast.error('Failed to update pin')
+    }
+  }
+
+  const handleTagToggle = async (repo: StarredRepo, tagId: string) => {
+    const dbId = await getDbId(repo)
+    const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
+    const isAssigned = current.includes(tagId)
+    const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
+    mutateMetadata(prev => ({
+      ...prev!,
+      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: newTagIds, collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
+    }), { revalidate: false })
+    try {
+      if (isAssigned) await removeTag(supabase, dbId, tagId)
+      else await assignTag(supabase, dbId, tagId)
+    } catch {
+      mutateMetadata()
+      toast.error('Failed to update tag')
+    }
+  }
+
+  const handleTagCreate = async (repo: StarredRepo, label: string) => {
+    if (!user?.id) return
+    try {
+      const newTag = await createTag(supabase, user.id, label, pickTagColor(label))
+      const dbId = await getDbId(repo)
+      await assignTag(supabase, dbId, newTag.id)
+      mutateMetadata()
+    } catch (err) {
+      const msg = (err as Error).message
+      toast.error(msg.includes('unique') ? 'Tag already exists' : 'Failed to create tag')
+    }
+  }
+
+  const handleCollectionToggle = async (repo: StarredRepo, collectionId: string) => {
+    const dbId = await getDbId(repo)
+    const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
+    const isAssigned = current.includes(collectionId)
+    const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
+    mutateMetadata(prev => ({
+      ...prev!,
+      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: newCollectionIds } },
+    }), { revalidate: false })
+    try {
+      if (isAssigned) await removeCollection(supabase, dbId, collectionId)
+      else await assignCollection(supabase, dbId, collectionId)
+    } catch {
+      mutateMetadata()
+      toast.error('Failed to update collection')
+    }
+  }
+
+  const handleCollectionCreate = async (name: string, emoji: string, color: string) => {
+    if (!user?.id) return
+    try {
+      await createCollection(supabase, user.id, name, emoji, color)
+      mutateMetadata()
+    } catch (err) {
+      const msg = (err as Error).message
+      toast.error(msg.includes('unique') ? 'Collection already exists' : 'Failed to create collection')
+    }
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveRepoId(null)
+    if (!over) return
+    const repoId = active.id as string
+    const dropTarget = over.id as string
+    const repo = repos.find(r => r.id === repoId)
+    if (!repo) return
+    if (dropTarget.startsWith('collection::')) {
+      await handleCollectionToggle(repo, dropTarget.replace('collection::', ''))
+    } else if (dropTarget.startsWith('tag::')) {
+      await handleTagToggle(repo, dropTarget.replace('tag::', ''))
+    }
+  }
+
   const hasActiveFilters = searchQuery || languageFilter || selectedCollection || selectedTag
 
   const getActiveFilterLabel = () => {
     if (selectedCollection) {
-      const collection = mockCollections.find((c) => c.id === selectedCollection)
+      const collection = collections.find((c) => c.id === selectedCollection)
       return collection ? `${collection.emoji} ${collection.name}` : null
     }
     if (selectedTag) {
-      const tag = mockTags.find((t) => t.id === selectedTag)
+      const tag = allTags.find((t) => t.id === selectedTag)
       return tag ? tag.label : null
     }
     return null
   }
 
+  const activeRepo = activeRepoId ? repos.find(r => r.id === activeRepoId) : null
+
   return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={({ active }) => setActiveRepoId(active.id as string)}
+      onDragEnd={handleDragEnd}
+    >
     <SidebarProvider>
       <AppSidebar
-        collections={mockCollections}
-        tags={mockTags}
+        collections={collections}
+        tags={allTags}
         selectedCollection={selectedCollection}
         selectedTag={selectedTag}
         onSelectCollection={setSelectedCollection}
         onSelectTag={setSelectedTag}
         totalStars={repos.length}
         uncategorizedCount={uncategorizedCount}
+        onAICategorize={handleCategorize}
       />
       <SidebarInset>
         <DashboardHeader
@@ -237,8 +474,6 @@ export function Dashboard({ user }: DashboardProps) {
           onSearchChange={setSearchQuery}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
           languageFilter={languageFilter}
           onLanguageFilterChange={setLanguageFilter}
           languages={languages}
@@ -246,6 +481,8 @@ export function Dashboard({ user }: DashboardProps) {
           user={user}
           onRefresh={handleRefresh}
           isRefreshing={isLoading}
+          onCategorize={handleCategorize}
+          isCategorizing={isCategorizing}
         />
         <main className="flex-1 p-6">
           {/* Loading State */}
@@ -327,14 +564,29 @@ export function Dashboard({ user }: DashboardProps) {
                 </div>
               )}
 
-              {/* Results count + per-page selector + top pagination */}
+              {/* Results count + view toggle + per-page selector + top pagination */}
               <div className="mb-4 flex items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground shrink-0">
-                  {pageSize === "all" || filteredRepos.length === 0
-                    ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                    : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                  }
-                </p>
+                <div className="flex items-center gap-3 shrink-0">
+                  <p className="text-sm text-muted-foreground">
+                    {pageSize === "all" || filteredRepos.length === 0
+                      ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                      : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                    }
+                  </p>
+                  <ToggleGroup
+                    type="single"
+                    value={viewMode}
+                    onValueChange={(value) => value && setViewMode(value as "grid" | "list")}
+                    className="bg-secondary rounded-md p-0.5"
+                  >
+                    <ToggleGroupItem value="grid" aria-label="Grid view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="list" aria-label="List view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
+                      <List className="h-3.5 w-3.5" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
                 <div className="flex items-center gap-3">
                   {/* Inline page nav */}
                   {pageSize !== "all" && totalPages > 1 && (
@@ -468,8 +720,15 @@ export function Dashboard({ user }: DashboardProps) {
         open={detailPanelOpen}
         onClose={handleCloseDetail}
         onViewReadme={handleViewReadme}
-        collections={mockCollections}
-        tags={mockTags}
+        collections={collections}
+        tags={allTags}
+        onStatusChange={handleStatusChange}
+        onTagToggle={handleTagToggle}
+        onTagCreate={handleTagCreate}
+        onCollectionToggle={handleCollectionToggle}
+        onCollectionCreate={handleCollectionCreate}
+        onNotesChange={handleNotesChange}
+        onPinToggle={handlePinToggle}
       />
 
       {/* README Viewer */}
@@ -479,5 +738,13 @@ export function Dashboard({ user }: DashboardProps) {
         onClose={handleCloseReadme}
       />
     </SidebarProvider>
+    <DragOverlay>
+      {activeRepo && (
+        <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-xl text-sm font-mono opacity-90 cursor-grabbing">
+          {activeRepo.owner}/{activeRepo.name}
+        </div>
+      )}
+    </DragOverlay>
+    </DndContext>
   )
 }
