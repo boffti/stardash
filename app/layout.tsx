@@ -54,8 +54,8 @@ export default function RootLayout({
         >
           {children}
           <Toaster richColors position="bottom-right" />
+          <Analytics />
         </ThemeProvider>
-        <Analytics />
       </body>
     </html>
   )

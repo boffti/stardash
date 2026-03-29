@@ -481,7 +481,7 @@ export function Dashboard({ user }: DashboardProps) {
           user={user}
           onRefresh={handleRefresh}
           isRefreshing={isLoading}
-          onCategorize={rawRepos.length > 0 ? handleCategorize : undefined}
+          onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
         />
         <main className="flex-1 p-6">
