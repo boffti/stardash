@@ -54,10 +54,25 @@ function makefetcher(userId: string | undefined) {
   }
 }
 
+const VIEW_MODE_KEY = "stardash_view_mode"
+
 export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [viewMode, setViewModeState] = useState<"grid" | "list">("grid")
+
+  // Load view mode from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(VIEW_MODE_KEY)
+    if (stored === "list" || stored === "grid") {
+      setViewModeState(stored)
+    }
+  }, [])
+
+  const setViewMode = (value: "grid" | "list") => {
+    setViewModeState(value)
+    localStorage.setItem(VIEW_MODE_KEY, value)
+  }
   const [languageFilter, setLanguageFilter] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
