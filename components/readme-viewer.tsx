@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink, Github, FileText, Loader2 } from "lucide-react"
+import { ExternalLink, Github, FileText, Loader2, AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import {
   Sheet,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { StarredRepo } from "@/lib/types"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -23,7 +24,19 @@ interface ReadmeViewerProps {
   onClose: () => void
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+interface ReadmeResponse {
+  readme: string | null
+  error?: string
+}
+
+const fetcher = async (url: string): Promise<ReadmeResponse> => {
+  const res = await fetch(url)
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to fetch README')
+  }
+  return data
+}
 
 function resolveImageUrl(src: string | undefined, owner: string, repoName: string): string {
   if (!src) return ""
