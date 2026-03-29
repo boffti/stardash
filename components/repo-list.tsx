@@ -1,6 +1,7 @@
 "use client"
 
 import { Star, GitFork, Clock, Pin, ExternalLink } from "lucide-react"
+import { useDraggable } from "@dnd-kit/core"
 import {
   Table,
   TableBody,
@@ -49,7 +50,8 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border">
-            <TableHead className="w-[35%]">Repository</TableHead>
+            <TableHead className="w-6" />
+            <TableHead className="w-[33%]">Repository</TableHead>
             <TableHead className="w-[12%]">Language</TableHead>
             <TableHead className="w-[8%] text-right">Stars</TableHead>
             <TableHead className="w-[15%]">Last Updated</TableHead>
@@ -59,14 +61,37 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {repos.map((repo) => {
-            const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
-            return (
-              <TableRow
-                key={repo.id}
-                className="cursor-pointer border-border hover:bg-muted/50"
-                onClick={() => onRepoClick(repo)}
-              >
+          {repos.map((repo) => <DraggableRow key={repo.id} repo={repo} onRepoClick={onRepoClick} />)}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+function DraggableRow({ repo, onRepoClick }: { repo: StarredRepo; onRepoClick: (repo: StarredRepo) => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: repo.id })
+  const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
+  return (
+    <TableRow
+      ref={setNodeRef}
+      className={cn("cursor-pointer border-border hover:bg-muted/50", isDragging && "opacity-40")}
+      onClick={() => onRepoClick(repo)}
+    >
+      <TableCell className="py-3 w-6 px-2">
+        <button
+          {...listeners}
+          {...attributes}
+          onClick={e => e.stopPropagation()}
+          className="opacity-20 hover:opacity-70 transition-opacity cursor-grab active:cursor-grabbing text-muted-foreground p-1"
+          aria-label="Drag to assign"
+        >
+          <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/>
+            <circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/>
+            <circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/>
+          </svg>
+        </button>
+      </TableCell>
                 <TableCell className="py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-6 w-6 shrink-0">
@@ -142,11 +167,6 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
                     )}
                   </div>
                 </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    </TableRow>
   )
 }
