@@ -91,8 +91,10 @@ interface AppSidebarProps {
   tags: TagType[]
   selectedCollection: string | null
   selectedTag: string | null
+  showUncategorized: boolean
   onSelectCollection: (id: string | null) => void
   onSelectTag: (id: string | null) => void
+  onShowUncategorized: (show: boolean) => void
   totalStars: number
   uncategorizedCount: number
   onAICategorize?: () => void
@@ -103,8 +105,10 @@ export function AppSidebar({
   tags,
   selectedCollection,
   selectedTag,
+  showUncategorized,
   onSelectCollection,
   onSelectTag,
+  onShowUncategorized,
   totalStars,
   uncategorizedCount,
   onAICategorize,
@@ -142,10 +146,11 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={!selectedCollection && !selectedTag}
+                  isActive={!selectedCollection && !selectedTag && !showUncategorized}
                   onClick={() => {
                     onSelectCollection(null)
                     onSelectTag(null)
+                    onShowUncategorized(false)
                   }}
                 >
                   <Star className="h-4 w-4" />
@@ -166,7 +171,14 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
+                <SidebarMenuButton
+                  isActive={showUncategorized}
+                  onClick={() => {
+                    onShowUncategorized(!showUncategorized)
+                    onSelectCollection(null)
+                    onSelectTag(null)
+                  }}
+                >
                   <AlertTriangle className="h-4 w-4" />
                   <span>Uncategorized</span>
                   {uncategorizedCount > 0 && (
@@ -210,6 +222,7 @@ export function AppSidebar({
                             onClick={() => {
                               onSelectCollection(collection.id)
                               onSelectTag(null)
+                              onShowUncategorized(false)
                             }}
                             className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
                           >
@@ -278,6 +291,7 @@ export function AppSidebar({
                                   onClick={() => {
                                     onSelectTag(tag.id)
                                     onSelectCollection(null)
+                                    onShowUncategorized(false)
                                   }}
                                   className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
                                 >

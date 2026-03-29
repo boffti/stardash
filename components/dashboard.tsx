@@ -54,13 +54,29 @@ function makefetcher(userId: string | undefined) {
   }
 }
 
+const VIEW_MODE_KEY = "stardash_view_mode"
+
 export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [viewMode, setViewModeState] = useState<"grid" | "list">("grid")
+
+  // Load view mode from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(VIEW_MODE_KEY)
+    if (stored === "list" || stored === "grid") {
+      setViewModeState(stored)
+    }
+  }, [])
+
+  const setViewMode = (value: "grid" | "list") => {
+    setViewModeState(value)
+    localStorage.setItem(VIEW_MODE_KEY, value)
+  }
   const [languageFilter, setLanguageFilter] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [showUncategorized, setShowUncategorized] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
@@ -192,6 +208,11 @@ export function Dashboard({ user }: DashboardProps) {
       )
     }
 
+    // Uncategorized filter
+    if (showUncategorized) {
+      filtered = filtered.filter((repo) => repo.tags.length === 0 && repo.collections.length === 0)
+    }
+
     // Sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -220,12 +241,12 @@ export function Dashboard({ user }: DashboardProps) {
     })
 
     return filtered
-  }, [repos, searchQuery, sortBy, languageFilter, selectedCollection, selectedTag])
+  }, [repos, searchQuery, sortBy, languageFilter, selectedCollection, selectedTag, showUncategorized])
 
   // Reset to page 1 when filters/sort change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, sortBy, languageFilter, selectedCollection, selectedTag])
+  }, [searchQuery, sortBy, languageFilter, selectedCollection, selectedTag, showUncategorized])
 
   // Reset to page 1 when page size changes
   useEffect(() => {
@@ -462,8 +483,10 @@ export function Dashboard({ user }: DashboardProps) {
         tags={allTags}
         selectedCollection={selectedCollection}
         selectedTag={selectedTag}
+        showUncategorized={showUncategorized}
         onSelectCollection={setSelectedCollection}
         onSelectTag={setSelectedTag}
+        onShowUncategorized={setShowUncategorized}
         totalStars={repos.length}
         uncategorizedCount={uncategorizedCount}
         onAICategorize={handleCategorize}

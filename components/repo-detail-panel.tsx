@@ -22,7 +22,6 @@ import {
 import { StarredRepo, STATUS_LABELS, RepoStatus, Collection, Tag } from "@/lib/types"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface RepoDetailPanelProps {
   repo: StarredRepo | null
@@ -121,8 +120,11 @@ export function RepoDetailPanel({
 
   return (
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg p-0 border-l border-border overflow-hidden">
-        <ScrollArea className="h-full">
+      <SheetContent
+        className="w-full sm:max-w-lg p-0 border-l border-border overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="h-full overflow-y-auto overflow-x-hidden">
           <div className="p-6">
             <SheetHeader className="space-y-0 pb-0">
               <div className="flex items-start justify-between gap-4">
@@ -205,41 +207,41 @@ export function RepoDetailPanel({
             {/* Meta Info */}
             <div className="space-y-3">
               {repo.language && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Language</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: repo.languageColor || "#64748b" }} />
-                    <span>{repo.language}</span>
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground shrink-0">Language</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: repo.languageColor || "#64748b" }} />
+                    <span className="truncate">{repo.language}</span>
                   </div>
                 </div>
               )}
               {repo.license && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">License</span>
-                  <div className="flex items-center gap-1.5">
-                    <Scale className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{repo.license}</span>
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground shrink-0">License</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Scale className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{repo.license}</span>
                   </div>
                 </div>
               )}
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Last Updated</span>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground shrink-0">Last Updated</span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Starred</span>
-                <span>{format(new Date(repo.starredAt), "MMM d, yyyy")}</span>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground shrink-0">Starred</span>
+                <span className="truncate text-right">{format(new Date(repo.starredAt), "MMM d, yyyy")}</span>
               </div>
             </div>
 
             {/* Clone */}
-            <div className="mt-6">
+            <div className="mt-6 min-w-0">
               <p className="text-sm font-medium mb-2">Clone</p>
               <div className="flex items-center gap-2 min-w-0">
-                <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono truncate min-w-0 block">
+                <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono break-all min-w-0 block">
                   git clone https://github.com/{repo.fullName}.git
                 </code>
                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyClone}>
@@ -470,7 +472,7 @@ export function RepoDetailPanel({
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   )
