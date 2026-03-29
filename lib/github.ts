@@ -112,7 +112,7 @@ export async function fetchRepoReadme(
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          Accept: 'application/vnd.github.raw+json',
+          Accept: 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
         },
       }
@@ -122,7 +122,13 @@ export async function fetchRepoReadme(
       return null
     }
 
-    return await response.text()
+    const data = await response.json()
+    if (!data.content || data.encoding !== 'base64') {
+      return null
+    }
+
+    // GitHub API base64-encodes content with newlines — strip them before decoding
+    return Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
   } catch {
     return null
   }

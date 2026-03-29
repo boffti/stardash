@@ -123,13 +123,13 @@ Rules:
     for (const repoResult of batchObj.repos) {
       if (!repoIdSet.has(repoResult.id)) continue
 
-      const tags: Tag[] = repoResult.tags
-        .filter(label => tagVocabularySet.has(label))
-        .map(label => {
-          const tag: Tag = { id: `tag-${label}`, label, color: hashColor(label, TAG_COLORS) }
-          allTagsMap.set(label, tag)
-          return tag
-        })
+      // Deduplicate labels to avoid duplicate tag keys when rendering
+      const uniqueLabels = Array.from(new Set(repoResult.tags.filter(label => tagVocabularySet.has(label))))
+      const tags: Tag[] = uniqueLabels.map(label => {
+        const tag: Tag = { id: `tag-${label}`, label, color: hashColor(label, TAG_COLORS) }
+        allTagsMap.set(label, tag)
+        return tag
+      })
       repoTags[repoResult.id] = tags
 
       const validCollections = repoResult.collectionIds.filter(id => collectionIdSet.has(id))
