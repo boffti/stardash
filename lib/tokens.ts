@@ -1,8 +1,44 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export interface TokenResult {
   token: string | null
   error?: 'expired' | 'not_found' | 'server'
+}
+
+export async function getAnyValidGitHubToken(): Promise<TokenResult> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { token: null, error: 'server' }
+  }
+
+  const supabase = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+
+  try {
+    const nowIso = new Date().toISOString()
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('provider_token, token_expires_at, last_token_refresh_at')
+      .not('provider_token', 'is', null)
+      .or(`token_expires_at.is.null,token_expires_at.gte.${nowIso}`)
+      .order('last_token_refresh_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+
+    if (error || !profiles || profiles.length === 0) {
+      return { token: null, error: 'not_found' }
+    }
+
+    return { token: profiles[0].provider_token }
+  } catch {
+    return { token: null, error: 'server' }
+  }
 }
 
 export async function getValidGitHubToken(userId: string): Promise<TokenResult> {

@@ -67,6 +67,15 @@ export interface StarredRepo {
   tags: Tag[]
   collections: string[]
   readme: string | null
+  archived?: boolean
+  // Health signal fields (computed from snapshots/releases)
+  isTrending?: boolean // Stars doubled in 30 days
+  latestRelease?: {
+    tagName: string
+    name: string
+    publishedAt: string
+    htmlUrl: string
+  } | null
 }
 
 export const STATUS_LABELS: Record<Exclude<RepoStatus, null>, { label: string; color: string }> = {

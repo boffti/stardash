@@ -20,6 +20,7 @@ interface GitHubRepo {
   open_issues_count: number
   pushed_at: string
   html_url: string
+  archived: boolean
 }
 
 // When using application/vnd.github.star+json, the response wraps repo in an object
@@ -78,6 +79,7 @@ export async function fetchStarredRepos(
     tags: [],
     collections: [],
     readme: null,
+    archived: item.repo.archived,
   }))
 
   return { repos, hasMore }
@@ -93,12 +95,88 @@ export async function fetchAllStarredRepos(accessToken: string): Promise<Starred
     allRepos.push(...repos)
     hasMore = more
     page++
-    
+
     // Safety limit to prevent infinite loops
     if (page > 50) break
   }
 
   return allRepos
+}
+
+// Fetch star count for a specific repo (lightweight, no auth required for public repos)
+export async function fetchRepoStarCount(
+  owner: string,
+  repo: string,
+  accessToken?: string
+): Promise<number | null> {
+  try {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`
+    }
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}`,
+      { headers }
+    )
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json()
+    return data.stargazers_count as number
+  } catch {
+    return null
+  }
+}
+
+// Fetch latest release for a repo
+export interface ReleaseInfo {
+  tagName: string
+  name: string
+  publishedAt: string
+  htmlUrl: string
+  isPrerelease: boolean
+}
+
+export async function fetchRepoLatestRelease(
+  owner: string,
+  repo: string,
+  accessToken?: string
+): Promise<ReleaseInfo | null> {
+  try {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`
+    }
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases/latest`,
+      { headers }
+    )
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json()
+    return {
+      tagName: data.tag_name,
+      name: data.name,
+      publishedAt: data.published_at,
+      htmlUrl: data.html_url,
+      isPrerelease: data.prerelease,
+    }
+  } catch {
+    return null
+  }
 }
 
 export interface ReadmeResult {
