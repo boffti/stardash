@@ -27,7 +27,7 @@ interface UserRepoRow {
 }
 
 async function upsertAssignments(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: ReturnType<typeof createAdminClient>,
   table: 'user_starred_repo_tags' | 'user_starred_repo_collections',
   rows: Record<string, string>[],
   onConflict: string
@@ -143,12 +143,12 @@ export async function POST(request: Request) {
     }
 
     if (tagAssignments.length > 0) {
-      await upsertAssignments(supabase, 'user_starred_repo_tags', tagAssignments, 'user_starred_repo_id,tag_id')
+      await upsertAssignments(adminSupabase, 'user_starred_repo_tags', tagAssignments, 'user_starred_repo_id,tag_id')
     }
 
     if (collectionAssignments.length > 0) {
       await upsertAssignments(
-        supabase,
+        adminSupabase,
         'user_starred_repo_collections',
         collectionAssignments,
         'user_starred_repo_id,collection_id'

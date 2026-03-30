@@ -14,9 +14,9 @@ interface UserRepoMetadataRow {
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (error || !session) {
+    if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -25,12 +25,12 @@ export async function GET() {
       supabase
         .from('tags')
         .select('id, label, color')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .order('label'),
       supabase
         .from('collections')
         .select('id, name, emoji, color')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .order('name'),
     ])
 
