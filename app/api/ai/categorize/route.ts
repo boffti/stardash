@@ -16,6 +16,7 @@ import type { CategorizationResult } from '@/lib/types'
 export const maxDuration = 120
 
 const ASSIGNMENT_BATCH_SIZE = 500
+const AI_CATEGORIZATION_COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 interface UserRepoRow {
   id: string
@@ -24,6 +25,129 @@ interface UserRepoRow {
   } | {
     github_repo_id: number
   }[]
+}
+
+interface ProfileCategorizationRow {
+  id: string
+  last_ai_categorization_at: string | null
+}
+
+interface CategorizationSlotReservation {
+  allowed: boolean
+  claimedAt: string | null
+  previousLastCategorizedAt: string | null
+  nextAllowedAt: string | null
+}
+
+function formatCooldownMessage(nextAllowedAt: string) {
+  const nextAllowedLabel = new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(nextAllowedAt))
+
+  return `AI categorization is limited to once every 24 hours. Try again after ${nextAllowedLabel} UTC.`
+}
+
+async function reserveCategorizationSlot(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  attempt = 0
+): Promise<CategorizationSlotReservation> {
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, last_ai_categorization_at')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profileError) throw profileError
+
+  const previousLastCategorizedAt = (profile as ProfileCategorizationRow | null)?.last_ai_categorization_at ?? null
+  const now = Date.now()
+
+  if (previousLastCategorizedAt) {
+    const nextAllowedAt = new Date(
+      new Date(previousLastCategorizedAt).getTime() + AI_CATEGORIZATION_COOLDOWN_MS
+    ).toISOString()
+
+    if (new Date(nextAllowedAt).getTime() > now) {
+      return {
+        allowed: false,
+        claimedAt: null,
+        previousLastCategorizedAt,
+        nextAllowedAt,
+      }
+    }
+  }
+
+  const claimedAt = new Date(now).toISOString()
+
+  if (!profile) {
+    const { data: insertedProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert({ id: userId, last_ai_categorization_at: claimedAt })
+      .select('id')
+      .maybeSingle()
+
+    if (insertError) throw insertError
+    if (!insertedProfile) {
+      throw new Error('Failed to initialize AI categorization limit for user')
+    }
+
+    return {
+      allowed: true,
+      claimedAt,
+      previousLastCategorizedAt: null,
+      nextAllowedAt: new Date(now + AI_CATEGORIZATION_COOLDOWN_MS).toISOString(),
+    }
+  }
+
+  let updateQuery = supabase
+    .from('profiles')
+    .update({ last_ai_categorization_at: claimedAt })
+    .eq('id', userId)
+
+  updateQuery = previousLastCategorizedAt
+    ? updateQuery.eq('last_ai_categorization_at', previousLastCategorizedAt)
+    : updateQuery.is('last_ai_categorization_at', null)
+
+  const { data: updatedProfile, error: updateError } = await updateQuery
+    .select('id')
+    .maybeSingle()
+
+  if (updateError) throw updateError
+
+  if (!updatedProfile) {
+    if (attempt >= 1) {
+      throw new Error('Failed to reserve AI categorization slot')
+    }
+
+    return reserveCategorizationSlot(supabase, userId, attempt + 1)
+  }
+
+  return {
+    allowed: true,
+    claimedAt,
+    previousLastCategorizedAt,
+    nextAllowedAt: new Date(now + AI_CATEGORIZATION_COOLDOWN_MS).toISOString(),
+  }
+}
+
+async function releaseCategorizationSlot(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  claimedAt: string,
+  previousLastCategorizedAt: string | null
+) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ last_ai_categorization_at: previousLastCategorizedAt })
+    .eq('id', userId)
+    .eq('last_ai_categorization_at', claimedAt)
+
+  if (error) {
+    console.error('Failed to release AI categorization slot:', error)
+  }
 }
 
 async function upsertAssignments(
@@ -43,6 +167,9 @@ async function upsertAssignments(
 }
 
 export async function POST(request: Request) {
+  let slotReservation: CategorizationSlotReservation | null = null
+  let userIdForRelease: string | null = null
+
   try {
     const supabase = await createClient()
     const adminSupabase = createAdminClient()
@@ -56,6 +183,19 @@ export async function POST(request: Request) {
 
     if (!repos?.length) {
       return NextResponse.json({ error: 'No repos provided' }, { status: 400 })
+    }
+
+    userIdForRelease = user.id
+    slotReservation = await reserveCategorizationSlot(adminSupabase, user.id)
+
+    if (!slotReservation.allowed) {
+      return NextResponse.json(
+        {
+          error: formatCooldownMessage(slotReservation.nextAllowedAt!),
+          nextAllowedAt: slotReservation.nextAllowedAt,
+        },
+        { status: 429 }
+      )
     }
 
     const apiKey = process.env.OPENROUTER_API_KEY
@@ -169,6 +309,16 @@ export async function POST(request: Request) {
     after(async () => { await langfuseSpanProcessor?.forceFlush() })
     return NextResponse.json(persistedResult)
   } catch (err) {
+    if (slotReservation?.allowed && slotReservation.claimedAt && userIdForRelease) {
+      const adminSupabase = createAdminClient()
+      await releaseCategorizationSlot(
+        adminSupabase,
+        userIdForRelease,
+        slotReservation.claimedAt,
+        slotReservation.previousLastCategorizedAt
+      )
+    }
+
     Sentry.captureException(err)
     console.error('Categorization error:', err)
     return NextResponse.json({ error: 'Failed to categorize repositories' }, { status: 500 })
