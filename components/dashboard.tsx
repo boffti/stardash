@@ -9,6 +9,7 @@ import { RepoGrid } from "./repo-grid"
 import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
+import { ProactiveAlerts } from "./proactive-alerts"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
 import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List } from "lucide-react"
@@ -724,6 +725,9 @@ export function Dashboard({ user }: DashboardProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Proactive Alerts - Updates on starred repos */}
+              <ProactiveAlerts repos={repos} userId={user?.id} />
 
               {/* Empty State */}
               {repos.length === 0 && (

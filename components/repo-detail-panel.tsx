@@ -69,6 +69,12 @@ export function RepoDetailPanel({
   const [savingNotes, setSavingNotes] = useState(false)
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Note prompt state for collection/tag assignment
+  const [showNotePrompt, setShowNotePrompt] = useState(false)
+  const [notePromptTarget, setNotePromptTarget] = useState<{ type: 'collection' | 'tag'; name: string } | null>(null)
+  const [promptNote, setPromptNote] = useState("")
+  const promptInputRef = useRef<HTMLInputElement>(null)
+
   // Sync notes when repo changes
   useEffect(() => {
     setNotes(repo?.notes || "")
@@ -111,6 +117,68 @@ export function RepoDetailPanel({
     onCollectionCreate?.(newCollectionName.trim(), newCollectionEmoji, "#64748b")
     setNewCollectionName("")
     setNewCollectionEmoji("📁")
+  }
+
+  // Handle collection toggle with note prompt
+  const handleCollectionToggleWithPrompt = (collectionId: string) => {
+    const collection = collections.find(c => c.id === collectionId)
+    const isAssigned = repo?.collections.includes(collectionId)
+
+    // Perform the toggle
+    onCollectionToggle?.(repo, collectionId)
+    setCollectionPopoverOpen(false)
+
+    // Show note prompt if adding (not removing)
+    if (!isAssigned && collection) {
+      setNotePromptTarget({ type: 'collection', name: collection.name })
+      setShowNotePrompt(true)
+      setPromptNote("")
+      // Focus the input after a short delay
+      setTimeout(() => promptInputRef.current?.focus(), 100)
+    }
+  }
+
+  // Handle tag toggle with note prompt
+  const handleTagToggleWithPrompt = (tagId: string) => {
+    const tag = tags.find(t => t.id === tagId)
+    const isAssigned = repo?.tags.some(t => t.id === tagId)
+
+    // Perform the toggle
+    onTagToggle?.(repo, tagId)
+    setTagPopoverOpen(false)
+
+    // Show note prompt if adding (not removing)
+    if (!isAssigned && tag) {
+      setNotePromptTarget({ type: 'tag', name: tag.label })
+      setShowNotePrompt(true)
+      setPromptNote("")
+      // Focus the input after a short delay
+      setTimeout(() => promptInputRef.current?.focus(), 100)
+    }
+  }
+
+  // Handle note prompt submission
+  const handleNotePromptSubmit = () => {
+    if (promptNote.trim() && repo) {
+      const currentNotes = repo.notes || ""
+      const prefix = notePromptTarget
+        ? `Added to ${notePromptTarget.type === 'collection' ? 'collection' : 'tag'} "${notePromptTarget.name}": `
+        : ""
+      const newNotes = currentNotes
+        ? `${currentNotes}\n\n${prefix}${promptNote.trim()}`
+        : `${prefix}${promptNote.trim()}`
+      handleNotesChange(newNotes)
+    }
+    setShowNotePrompt(false)
+    setNotePromptTarget(null)
+    setPromptNote("")
+  }
+
+  // Handle note prompt dismissal
+  const handleNotePromptDismiss = () => {
+    setShowNotePrompt(false)
+    setNotePromptTarget(null)
+    setPromptNote("")
   }
 
   const filteredTags = tags.filter(t =>
@@ -321,10 +389,7 @@ export function RepoDetailPanel({
                           <button
                             key={col.id}
                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
-                            onClick={() => {
-                              onCollectionToggle?.(repo, col.id)
-                              setCollectionPopoverOpen(false)
-                            }}
+                            onClick={() => handleCollectionToggleWithPrompt(col.id)}
                           >
                             <span>{col.emoji}</span>
                             <span>{col.name}</span>
@@ -395,11 +460,7 @@ export function RepoDetailPanel({
                           <button
                             key={tag.id}
                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
-                            onClick={() => {
-                              onTagToggle?.(repo, tag.id)
-                              setTagInput("")
-                              setTagPopoverOpen(false)
-                            }}
+                            onClick={() => handleTagToggleWithPrompt(tag.id)}
                           >
                             <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
                             {tag.label}
@@ -426,6 +487,53 @@ export function RepoDetailPanel({
                   </Popover>
                 </div>
               </div>
+
+              {/* Note Prompt - appears after collection/tag assignment */}
+              {showNotePrompt && (
+                <div className="bg-muted/50 rounded-lg p-3 border border-border/50">
+                  <label className="text-xs text-muted-foreground mb-2 block">
+                    Why are you adding this here?
+                  </label>
+                  <Input
+                    ref={promptInputRef}
+                    placeholder="Add a quick note..."
+                    value={promptNote}
+                    onChange={(e) => setPromptNote(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleNotePromptSubmit()
+                      } else if (e.key === "Escape") {
+                        handleNotePromptDismiss()
+                      }
+                    }}
+                    className="text-sm"
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Press Enter to save, Escape to dismiss
+                    </p>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={handleNotePromptDismiss}
+                      >
+                        Skip
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={handleNotePromptSubmit}
+                        disabled={!promptNote.trim()}
+                      >
+                        Add Note
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               <div>

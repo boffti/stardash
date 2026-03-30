@@ -1,6 +1,7 @@
 "use client"
 
 import { Star, GitFork, Clock, Pin, ExternalLink } from "lucide-react"
+import { RepoHealthBadges } from "./repo-health-badges"
 import { useDraggable } from "@dnd-kit/core"
 import {
   Table,
@@ -122,6 +123,9 @@ function DraggableRow({ repo, onRepoClick }: { repo: StarredRepo; onRepoClick: (
                           <Pin className="h-3 w-3 text-accent fill-accent shrink-0" />
                         )}
                       </div>
+                      <div className="mt-1">
+                        <RepoHealthBadges repo={repo} size="sm" />
+                      </div>
                     </div>
                   </div>
                 </TableCell>
@@ -217,6 +221,9 @@ function MobileCardRow({ repo, onRepoClick }: { repo: StarredRepo; onRepoClick: 
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-sm font-medium truncate">{repo.owner}/{repo.name}</span>
             {repo.isPinned && <Pin className="h-3 w-3 text-accent fill-accent shrink-0" />}
+          </div>
+          <div className="mt-0.5">
+            <RepoHealthBadges repo={repo} size="sm" />
           </div>
 
           {repo.description && (

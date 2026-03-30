@@ -13,10 +13,11 @@ import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
-import type { StarredRepo, Collection, Tag } from "@/lib/types"
+import type { StarredRepo, Collection, Tag, UserMetadata } from "@/lib/types"
 import { analyzeTrending, TrendingAnalysis } from "@/lib/trending"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 
 interface TrendingDashboardProps {
   user: User | null
@@ -41,6 +42,12 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
 
   const supabase = createClient()
 
+  // Sensors for DnD
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } })
+  )
+
   // Fetch starred repos
   const { data, error, isLoading, mutate } = useSWR<{
     repos: StarredRepo[]
@@ -51,6 +58,13 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   })
+
+  // Fetch user metadata (tags, collections) from Supabase
+  const { data: metadata } = useSWR<UserMetadata>(
+    user?.id ? '/api/user/metadata' : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false }
+  )
 
   // Analyze repos for trending recommendations
   const trendingAnalysis = useMemo<TrendingAnalysis>(() => {
@@ -93,15 +107,16 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
     setReadmeViewerOpen(false)
   }
 
-  // Mock collections/tags for the sidebar (trending page doesn't use them)
-  const mockCollections: Collection[] = []
-  const mockTags: Tag[] = []
+  // Use real collections/tags from metadata
+  const collections = metadata?.collections ?? []
+  const tags = metadata?.tags ?? []
 
   return (
+    <DndContext sensors={sensors}>
     <SidebarProvider>
       <AppSidebar
-        collections={mockCollections}
-        tags={mockTags}
+        collections={collections}
+        tags={tags}
         selectedCollection={null}
         selectedTag={null}
         showUncategorized={false}
@@ -111,7 +126,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
         totalStars={data?.repos?.length || 0}
         uncategorizedCount={0}
       />
-      <SidebarInset>
+      <SidebarInset className="overflow-x-hidden">
         {/* Header */}
         <header className="border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
@@ -267,5 +282,6 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
         onClose={handleCloseReadme}
       />
     </SidebarProvider>
+    </DndContext>
   )
 }

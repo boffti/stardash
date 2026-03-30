@@ -26,7 +26,7 @@ export function TrendingSection({ title, description, repos, onRepoClick }: Tren
   if (repos.length === 0) return null
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 w-full">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">{title}</h2>
@@ -54,7 +54,7 @@ export function TrendingSection({ title, description, repos, onRepoClick }: Tren
 
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
+        className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide w-full"
         style={{
           scrollbarWidth: "none",
           msOverflowStyle: "none",
@@ -63,7 +63,7 @@ export function TrendingSection({ title, description, repos, onRepoClick }: Tren
         {repos.map((repo) => (
           <div
             key={repo.id}
-            className="w-[320px] flex-shrink-0"
+            className="w-[320px] flex-shrink-0 h-[280px]"
           >
             <RepoCard repo={repo} onClick={() => onRepoClick(repo)} />
           </div>

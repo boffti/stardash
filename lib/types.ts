@@ -67,6 +67,7 @@ export interface StarredRepo {
   tags: Tag[]
   collections: string[]
   readme: string | null
+  archived: boolean
 }
 
 export const STATUS_LABELS: Record<Exclude<RepoStatus, null>, { label: string; color: string }> = {
