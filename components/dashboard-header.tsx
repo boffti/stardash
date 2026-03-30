@@ -49,6 +49,10 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const searchLabel = searchQuery ? `Search: ${searchQuery}` : "Search repositories, tags, and actions"
+  const desktopControlClassName =
+    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+  const mobileControlClassName =
+    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
 
   return (
     <>
@@ -60,7 +64,7 @@ export function DashboardHeader({
           <button
             type="button"
             onClick={onOpenCommandPalette}
-            className="hidden h-10 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
+            className="hidden h-9 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
             aria-label="Open command palette"
           >
             <Search className="h-4 w-4 shrink-0" />
@@ -77,7 +81,7 @@ export function DashboardHeader({
               value={languageFilter ?? "all"}
               onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
             >
-              <SelectTrigger className="w-32 lg:w-40 border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
+              <SelectTrigger className={`w-32 lg:w-40 ${desktopControlClassName}`}>
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
               <SelectContent>
@@ -91,7 +95,7 @@ export function DashboardHeader({
             </Select>
 
             <Select value={sortBy} onValueChange={onSortChange}>
-              <SelectTrigger className="w-40 lg:w-52 border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
+              <SelectTrigger className={`w-40 lg:w-52 ${desktopControlClassName}`}>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -164,7 +168,7 @@ export function DashboardHeader({
             value={languageFilter ?? "all"}
             onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
           >
-            <SelectTrigger className="w-full border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
+            <SelectTrigger className={`w-full ${mobileControlClassName}`}>
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
@@ -178,7 +182,7 @@ export function DashboardHeader({
           </Select>
 
           <Select value={sortBy} onValueChange={onSortChange}>
-            <SelectTrigger className="w-full border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
+            <SelectTrigger className={`w-full ${mobileControlClassName}`}>
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
