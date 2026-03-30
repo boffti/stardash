@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Archive, Tag, TrendingUp, ChevronDown, ChevronUp, X, Bell } from "lucide-react"
+import { Archive, Tag, TrendingUp, ChevronDown, ChevronUp, X, Bell, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,7 @@ interface ProactiveAlertsProps {
   userId: string | undefined
 }
 
-type AlertType = 'archived' | 'dormant' | 'trending'
+type AlertType = 'archived' | 'dormant' | 'trending' | 'release'
 
 interface Alert {
   id: string
@@ -22,6 +22,10 @@ interface Alert {
   repoName: string
   message: string
   timestamp: string
+  meta?: {
+    tagName?: string
+    releaseName?: string
+  }
 }
 
 const STORAGE_KEY = 'stardash_dismissed_alerts'
@@ -99,6 +103,40 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
           })
         }
       }
+
+      // Trending alert
+      if (repo.isTrending) {
+        const alertId = `trending-${repo.id}`
+        if (!dismissedAlerts.has(alertId)) {
+          newAlerts.push({
+            id: alertId,
+            type: 'trending',
+            repoId: repo.id,
+            repoName: repo.fullName,
+            message: `${repo.fullName} doubled in stars this month`,
+            timestamp: new Date().toISOString(),
+          })
+        }
+      }
+
+      // New release alert
+      if (repo.latestRelease) {
+        const alertId = `release-${repo.id}-${repo.latestRelease.tagName}`
+        if (!dismissedAlerts.has(alertId)) {
+          newAlerts.push({
+            id: alertId,
+            type: 'release',
+            repoId: repo.id,
+            repoName: repo.fullName,
+            message: `${repo.fullName} released ${repo.latestRelease.tagName}`,
+            timestamp: new Date().toISOString(),
+            meta: {
+              tagName: repo.latestRelease.tagName,
+              releaseName: repo.latestRelease.name,
+            },
+          })
+        }
+      }
     }
 
     return newAlerts
@@ -118,6 +156,8 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
         return <Tag className="h-4 w-4 text-slate-500" />
       case 'trending':
         return <TrendingUp className="h-4 w-4 text-emerald-500" />
+      case 'release':
+        return <Package className="h-4 w-4 text-blue-500" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -141,6 +181,12 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
         return (
           <Badge variant="outline" className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400">
             Trending
+          </Badge>
+        )
+      case 'release':
+        return (
+          <Badge variant="outline" className="text-[10px] h-5 bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400">
+            Release
           </Badge>
         )
     }
@@ -200,7 +246,8 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
                       {' '}
                       {alert.type === 'archived' && 'was archived'}
                       {alert.type === 'dormant' && "hasn't been updated in over a year"}
-                      {alert.type === 'trending' && 'is trending'}
+                      {alert.type === 'trending' && 'doubled in stars this month'}
+                      {alert.type === 'release' && `released ${alert.meta?.tagName || 'a new version'}`}
                     </span>
                   </div>
                 </div>

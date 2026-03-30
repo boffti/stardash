@@ -58,8 +58,42 @@ export function RepoHealthBadges({ repo, className, size = "sm" }: RepoHealthBad
     )
   }
 
-  // Note: Trending and New Release badges require additional data
-  // that will be implemented in a future pass (requires cron job + DB)
+  // Trending badge - stars doubled in 30 days
+  if (repo.isTrending) {
+    badges.push(
+      <Badge
+        key="trending"
+        variant="outline"
+        className={cn(
+          "gap-1 font-normal",
+          size === "sm" ? "text-[10px] px-1.5 py-0 h-4" : "text-xs px-2 py-0.5 h-5",
+          "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
+        )}
+      >
+        <TrendingUp className={cn(size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3")} />
+        Trending
+      </Badge>
+    )
+  }
+
+  // New release badge - major release since starred
+  if (repo.latestRelease) {
+    badges.push(
+      <Badge
+        key="release"
+        variant="outline"
+        className={cn(
+          "gap-1 font-normal",
+          size === "sm" ? "text-[10px] px-1.5 py-0 h-4" : "text-xs px-2 py-0.5 h-5",
+          "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400 dark:border-blue-500/30"
+        )}
+        title={repo.latestRelease.name}
+      >
+        <Tag className={cn(size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3")} />
+        {repo.latestRelease.tagName}
+      </Badge>
+    )
+  }
 
   if (badges.length === 0) return null
 
@@ -74,5 +108,7 @@ export function RepoHealthBadges({ repo, className, size = "sm" }: RepoHealthBad
 export function hasHealthSignals(repo: StarredRepo): boolean {
   if (repo.archived) return true
   if (isDormant(repo.pushedAt)) return true
+  if (repo.isTrending) return true
+  if (repo.latestRelease) return true
   return false
 }
