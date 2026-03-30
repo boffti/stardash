@@ -73,30 +73,30 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-3xl p-0 border-l border-border flex flex-col"
+        className="w-full sm:max-w-lg lg:max-w-2xl xl:max-w-3xl p-0 border-l border-border flex flex-col"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
-        <SheetHeader className="px-6 py-4 border-b border-border shrink-0 space-y-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <Avatar className="h-8 w-8 shrink-0">
+        <SheetHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0 space-y-0">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <Avatar className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
                 <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
-                <AvatarFallback className="text-sm">
+                <AvatarFallback className="text-xs sm:text-sm">
                   {repo.owner[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 overflow-hidden">
-                <SheetTitle className="font-mono text-base truncate text-left">
+                <SheetTitle className="font-mono text-sm sm:text-base truncate text-left">
                   {repo.owner}/{repo.name}
                 </SheetTitle>
-                <SheetDescription className="text-xs text-muted-foreground text-left">
+                <SheetDescription className="text-xs text-muted-foreground text-left hidden sm:block">
                   README.md
                 </SheetDescription>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-8 px-2 sm:px-3" asChild>
                 <a
                   href={`https://github.com/${repo.fullName}#readme`}
                   target="_blank"
@@ -105,7 +105,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                   <Github className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">View on GitHub</span>
                   <span className="sm:hidden">GitHub</span>
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3 w-3 hidden sm:block" />
                 </a>
               </Button>
             </div>
@@ -114,7 +114,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
 
         {/* Scrollable content */}
         <ScrollArea className="flex-1 overflow-hidden">
-          <div className="p-6 min-w-0">
+          <div className="p-4 sm:p-6 min-w-0">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -142,9 +142,9 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
             ) : readme ? (
               <article className="prose dark:prose-invert prose-sm max-w-full
                 prose-headings:font-semibold prose-headings:text-foreground
-                prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3
-                prose-h2:text-xl prose-h2:mt-8
-                prose-h3:text-lg
+                prose-h1:text-xl sm:prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3
+                prose-h2:text-lg sm:prose-h2:text-xl prose-h2:mt-6 sm:prose-h2:mt-8
+                prose-h3:text-base sm:prose-h3:text-lg
                 prose-p:text-muted-foreground prose-p:leading-relaxed
                 prose-a:text-accent prose-a:no-underline hover:prose-a:underline
                 prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5

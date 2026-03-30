@@ -46,25 +46,38 @@ export function RepoList({ repos, onRepoClick }: RepoListProps) {
   }
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent border-border">
-            <TableHead className="w-6" />
-            <TableHead className="w-[33%]">Repository</TableHead>
-            <TableHead className="w-[12%]">Language</TableHead>
-            <TableHead className="w-[8%] text-right">Stars</TableHead>
-            <TableHead className="w-[15%]">Last Updated</TableHead>
-            <TableHead className="w-[12%]">Date Starred</TableHead>
-            <TableHead className="w-[10%]">Status</TableHead>
-            <TableHead className="w-[8%]">Tags</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {repos.map((repo) => <DraggableRow key={repo.id} repo={repo} onRepoClick={onRepoClick} />)}
-        </TableBody>
-      </Table>
-    </div>
+    <>
+      {/* Desktop/tablet: traditional table with horizontal scroll on narrow viewports */}
+      <div className="hidden sm:block rounded-lg border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-border">
+                <TableHead className="w-6" />
+                <TableHead className="w-[33%]">Repository</TableHead>
+                <TableHead className="w-[12%]">Language</TableHead>
+                <TableHead className="w-[8%] text-right">Stars</TableHead>
+                <TableHead className="w-[15%]">Last Updated</TableHead>
+                <TableHead className="w-[12%]">Date Starred</TableHead>
+                <TableHead className="w-[10%]">Status</TableHead>
+                <TableHead className="w-[8%]">Tags</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {repos.map((repo) => (
+                <DraggableRow key={repo.id} repo={repo} onRepoClick={onRepoClick} />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <div className="sm:hidden space-y-3">
+        {repos.map((repo) => (
+          <MobileCardRow key={repo.id} repo={repo} onRepoClick={onRepoClick} />
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -168,5 +181,93 @@ function DraggableRow({ repo, onRepoClick }: { repo: StarredRepo; onRepoClick: (
                   </div>
                 </TableCell>
     </TableRow>
+  )
+}
+
+function MobileCardRow({ repo, onRepoClick }: { repo: StarredRepo; onRepoClick: (repo: StarredRepo) => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: repo.id })
+  const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn("rounded-lg border border-border p-3 bg-card hover:bg-muted/50 cursor-pointer", isDragging && "opacity-40")}
+      onClick={() => onRepoClick(repo)}
+    >
+      <div className="flex items-start gap-2">
+        <button
+          {...listeners}
+          {...attributes}
+          onClick={(e) => e.stopPropagation()}
+          className="opacity-20 hover:opacity-70 transition-opacity cursor-grab active:cursor-grabbing p-1 mt-0.5"
+          aria-label="Drag to assign"
+        >
+          <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="5" cy="4" r="1.5" /><circle cx="11" cy="4" r="1.5" />
+            <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
+            <circle cx="5" cy="12" r="1.5" /><circle cx="11" cy="12" r="1.5" />
+          </svg>
+        </button>
+
+        <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+          <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
+          <AvatarFallback className="text-xs">{repo.owner[0].toUpperCase()}</AvatarFallback>
+        </Avatar>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-sm font-medium truncate">{repo.owner}/{repo.name}</span>
+            {repo.isPinned && <Pin className="h-3 w-3 text-accent fill-accent shrink-0" />}
+          </div>
+
+          {repo.description && (
+            <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">{repo.description}</p>
+          )}
+
+          <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+            {repo.language && (
+              <div className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: repo.languageColor || '#64748b' }} />
+                <span className="text-xs text-muted-foreground">{repo.language}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Star className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{formatNumber(repo.stargazersCount)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <GitFork className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{formatNumber(repo.forksCount)}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2 flex-wrap pl-6">
+        {repo.tags.slice(0, 3).map((tag) => (
+          <Badge
+            key={tag.id}
+            variant="outline"
+            className="text-xs px-1.5 py-0 h-5 border-0"
+            style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+          >
+            {tag.label}
+          </Badge>
+        ))}
+        {repo.tags.length > 3 && (
+          <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+            +{repo.tags.length - 3}
+          </Badge>
+        )}
+        {statusConfig && (
+          <Badge
+            variant="outline"
+            className={cn("text-xs px-1.5 py-0 h-5", statusConfig.color)}
+          >
+            {statusConfig.label}
+          </Badge>
+        )}
+      </div>
+    </div>
   )
 }
