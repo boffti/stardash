@@ -77,7 +77,7 @@ export function DashboardHeader({
               value={languageFilter ?? "all"}
               onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
             >
-              <SelectTrigger className="w-32 lg:w-40 bg-secondary border-0">
+              <SelectTrigger className="w-32 lg:w-40 border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
               <SelectContent>
@@ -91,7 +91,7 @@ export function DashboardHeader({
             </Select>
 
             <Select value={sortBy} onValueChange={onSortChange}>
-              <SelectTrigger className="w-40 lg:w-52 bg-secondary border-0">
+              <SelectTrigger className="w-40 lg:w-52 border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -164,7 +164,7 @@ export function DashboardHeader({
             value={languageFilter ?? "all"}
             onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
           >
-            <SelectTrigger className="w-full bg-secondary border-0">
+            <SelectTrigger className="w-full border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
@@ -178,7 +178,7 @@ export function DashboardHeader({
           </Select>
 
           <Select value={sortBy} onValueChange={onSortChange}>
-            <SelectTrigger className="w-full bg-secondary border-0">
+            <SelectTrigger className="w-full border-0 bg-secondary text-muted-foreground [&_svg]:text-muted-foreground">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
