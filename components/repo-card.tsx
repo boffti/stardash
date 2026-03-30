@@ -22,6 +22,7 @@ import { useDraggable } from "@dnd-kit/core"
 interface RepoCardProps {
   repo: StarredRepo
   onClick: () => void
+  onRemoveStar?: (repo: StarredRepo) => void
 }
 
 function formatNumber(num: number): string {
@@ -31,7 +32,7 @@ function formatNumber(num: number): string {
   return num.toString()
 }
 
-export function RepoCard({ repo, onClick }: RepoCardProps) {
+export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
   const statusConfig = repo.status ? STATUS_LABELS[repo.status] : null
   const [timeString, setTimeString] = useState("recently")
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: repo.id })
@@ -112,7 +113,10 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
                   {repo.isPinned ? "Unpin" : "Pin"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => onRemoveStar?.(repo)}
+                >
                   Remove Star
                 </DropdownMenuItem>
               </DropdownMenuContent>
