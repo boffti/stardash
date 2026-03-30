@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { after } from 'next/server'
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { categorizeRepos } from '@/lib/ai-categorize'
+import { langfuseSpanProcessor } from '@/instrumentation'
 import {
   ensureCollections,
   ensureTags,
@@ -163,8 +166,10 @@ export async function POST(request: Request) {
       generatedAt: result.generatedAt,
     }
 
+    after(async () => { await langfuseSpanProcessor?.forceFlush() })
     return NextResponse.json(persistedResult)
   } catch (err) {
+    Sentry.captureException(err)
     console.error('Categorization error:', err)
     return NextResponse.json({ error: 'Failed to categorize repositories' }, { status: 500 })
   }
