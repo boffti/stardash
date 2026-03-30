@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { ExternalLink, Github, FileText, Loader2, AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
@@ -18,6 +19,8 @@ import { StarredRepo } from "@/lib/types"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 
 interface ReadmeViewerProps {
@@ -56,6 +59,21 @@ function resolveImageUrl(src: string | undefined, owner: string, repoName: strin
   if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src
   const path = src.startsWith("/") ? src.slice(1) : src.startsWith("./") ? src.slice(2) : src
   return `https://raw.githubusercontent.com/${owner}/${repoName}/HEAD/${path}`
+}
+
+function getCodeBlockProps(children: React.ReactNode) {
+  if (!React.isValidElement(children)) return null
+
+  const childProps = children.props as { className?: string; children?: React.ReactNode }
+  const match = /language-([\w-]+)/.exec(childProps.className || "")
+
+  if (!match) return null
+
+  return {
+    className: childProps.className,
+    code: String(childProps.children ?? "").replace(/\n$/, ""),
+    language: match[1],
+  }
 }
 
 export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
@@ -178,6 +196,41 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
                   components={{
+                    pre: ({ children }) => {
+                      const codeBlock = getCodeBlockProps(children)
+
+                      if (!codeBlock) {
+                        return <pre>{children}</pre>
+                      }
+
+                      return (
+                        <div className="not-prose my-4 max-w-full overflow-x-auto rounded-lg border border-border">
+                          <SyntaxHighlighter
+                            language={codeBlock.language}
+                            style={oneDark}
+                            wrapLongLines
+                            customStyle={{
+                              margin: 0,
+                              padding: "1rem",
+                              borderRadius: 0,
+                              fontSize: "0.875rem",
+                              minWidth: "100%",
+                              whiteSpace: "pre-wrap",
+                              overflowWrap: "anywhere",
+                            }}
+                            codeTagProps={{
+                              style: {
+                                fontFamily: "var(--font-mono)",
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                              },
+                            }}
+                          >
+                            {codeBlock.code}
+                          </SyntaxHighlighter>
+                        </div>
+                      )
+                    },
                     img: ({ src, alt }) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -192,6 +245,15 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                         {children}
                       </a>
                     ),
+                    code(props) {
+                      const { children, className, ...rest } = props
+
+                      return (
+                        <code {...rest} className={className}>
+                          {children}
+                        </code>
+                      )
+                    },
                   }}
                 >
                   {readme}
