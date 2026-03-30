@@ -8,7 +8,7 @@ export interface TrendingCategory {
 }
 
 export interface TrendingAnalysis {
-  categories: TrendingCategory[]Teh 
+  categories: TrendingCategory[]
   topLanguages: string[]
   topTopics: string[]
   totalAnalyzed: number
