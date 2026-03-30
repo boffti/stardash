@@ -2,6 +2,7 @@
 
 import { ExternalLink, Github, FileText, Loader2, AlertCircle } from "lucide-react"
 import useSWR from "swr"
+import { createClient } from "@/lib/supabase/client"
 import {
   Sheet,
   SheetContent,
@@ -129,14 +130,24 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                 <EmptyDescription>
                   Your GitHub session has expired. Please sign in again to view READMEs.
                 </EmptyDescription>
-                <Button 
-                  variant="default" 
-                  size="sm" 
+                <Button
+                  variant="default"
+                  size="sm"
                   className="mt-4 gap-1.5"
-                  onClick={() => window.location.href = '/auth/login'}
+                  onClick={async () => {
+                    const supabase = createClient()
+                    const currentPath = window.location.pathname + window.location.search
+                    await supabase.auth.signInWithOAuth({
+                      provider: 'github',
+                      options: {
+                        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
+                        scopes: 'read:user user:email',
+                      },
+                    })
+                  }}
                 >
                   <Github className="h-3.5 w-3.5" />
-                  Sign In Again
+                  Reconnect GitHub
                 </Button>
               </Empty>
             ) : readme ? (
