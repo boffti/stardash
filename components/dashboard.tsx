@@ -349,28 +349,47 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
+  // Helper: build repoMeta entry preserving existing data
+  const buildRepoMetaEntry = (
+    prev: UserMetadata | undefined,
+    repoId: string,
+    dbId: string,
+    overrides: Partial<{
+      status: RepoStatus | null
+      isPinned: boolean
+      notes: string | null
+      tagIds: string[]
+      collectionIds: string[]
+    }> = {}
+  ): UserMetadata => ({
+    tags: prev?.tags ?? [],
+    collections: prev?.collections ?? [],
+    repoMeta: {
+      ...(prev?.repoMeta ?? {}),
+      [repoId]: {
+        dbId,
+        status: overrides.status ?? prev?.repoMeta?.[repoId]?.status ?? null,
+        isPinned: overrides.isPinned ?? prev?.repoMeta?.[repoId]?.isPinned ?? false,
+        notes: overrides.notes ?? prev?.repoMeta?.[repoId]?.notes ?? null,
+        tagIds: overrides.tagIds ?? prev?.repoMeta?.[repoId]?.tagIds ?? [],
+        collectionIds: overrides.collectionIds ?? prev?.repoMeta?.[repoId]?.collectionIds ?? [],
+      },
+    },
+  })
+
   // Helper: get DB UUID for a repo, upserting if needed
   const getDbId = async (repo: StarredRepo): Promise<string> => {
     const existing = metadata?.repoMeta[repo.id]?.dbId
     if (existing) return existing
-    const dbId = await ensureRepo(supabase, repo, user!.id)
-    mutateMetadata(prev => ({
-      tags: prev?.tags ?? [],
-      collections: prev?.collections ?? [],
-      repoMeta: {
-        ...(prev?.repoMeta ?? {}),
-        [repo.id]: { dbId, status: null, isPinned: false, notes: null, tagIds: [], collectionIds: [] },
-      },
-    }), { revalidate: false })
+    if (!user?.id) throw new Error('User not authenticated')
+    const dbId = await ensureRepo(supabase, repo, user.id)
+    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId), { revalidate: false })
     return dbId
   }
 
   const handleStatusChange = async (repo: StarredRepo, status: RepoStatus | null) => {
     const dbId = await getDbId(repo)
-    mutateMetadata(prev => ({
-      ...prev!,
-      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
-    }), { revalidate: false })
+    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
     try {
       await updateRepoStatus(supabase, dbId, status)
     } catch {
@@ -383,10 +402,7 @@ export function Dashboard({ user }: DashboardProps) {
     const dbId = await getDbId(repo)
     try {
       await updateRepoNotes(supabase, dbId, notes)
-      mutateMetadata(prev => ({
-        ...prev!,
-        repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
-      }), { revalidate: false })
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), { revalidate: false })
     } catch {
       toast.error('Failed to save notes')
     }
@@ -395,10 +411,7 @@ export function Dashboard({ user }: DashboardProps) {
   const handlePinToggle = async (repo: StarredRepo) => {
     const dbId = await getDbId(repo)
     const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
-    mutateMetadata(prev => ({
-      ...prev!,
-      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
-    }), { revalidate: false })
+    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
     try {
       await togglePin(supabase, dbId, isPinned)
     } catch {
@@ -412,10 +425,7 @@ export function Dashboard({ user }: DashboardProps) {
     const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
     const isAssigned = current.includes(tagId)
     const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
-    mutateMetadata(prev => ({
-      ...prev!,
-      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: newTagIds, collectionIds: prev?.repoMeta[repo.id]?.collectionIds ?? [] } },
-    }), { revalidate: false })
+    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
     try {
       if (isAssigned) await removeTag(supabase, dbId, tagId)
       else await assignTag(supabase, dbId, tagId)
@@ -450,15 +460,21 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
-  const handleCollectionToggle = async (repo: StarredRepo, collectionId: string) => {
+  const handleCollectionToggle = async (repo: StarredRepo, collectionId: string, mode: 'toggle' | 'add-only' = 'toggle') => {
     const dbId = await getDbId(repo)
     const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
     const isAssigned = current.includes(collectionId)
+    if (isAssigned && mode === 'add-only') return
     const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
-    mutateMetadata(prev => ({
-      ...prev!,
-      repoMeta: { ...prev!.repoMeta, [repo.id]: { ...prev!.repoMeta[repo.id], dbId, status: prev?.repoMeta[repo.id]?.status ?? null, isPinned: prev?.repoMeta[repo.id]?.isPinned ?? false, notes: prev?.repoMeta[repo.id]?.notes ?? null, tagIds: prev?.repoMeta[repo.id]?.tagIds ?? [], collectionIds: newCollectionIds } },
-    }), { revalidate: false })
+    mutateMetadata(prev => {
+      const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds })
+      const updatedCollections = newMeta.collections.map(c =>
+        c.id === collectionId
+          ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
+          : c
+      )
+      return { ...newMeta, collections: updatedCollections }
+    }, { revalidate: false })
     try {
       if (isAssigned) await removeCollection(supabase, dbId, collectionId)
       else await assignCollection(supabase, dbId, collectionId)
@@ -488,7 +504,7 @@ export function Dashboard({ user }: DashboardProps) {
     const repo = repos.find(r => r.id === repoId)
     if (!repo) return
     if (dropTarget.startsWith('collection::')) {
-      await handleCollectionToggle(repo, dropTarget.replace('collection::', ''))
+      await handleCollectionToggle(repo, dropTarget.replace('collection::', ''), 'add-only')
     } else if (dropTarget.startsWith('tag::')) {
       await handleTagToggle(repo, dropTarget.replace('tag::', ''))
     }
