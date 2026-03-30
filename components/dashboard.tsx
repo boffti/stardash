@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/pagination"
 import { formatDistanceToNow } from "date-fns"
 import { getCachedRepos, setCachedRepos, clearCachedRepos } from "@/lib/repo-cache"
-import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo } from "@/lib/types"
+import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Collection, Tag } from "@/lib/types"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -151,12 +151,39 @@ export function Dashboard({ user }: DashboardProps) {
     })
   }, [rawRepos, metadata, categorization])
 
-  const collections = (metadata?.collections ?? []).length > 0
-    ? metadata!.collections
-    : (categorization?.collections ?? [])
-  const allTags = (metadata?.tags ?? []).length > 0
-    ? metadata!.tags
-    : (categorization?.allTags ?? [])
+  const collections = useMemo(() => {
+    const dbCollections = metadata?.collections ?? []
+    const aiCollections = categorization?.collections ?? []
+    const merged = new Map<string, Collection>()
+    aiCollections.forEach(c => merged.set(c.name.toLowerCase(), c))
+    dbCollections.forEach(c => merged.set(c.name.toLowerCase(), c))
+    const allCollections = Array.from(merged.values())
+    const dbIds = new Set(dbCollections.map(c => c.id))
+    return allCollections.sort((a, b) => {
+      const aIsDb = dbIds.has(a.id)
+      const bIsDb = dbIds.has(b.id)
+      if (aIsDb && !bIsDb) return -1
+      if (!aIsDb && bIsDb) return 1
+      return a.name.localeCompare(b.name)
+    })
+  }, [metadata?.collections, categorization?.collections])
+
+  const allTags = useMemo(() => {
+    const dbTags = metadata?.tags ?? []
+    const aiTags = categorization?.allTags ?? []
+    const merged = new Map<string, Tag>()
+    aiTags.forEach(t => merged.set(t.label.toLowerCase(), t))
+    dbTags.forEach(t => merged.set(t.label.toLowerCase(), t))
+    const all = Array.from(merged.values())
+    const dbIds = new Set(dbTags.map(t => t.id))
+    return all.sort((a, b) => {
+      const aIsDb = dbIds.has(a.id)
+      const bIsDb = dbIds.has(b.id)
+      if (aIsDb && !bIsDb) return -1
+      if (!aIsDb && bIsDb) return 1
+      return a.label.localeCompare(b.label)
+    })
+  }, [metadata?.tags, categorization?.allTags])
 
   // Get unique languages for filter
   const languages = useMemo(() => {
@@ -411,6 +438,18 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
+  const handleTagCreateSimple = async (label: string) => {
+    if (!user?.id) return
+    try {
+      await createTag(supabase, user.id, label, pickTagColor(label))
+      mutateMetadata()
+    } catch (err) {
+      const msg = (err as Error).message
+      toast.error(msg.includes('unique') ? 'Tag already exists' : 'Failed to create tag')
+      throw err
+    }
+  }
+
   const handleCollectionToggle = async (repo: StarredRepo, collectionId: string) => {
     const dbId = await getDbId(repo)
     const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
@@ -490,6 +529,8 @@ export function Dashboard({ user }: DashboardProps) {
         totalStars={repos.length}
         uncategorizedCount={uncategorizedCount}
         onAICategorize={handleCategorize}
+        onCreateCollection={handleCollectionCreate}
+        onCreateTag={handleTagCreateSimple}
       />
       <SidebarInset>
         <DashboardHeader
@@ -544,7 +585,7 @@ export function Dashboard({ user }: DashboardProps) {
             <>
               {/* Active Filters */}
               {hasActiveFilters && (
-                <div className="mb-4 flex items-center gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted-foreground">Filters:</span>
                   {searchQuery && (
                     <Badge variant="secondary" className="gap-1">
@@ -588,8 +629,8 @@ export function Dashboard({ user }: DashboardProps) {
               )}
 
               {/* Results count + view toggle + per-page selector + top pagination */}
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 shrink-0">
+              <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 shrink-0 flex-wrap">
                   <p className="text-sm text-muted-foreground">
                     {pageSize === "all" || filteredRepos.length === 0
                       ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
@@ -610,7 +651,7 @@ export function Dashboard({ user }: DashboardProps) {
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   {/* Inline page nav */}
                   {pageSize !== "all" && totalPages > 1 && (
                     <div className="flex items-center gap-1">
@@ -678,9 +719,9 @@ export function Dashboard({ user }: DashboardProps) {
                 )
               )}
 
-              {/* Pagination controls */}
+              {/* Pagination controls - desktop (hidden on mobile) */}
               {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-center">
+                <div className="mt-6 hidden md:flex items-center justify-center">
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
