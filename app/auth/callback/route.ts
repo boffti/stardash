@@ -8,7 +8,6 @@ export async function GET(request: Request) {
   const error_description = searchParams.get('error_description')
   const next = searchParams.get('next') ?? '/'
 
-  // Handle OAuth errors from provider
   if (error_param) {
     return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(error_description || error_param)}`)
   }
@@ -18,6 +17,24 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error && data.session) {
+      const providerToken = data.session.provider_token
+      
+      if (providerToken && data.user) {
+        const expiresAt = new Date()
+        expiresAt.setHours(expiresAt.getHours() + 8)
+        
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          github_username: data.user.user_metadata?.user_name || data.user.user_metadata?.preferred_username,
+          github_avatar_url: data.user.user_metadata?.avatar_url,
+          github_id: data.user.user_metadata?.provider_id?.toString(),
+          provider_token: providerToken,
+          token_expires_at: expiresAt.toISOString(),
+          last_token_refresh_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' })
+      }
+      
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'
       if (isLocalEnv) {
@@ -29,12 +46,10 @@ export async function GET(request: Request) {
       }
     }
     
-    // Handle exchange error
     if (error) {
       return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(error.message)}`)
     }
   }
 
-  // Return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/auth/error`)
 }
