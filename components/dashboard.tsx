@@ -9,6 +9,7 @@ import { RepoGrid } from "./repo-grid"
 import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
+import { ProactiveAlerts } from "./proactive-alerts"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
 import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List } from "lucide-react"
@@ -28,7 +29,7 @@ import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Colle
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import {
-  ensureRepo, updateRepoStatus, updateRepoNotes, togglePin,
+  updateRepoStatus, updateRepoNotes, togglePin,
   createTag, assignTag, removeTag,
   createCollection, assignCollection, removeCollection,
   pickTagColor,
@@ -110,28 +111,54 @@ export function Dashboard({ user }: DashboardProps) {
     revalidateOnReconnect: false,
   })
 
-  // Load AI categorization from localStorage on mount
-  useEffect(() => {
-    if (!user?.id) return
-    try {
-      const stored = localStorage.getItem(`stardash_categorization_${user.id}`)
-      if (stored) setCategorization(JSON.parse(stored))
-    } catch {}
-  }, [user?.id])
+  // Fetch repo health data (trending, releases) - batched to avoid long URLs
+  const repoIdsForHealth = useMemo(() => {
+    return data?.repos?.map(r => r.id) || []
+  }, [data?.repos])
+
+  // Batch health requests in chunks of 50 to avoid URL length limits
+  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
+    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
+    async () => {
+      const batchSize = 50
+      const batches = []
+      for (let i = 0; i < repoIdsForHealth.length; i += batchSize) {
+        const batch = repoIdsForHealth.slice(i, i + batchSize)
+        batches.push(batch)
+      }
+
+      const results = await Promise.all(
+        batches.map(async (batch) => {
+          const url = `/api/github/health?repoIds=${batch.join(',')}`
+          const res = await fetch(url)
+          if (!res.ok) return {}
+          return res.json()
+        })
+      )
+
+      // Merge all batch results
+      return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
+    },
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
 
   const rawRepos = data?.repos || []
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
-  // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
+  // Merge DB metadata + AI categorization + health data over raw GitHub data. DB wins.
   const repos = useMemo(() => {
     return rawRepos.map(repo => {
       const dbMeta = metadata?.repoMeta[repo.id]
+      const health = healthData?.[repo.id]
+
+      let mergedRepo = repo
+
       if (dbMeta) {
         const dbTags = (metadata?.tags ?? []).filter(t => dbMeta.tagIds.includes(t.id))
-        return {
-          ...repo,
+        mergedRepo = {
+          ...mergedRepo,
           status: dbMeta.status ?? repo.status,
           isPinned: dbMeta.isPinned,
           notes: dbMeta.notes ?? repo.notes,
@@ -139,17 +166,28 @@ export function Dashboard({ user }: DashboardProps) {
           collections: dbMeta.collectionIds,
         }
       }
+
       // Fall back to AI categorization for repos not yet touched by user
       if (categorization) {
-        return {
-          ...repo,
-          tags: categorization.repoTags[repo.id] ?? repo.tags,
-          collections: categorization.repoCollections[repo.id] ?? repo.collections,
+        mergedRepo = {
+          ...mergedRepo,
+          tags: mergedRepo.tags.length > 0 ? mergedRepo.tags : (categorization.repoTags[repo.id] ?? repo.tags),
+          collections: mergedRepo.collections.length > 0 ? mergedRepo.collections : (categorization.repoCollections[repo.id] ?? repo.collections),
         }
       }
-      return repo
+
+      // Merge health data
+      if (health) {
+        mergedRepo = {
+          ...mergedRepo,
+          isTrending: health.isTrending,
+          latestRelease: health.latestRelease,
+        }
+      }
+
+      return mergedRepo
     })
-  }, [rawRepos, metadata, categorization])
+  }, [rawRepos, metadata, categorization, healthData])
 
   const collections = useMemo(() => {
     const dbCollections = metadata?.collections ?? []
@@ -345,9 +383,8 @@ export function Dashboard({ user }: DashboardProps) {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Failed to categorize')
       setCategorization(result as CategorizationResult)
-      if (user?.id) {
-        localStorage.setItem(`stardash_categorization_${user.id}`, JSON.stringify(result))
-      }
+      if (user?.id) localStorage.removeItem(`stardash_categorization_${user.id}`)
+      await mutateMetadata()
       toast.success(
         `Created ${(result as CategorizationResult).collections.length} collections · tagged ${Object.keys((result as CategorizationResult).repoTags).length} repos`
       )
@@ -390,16 +427,22 @@ export function Dashboard({ user }: DashboardProps) {
   const getDbId = async (repo: StarredRepo): Promise<string> => {
     const existing = metadata?.repoMeta[repo.id]?.dbId
     if (existing) return existing
-    if (!user?.id) throw new Error('User not authenticated')
-    const dbId = await ensureRepo(supabase, repo, user.id)
+
+    const response = await fetch(`/api/user/repo-id?githubRepoId=${repo.id}`)
+    if (!response.ok) {
+      throw new Error('Repo metadata missing. Refresh your stars and try again.')
+    }
+
+    const payload = await response.json()
+    const dbId = payload.dbId as string
     mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId), { revalidate: false })
     return dbId
   }
 
   const handleStatusChange = async (repo: StarredRepo, status: RepoStatus | null) => {
-    const dbId = await getDbId(repo)
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
     try {
+      const dbId = await getDbId(repo)
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
       await updateRepoStatus(supabase, dbId, status)
     } catch {
       mutateMetadata()
@@ -408,8 +451,8 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleNotesChange = async (repo: StarredRepo, notes: string) => {
-    const dbId = await getDbId(repo)
     try {
+      const dbId = await getDbId(repo)
       await updateRepoNotes(supabase, dbId, notes)
       mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), { revalidate: false })
     } catch {
@@ -418,10 +461,10 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handlePinToggle = async (repo: StarredRepo) => {
-    const dbId = await getDbId(repo)
-    const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
     try {
+      const dbId = await getDbId(repo)
+      const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
       await togglePin(supabase, dbId, isPinned)
     } catch {
       mutateMetadata()
@@ -430,14 +473,15 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleTagToggle = async (repo: StarredRepo, tagId: string) => {
-    const dbId = await getDbId(repo)
-    const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
-    const isAssigned = current.includes(tagId)
-    const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
+    if (!user?.id) return
     try {
-      if (isAssigned) await removeTag(supabase, dbId, tagId)
-      else await assignTag(supabase, dbId, tagId)
+      const dbId = await getDbId(repo)
+      const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
+      const isAssigned = current.includes(tagId)
+      const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
+      if (isAssigned) await removeTag(supabase, dbId, user.id, tagId)
+      else await assignTag(supabase, dbId, user.id, tagId)
     } catch {
       mutateMetadata()
       toast.error('Failed to update tag')
@@ -449,7 +493,7 @@ export function Dashboard({ user }: DashboardProps) {
     try {
       const newTag = await createTag(supabase, user.id, label, pickTagColor(label))
       const dbId = await getDbId(repo)
-      await assignTag(supabase, dbId, newTag.id)
+      await assignTag(supabase, dbId, user.id, newTag.id)
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -470,23 +514,24 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleCollectionToggle = async (repo: StarredRepo, collectionId: string, mode: 'toggle' | 'add-only' = 'toggle') => {
-    const dbId = await getDbId(repo)
-    const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
-    const isAssigned = current.includes(collectionId)
-    if (isAssigned && mode === 'add-only') return
-    const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
-    mutateMetadata(prev => {
-      const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds })
-      const updatedCollections = newMeta.collections.map(c =>
-        c.id === collectionId
-          ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
-          : c
-      )
-      return { ...newMeta, collections: updatedCollections }
-    }, { revalidate: false })
+    if (!user?.id) return
     try {
-      if (isAssigned) await removeCollection(supabase, dbId, collectionId)
-      else await assignCollection(supabase, dbId, collectionId)
+      const dbId = await getDbId(repo)
+      const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
+      const isAssigned = current.includes(collectionId)
+      if (isAssigned && mode === 'add-only') return
+      const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
+      mutateMetadata(prev => {
+        const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds })
+        const updatedCollections = newMeta.collections.map(c =>
+          c.id === collectionId
+            ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
+            : c
+        )
+        return { ...newMeta, collections: updatedCollections }
+      }, { revalidate: false })
+      if (isAssigned) await removeCollection(supabase, dbId, user.id, collectionId)
+      else await assignCollection(supabase, dbId, user.id, collectionId)
     } catch {
       mutateMetadata()
       toast.error('Failed to update collection')
@@ -656,12 +701,6 @@ export function Dashboard({ user }: DashboardProps) {
               {/* Results count + view toggle + per-page selector + top pagination */}
               <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                  <p className="text-sm text-muted-foreground">
-                    {pageSize === "all" || filteredRepos.length === 0
-                      ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                      : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                    }
-                  </p>
                   <ToggleGroup
                     type="single"
                     value={viewMode}
@@ -675,6 +714,12 @@ export function Dashboard({ user }: DashboardProps) {
                       <List className="h-3.5 w-3.5" />
                     </ToggleGroupItem>
                   </ToggleGroup>
+                  <p className="text-sm text-muted-foreground">
+                    {pageSize === "all" || filteredRepos.length === 0
+                      ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                      : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                    }
+                  </p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Inline page nav */}
@@ -724,6 +769,9 @@ export function Dashboard({ user }: DashboardProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Proactive Alerts - Updates on starred repos */}
+              <ProactiveAlerts repos={repos} userId={user?.id} />
 
               {/* Empty State */}
               {repos.length === 0 && (

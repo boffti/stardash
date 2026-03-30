@@ -1,6 +1,7 @@
 "use client"
 
 import { Star, GitFork, Clock, Pin, StickyNote, FolderPlus, MoreHorizontal } from "lucide-react"
+import { RepoHealthBadges } from "./repo-health-badges"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -40,10 +41,10 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
   }, [repo.pushedAt])
 
   return (
-    <div ref={setNodeRef} className={cn(isDragging && "opacity-40")}>
+    <div ref={setNodeRef} className={cn("h-full", isDragging && "opacity-40")}>
     <Card
       className={cn(
-        "group relative cursor-pointer transition-all duration-200 h-full py-0",
+        "group relative cursor-pointer transition-all duration-200 h-full py-0 overflow-hidden",
         "hover:border-muted-foreground/30 hover:bg-card/80",
         "border-border bg-card"
       )}
@@ -66,14 +67,19 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
           </div>
           
           <div className="flex items-center gap-1 shrink-0">
+            {/* Health badges - visible by default, hide on hover */}
+            <div className="group-hover:hidden flex items-center gap-1">
+              <RepoHealthBadges repo={repo} size="sm" />
+            </div>
             {repo.isPinned && (
               <Pin className="h-3 w-3 text-accent fill-accent" />
             )}
+            {/* Drag handle and menu - hidden by default, show on hover */}
             <button
               {...listeners}
               {...attributes}
               onClick={e => e.stopPropagation()}
-              className="h-6 w-6 opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground"
+              className="h-6 w-6 hidden group-hover:flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Drag to assign"
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
@@ -87,7 +93,7 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-6 w-6 hidden group-hover:flex opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
