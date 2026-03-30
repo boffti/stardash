@@ -28,24 +28,16 @@ export async function GET(request: NextRequest) {
     const tokenResult = await getAnyValidGitHubToken()
     const accessToken = tokenResult.token ?? undefined
 
-    // Get all unique repos from starred_repos table
+    // Get all repos from the global repos table
     const { data: repos, error: reposError } = await supabase
-      .from('starred_repos')
+      .from('repos')
       .select('github_repo_id, owner, name')
 
     if (reposError) {
       throw reposError
     }
 
-    // Deduplicate repos by github_repo_id
-    const uniqueRepos = new Map()
-    for (const repo of repos || []) {
-      if (!uniqueRepos.has(repo.github_repo_id)) {
-        uniqueRepos.set(repo.github_repo_id, repo)
-      }
-    }
-
-    const reposToProcess = Array.from(uniqueRepos.values())
+    const reposToProcess = repos || []
     const totalRepos = reposToProcess.length
     const results = {
       processed: 0,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { fetchRepoLatestRelease, type ReleaseInfo } from '@/lib/github'
 import { getValidGitHubToken } from '@/lib/tokens'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 function isMajorReleaseTag(tagName: string): boolean {
   const normalized = tagName.trim().replace(/^release[-/]/i, '').replace(/^v/i, '')
@@ -22,6 +23,7 @@ function isMajorReleaseTag(tagName: string): boolean {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
 
     // Use getUser() instead of getSession() for security - validates token with Supabase Auth server
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -46,16 +48,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid repoIds' }, { status: 400 })
     }
 
-    // Fetch repos from starred_repos to get owner/name
-    const { data: repos, error: reposError } = await supabase
-      .from('starred_repos')
-      .select('github_repo_id, owner, name, starred_at')
+    const { data: repoRows, error: repoRowsError } = await adminSupabase
+      .from('repos')
+      .select('id, github_repo_id, owner, name')
       .in('github_repo_id', repoIds)
-      .eq('user_id', user.id)
 
-    if (reposError) {
-      throw reposError
+    if (repoRowsError) {
+      throw repoRowsError
     }
+
+    const repoIdMap = new Map<string, { github_repo_id: number; owner: string; name: string }>()
+    for (const repo of repoRows || []) {
+      repoIdMap.set(repo.id, {
+        github_repo_id: repo.github_repo_id,
+        owner: repo.owner,
+        name: repo.name,
+      })
+    }
+
+    if ((repoRows?.length ?? 0) === 0) {
+      return NextResponse.json({})
+    }
+
+    const { data: userStarredRepos, error: userStarredReposError } = await supabase
+      .from('user_starred_repos')
+      .select('repo_id, starred_at')
+      .eq('user_id', user.id)
+      .in('repo_id', Array.from(repoIdMap.keys()))
+
+    if (userStarredReposError) {
+      throw userStarredReposError
+    }
+
+    const repos: Array<{ github_repo_id: number; owner: string; name: string; starred_at: string | null }> = (userStarredRepos || [])
+      .map((row) => {
+        const repo = repoIdMap.get(row.repo_id)
+        if (!repo) return null
+        return {
+          ...repo,
+          starred_at: row.starred_at,
+        }
+      })
+      .filter((row): row is { github_repo_id: number; owner: string; name: string; starred_at: string | null } => row !== null)
 
     // Get star snapshots for trending calculation
     const thirtyDaysAgo = new Date()
@@ -104,7 +138,7 @@ export async function GET(request: NextRequest) {
     const releaseMap = new Map<number, Awaited<ReturnType<typeof fetchRepoLatestRelease>>>()
 
     // Process releases sequentially to avoid rate limits
-    for (const repo of repos || []) {
+    for (const repo of repos) {
       const release = await fetchRepoLatestRelease(repo.owner, repo.name, accessToken)
       if (release) {
         releaseMap.set(repo.github_repo_id, release)
@@ -114,7 +148,7 @@ export async function GET(request: NextRequest) {
     // Build response
     const result: Record<string, { isTrending: boolean; latestRelease: ReleaseInfo | null }> = {}
 
-    for (const repo of repos || []) {
+    for (const repo of repos) {
       const release = releaseMap.get(repo.github_repo_id)
       const hasNewRelease = Boolean(
         release &&
