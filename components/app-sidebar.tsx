@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
+import Link from "next/link"
 import {
   Sidebar,
   SidebarContent,
@@ -173,9 +174,11 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <TrendingUp className="h-4 w-4" />
-                  <span>Trending</span>
+                <SidebarMenuButton asChild>
+                  <Link href="/trending">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Trending</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
