@@ -159,14 +159,23 @@ export function Dashboard({ user }: DashboardProps) {
     dbCollections.forEach(c => merged.set(c.name.toLowerCase(), c))
     const allCollections = Array.from(merged.values())
     const dbIds = new Set(dbCollections.map(c => c.id))
-    return allCollections.sort((a, b) => {
-      const aIsDb = dbIds.has(a.id)
-      const bIsDb = dbIds.has(b.id)
-      if (aIsDb && !bIsDb) return -1
-      if (!aIsDb && bIsDb) return 1
-      return a.name.localeCompare(b.name)
-    })
-  }, [metadata?.collections, categorization?.collections])
+    // Compute repoCount from actual repos (reflects live starred list, not stale DB count)
+    const countById = new Map<string, number>()
+    for (const repo of repos) {
+      for (const cid of (repo.collections ?? [])) {
+        countById.set(cid, (countById.get(cid) ?? 0) + 1)
+      }
+    }
+    return allCollections
+      .map(c => ({ ...c, repoCount: countById.get(c.id) ?? 0 }))
+      .sort((a, b) => {
+        const aIsDb = dbIds.has(a.id)
+        const bIsDb = dbIds.has(b.id)
+        if (aIsDb && !bIsDb) return -1
+        if (!aIsDb && bIsDb) return 1
+        return a.name.localeCompare(b.name)
+      })
+  }, [metadata?.collections, categorization?.collections, repos])
 
   const allTags = useMemo(() => {
     const dbTags = metadata?.tags ?? []
