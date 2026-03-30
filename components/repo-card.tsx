@@ -93,7 +93,7 @@ export function RepoCard({ repo, onClick }: RepoCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 hidden group-hover:flex opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>

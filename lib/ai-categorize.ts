@@ -65,6 +65,7 @@ export async function categorizeRepos(
   const { object: taxonomyObj } = await generateObject({
     model: openrouter(model),
     schema: TaxonomySchema,
+    experimental_telemetry: { isEnabled: true, functionId: "categorize-taxonomy" },
     system: `You are an expert at organizing GitHub repositories.
 Given a list of starred repos, produce:
 1. A collection taxonomy of 5-12 thematic groups (e.g. "AI & ML", "Frontend Frameworks", "CLI Tools")
@@ -105,6 +106,7 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
     const { object: batchObj } = await generateObject({
       model: openrouter(model),
       schema: RepoBatchSchema,
+      experimental_telemetry: { isEnabled: true, functionId: "categorize-batch" },
       system: `You classify GitHub repos into collections and assign tags from a fixed vocabulary.
 
 Collections (use ONLY these IDs):
