@@ -29,7 +29,7 @@ import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Colle
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import {
-  ensureRepo, updateRepoStatus, updateRepoNotes, togglePin,
+  updateRepoStatus, updateRepoNotes, togglePin,
   createTag, assignTag, removeTag,
   createCollection, assignCollection, removeCollection,
   pickTagColor,
@@ -437,16 +437,22 @@ export function Dashboard({ user }: DashboardProps) {
   const getDbId = async (repo: StarredRepo): Promise<string> => {
     const existing = metadata?.repoMeta[repo.id]?.dbId
     if (existing) return existing
-    if (!user?.id) throw new Error('User not authenticated')
-    const dbId = await ensureRepo(supabase, repo, user.id)
+
+    const response = await fetch(`/api/user/repo-id?githubRepoId=${repo.id}`)
+    if (!response.ok) {
+      throw new Error('Repo metadata missing. Refresh your stars and try again.')
+    }
+
+    const payload = await response.json()
+    const dbId = payload.dbId as string
     mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId), { revalidate: false })
     return dbId
   }
 
   const handleStatusChange = async (repo: StarredRepo, status: RepoStatus | null) => {
-    const dbId = await getDbId(repo)
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
     try {
+      const dbId = await getDbId(repo)
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
       await updateRepoStatus(supabase, dbId, status)
     } catch {
       mutateMetadata()
@@ -455,8 +461,8 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleNotesChange = async (repo: StarredRepo, notes: string) => {
-    const dbId = await getDbId(repo)
     try {
+      const dbId = await getDbId(repo)
       await updateRepoNotes(supabase, dbId, notes)
       mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), { revalidate: false })
     } catch {
@@ -465,10 +471,10 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handlePinToggle = async (repo: StarredRepo) => {
-    const dbId = await getDbId(repo)
-    const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
     try {
+      const dbId = await getDbId(repo)
+      const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
       await togglePin(supabase, dbId, isPinned)
     } catch {
       mutateMetadata()
@@ -477,14 +483,15 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleTagToggle = async (repo: StarredRepo, tagId: string) => {
-    const dbId = await getDbId(repo)
-    const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
-    const isAssigned = current.includes(tagId)
-    const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
+    if (!user?.id) return
     try {
-      if (isAssigned) await removeTag(supabase, dbId, tagId)
-      else await assignTag(supabase, dbId, tagId)
+      const dbId = await getDbId(repo)
+      const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
+      const isAssigned = current.includes(tagId)
+      const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
+      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
+      if (isAssigned) await removeTag(supabase, dbId, user.id, tagId)
+      else await assignTag(supabase, dbId, user.id, tagId)
     } catch {
       mutateMetadata()
       toast.error('Failed to update tag')
@@ -496,7 +503,7 @@ export function Dashboard({ user }: DashboardProps) {
     try {
       const newTag = await createTag(supabase, user.id, label, pickTagColor(label))
       const dbId = await getDbId(repo)
-      await assignTag(supabase, dbId, newTag.id)
+      await assignTag(supabase, dbId, user.id, newTag.id)
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -517,23 +524,24 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleCollectionToggle = async (repo: StarredRepo, collectionId: string, mode: 'toggle' | 'add-only' = 'toggle') => {
-    const dbId = await getDbId(repo)
-    const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
-    const isAssigned = current.includes(collectionId)
-    if (isAssigned && mode === 'add-only') return
-    const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
-    mutateMetadata(prev => {
-      const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds })
-      const updatedCollections = newMeta.collections.map(c =>
-        c.id === collectionId
-          ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
-          : c
-      )
-      return { ...newMeta, collections: updatedCollections }
-    }, { revalidate: false })
+    if (!user?.id) return
     try {
-      if (isAssigned) await removeCollection(supabase, dbId, collectionId)
-      else await assignCollection(supabase, dbId, collectionId)
+      const dbId = await getDbId(repo)
+      const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
+      const isAssigned = current.includes(collectionId)
+      if (isAssigned && mode === 'add-only') return
+      const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
+      mutateMetadata(prev => {
+        const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds })
+        const updatedCollections = newMeta.collections.map(c =>
+          c.id === collectionId
+            ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
+            : c
+        )
+        return { ...newMeta, collections: updatedCollections }
+      }, { revalidate: false })
+      if (isAssigned) await removeCollection(supabase, dbId, user.id, collectionId)
+      else await assignCollection(supabase, dbId, user.id, collectionId)
     } catch {
       mutateMetadata()
       toast.error('Failed to update collection')

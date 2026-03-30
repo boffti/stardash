@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Search,
   Sparkles,
+  Settings,
 } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
 import Link from "next/link"
@@ -178,6 +179,14 @@ export function AppSidebar({
                   <Link href="/trending">
                     <TrendingUp className="h-4 w-4" />
                     <span>Trending</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/settings">
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

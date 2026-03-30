@@ -6,6 +6,18 @@ const TAG_PALETTE = [
   '#06b6d4', '#ef4444', '#84cc16', '#f97316', '#6366f1',
 ]
 
+const STARRED_REPOS_UPSERT_BATCH_SIZE = 500
+
+interface RepoRecord {
+  id: string
+  github_repo_id: number
+}
+
+interface UserStarredRepoRecord {
+  id: string
+  repo_id: string
+}
+
 export function pickTagColor(label: string): string {
   let hash = 0
   for (let i = 0; i < label.length; i++) {
@@ -15,79 +27,137 @@ export function pickTagColor(label: string): string {
   return TAG_PALETTE[Math.abs(hash) % TAG_PALETTE.length]
 }
 
-const STARRED_REPOS_UPSERT_BATCH_SIZE = 500
+function toGitHubRepoId(repo: StarredRepo): number {
+  return parseInt(repo.id, 10)
+}
+
+function mapRepoForStorage(repo: StarredRepo) {
+  return {
+    github_repo_id: toGitHubRepoId(repo),
+    owner: repo.owner,
+    name: repo.name,
+    full_name: repo.fullName,
+    description: repo.description,
+    language: repo.language,
+    language_color: repo.languageColor,
+    topics: repo.topics,
+    homepage: repo.homepage,
+    license: repo.license,
+    stargazers_count: repo.stargazersCount,
+    forks_count: repo.forksCount,
+    open_issues_count: repo.openIssuesCount,
+    pushed_at: repo.pushedAt,
+    avatar_url: repo.avatarUrl,
+    archived: repo.archived ?? false,
+  }
+}
+
+async function upsertRepoBatch(
+  supabase: SupabaseClient,
+  batch: StarredRepo[]
+): Promise<Map<number, string>> {
+  const { data, error } = await supabase
+    .from('repos')
+    .upsert(batch.map(mapRepoForStorage), { onConflict: 'github_repo_id' })
+    .select('id, github_repo_id')
+
+  if (error) throw error
+
+  const repoIdMap = new Map<number, string>()
+  for (const row of (data ?? []) as RepoRecord[]) {
+    repoIdMap.set(row.github_repo_id, row.id)
+  }
+  return repoIdMap
+}
+
+async function upsertUserStarredRepoBatch(
+  supabase: SupabaseClient,
+  batch: StarredRepo[],
+  userId: string,
+  repoIdMap: Map<number, string>
+): Promise<Map<number, string>> {
+  const rows = batch
+    .map((repo) => {
+      const githubRepoId = toGitHubRepoId(repo)
+      const repoId = repoIdMap.get(githubRepoId)
+      if (!repoId) return null
+      return {
+        user_id: userId,
+        repo_id: repoId,
+        starred_at: repo.starredAt,
+      }
+    })
+    .filter(Boolean)
+
+  if (rows.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from('user_starred_repos')
+    .upsert(rows, { onConflict: 'user_id,repo_id' })
+    .select('id, repo_id')
+
+  if (error) throw error
+
+  const userStarIdMap = new Map<number, string>()
+  const userRows = (data ?? []) as UserStarredRepoRecord[]
+
+  for (const row of userRows) {
+    const githubRepoId = Array.from(repoIdMap.entries()).find(([, repoId]) => repoId === row.repo_id)?.[0]
+    if (githubRepoId !== undefined) {
+      userStarIdMap.set(githubRepoId, row.id)
+    }
+  }
+
+  return userStarIdMap
+}
 
 export async function upsertStarredRepos(
   supabase: SupabaseClient,
   repos: StarredRepo[],
   userId: string
 ): Promise<void> {
-  if (repos.length === 0) return
+  if (repos.length === 0) {
+    const { error } = await supabase
+      .from('user_starred_repos')
+      .delete()
+      .eq('user_id', userId)
+
+    if (error) throw error
+    return
+  }
+
+  const incomingRepoIds = new Set<number>()
 
   for (let i = 0; i < repos.length; i += STARRED_REPOS_UPSERT_BATCH_SIZE) {
     const batch = repos.slice(i, i + STARRED_REPOS_UPSERT_BATCH_SIZE)
+    batch.forEach((repo) => incomingRepoIds.add(toGitHubRepoId(repo)))
 
-    const { error } = await supabase
-      .from('starred_repos')
-      .upsert(
-        batch.map((repo) => ({
-          user_id: userId,
-          github_repo_id: parseInt(repo.id, 10),
-          owner: repo.owner,
-          name: repo.name,
-          full_name: repo.fullName,
-          description: repo.description,
-          language: repo.language,
-          language_color: repo.languageColor,
-          topics: repo.topics,
-          homepage: repo.homepage,
-          license: repo.license,
-          stargazers_count: repo.stargazersCount,
-          forks_count: repo.forksCount,
-          open_issues_count: repo.openIssuesCount,
-          pushed_at: repo.pushedAt,
-          starred_at: repo.starredAt,
-          avatar_url: repo.avatarUrl,
-        })),
-        { onConflict: 'user_id,github_repo_id' }
-      )
-
-    if (error) throw error
+    const repoIdMap = await upsertRepoBatch(supabase, batch)
+    await upsertUserStarredRepoBatch(supabase, batch, userId, repoIdMap)
   }
-}
 
-/** Upsert a repo to get its DB UUID. Safe to call repeatedly. */
-export async function ensureRepo(
-  supabase: SupabaseClient,
-  repo: StarredRepo,
-  userId: string
-): Promise<string> {
-  const { data, error } = await supabase
-    .from('starred_repos')
-    .upsert({
-      user_id: userId,
-      github_repo_id: parseInt(repo.id, 10),
-      owner: repo.owner,
-      name: repo.name,
-      full_name: repo.fullName,
-      description: repo.description,
-      language: repo.language,
-      language_color: repo.languageColor,
-      topics: repo.topics,
-      homepage: repo.homepage,
-      license: repo.license,
-      stargazers_count: repo.stargazersCount,
-      forks_count: repo.forksCount,
-      open_issues_count: repo.openIssuesCount,
-      pushed_at: repo.pushedAt,
-      starred_at: repo.starredAt,
-      avatar_url: repo.avatarUrl,
-    }, { onConflict: 'user_id,github_repo_id' })
-    .select('id')
-    .single()
+  const { data: existingRows, error: existingError } = await supabase
+    .from('user_starred_repos')
+    .select('id, repo_id, repos!inner(github_repo_id)')
+    .eq('user_id', userId)
 
-  if (error) throw error
-  return data.id
+  if (existingError) throw existingError
+
+  const staleUserStarIds = (existingRows ?? [])
+    .filter((row) => {
+      const repo = Array.isArray(row.repos) ? row.repos[0] : row.repos
+      return !incomingRepoIds.has(repo.github_repo_id)
+    })
+    .map((row) => row.id)
+
+  if (staleUserStarIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('user_starred_repos')
+      .delete()
+      .in('id', staleUserStarIds)
+
+    if (deleteError) throw deleteError
+  }
 }
 
 export async function updateRepoStatus(
@@ -96,7 +166,7 @@ export async function updateRepoStatus(
   status: RepoStatus | null
 ): Promise<void> {
   const { error } = await supabase
-    .from('starred_repos')
+    .from('user_starred_repos')
     .update({ status })
     .eq('id', dbId)
   if (error) throw error
@@ -108,7 +178,7 @@ export async function updateRepoNotes(
   notes: string
 ): Promise<void> {
   const { error } = await supabase
-    .from('starred_repos')
+    .from('user_starred_repos')
     .update({ notes })
     .eq('id', dbId)
   if (error) throw error
@@ -120,7 +190,7 @@ export async function togglePin(
   isPinned: boolean
 ): Promise<void> {
   const { error } = await supabase
-    .from('starred_repos')
+    .from('user_starred_repos')
     .update({ is_pinned: isPinned })
     .eq('id', dbId)
   if (error) throw error
@@ -141,26 +211,58 @@ export async function createTag(
   return { id: data.id, label: data.label, color: data.color }
 }
 
-export async function assignTag(
+export async function updateTag(
   supabase: SupabaseClient,
-  repoDbId: string,
+  tagId: string,
+  label: string,
+  color: string
+): Promise<Tag> {
+  const { data, error } = await supabase
+    .from('tags')
+    .update({ label: label.toLowerCase().trim(), color })
+    .eq('id', tagId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return { id: data.id, label: data.label, color: data.color }
+}
+
+export async function deleteTag(
+  supabase: SupabaseClient,
   tagId: string
 ): Promise<void> {
   const { error } = await supabase
-    .from('repo_tags')
-    .upsert({ repo_id: repoDbId, tag_id: tagId })
+    .from('tags')
+    .delete()
+    .eq('id', tagId)
+
+  if (error) throw error
+}
+
+export async function assignTag(
+  supabase: SupabaseClient,
+  repoDbId: string,
+  userId: string,
+  tagId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_starred_repo_tags')
+    .upsert({ user_starred_repo_id: repoDbId, user_id: userId, tag_id: tagId })
   if (error) throw error
 }
 
 export async function removeTag(
   supabase: SupabaseClient,
   repoDbId: string,
+  userId: string,
   tagId: string
 ): Promise<void> {
   const { error } = await supabase
-    .from('repo_tags')
+    .from('user_starred_repo_tags')
     .delete()
-    .eq('repo_id', repoDbId)
+    .eq('user_starred_repo_id', repoDbId)
+    .eq('user_id', userId)
     .eq('tag_id', tagId)
   if (error) throw error
 }
@@ -181,26 +283,59 @@ export async function createCollection(
   return { id: data.id, name: data.name, emoji: data.emoji || '', color: data.color, repoCount: 0 }
 }
 
-export async function assignCollection(
+export async function updateCollection(
   supabase: SupabaseClient,
-  repoDbId: string,
+  collectionId: string,
+  name: string,
+  emoji: string,
+  color: string
+): Promise<Collection> {
+  const { data, error } = await supabase
+    .from('collections')
+    .update({ name: name.trim(), emoji, color })
+    .eq('id', collectionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return { id: data.id, name: data.name, emoji: data.emoji || '', color: data.color, repoCount: 0 }
+}
+
+export async function deleteCollection(
+  supabase: SupabaseClient,
   collectionId: string
 ): Promise<void> {
   const { error } = await supabase
-    .from('repo_collections')
-    .upsert({ repo_id: repoDbId, collection_id: collectionId })
+    .from('collections')
+    .delete()
+    .eq('id', collectionId)
+
+  if (error) throw error
+}
+
+export async function assignCollection(
+  supabase: SupabaseClient,
+  repoDbId: string,
+  userId: string,
+  collectionId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_starred_repo_collections')
+    .upsert({ user_starred_repo_id: repoDbId, user_id: userId, collection_id: collectionId })
   if (error) throw error
 }
 
 export async function removeCollection(
   supabase: SupabaseClient,
   repoDbId: string,
+  userId: string,
   collectionId: string
 ): Promise<void> {
   const { error } = await supabase
-    .from('repo_collections')
+    .from('user_starred_repo_collections')
     .delete()
-    .eq('repo_id', repoDbId)
+    .eq('user_starred_repo_id', repoDbId)
+    .eq('user_id', userId)
     .eq('collection_id', collectionId)
   if (error) throw error
 }

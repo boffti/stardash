@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { Github, RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
@@ -82,9 +83,11 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
           Sync Stars
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
