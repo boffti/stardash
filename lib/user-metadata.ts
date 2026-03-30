@@ -18,6 +18,17 @@ interface UserStarredRepoRecord {
   repo_id: string
 }
 
+interface TagInput {
+  label: string
+  color: string
+}
+
+interface CollectionInput {
+  name: string
+  emoji: string
+  color: string
+}
+
 export function pickTagColor(label: string): string {
   let hash = 0
   for (let i = 0; i < label.length; i++) {
@@ -25,6 +36,14 @@ export function pickTagColor(label: string): string {
     hash |= 0
   }
   return TAG_PALETTE[Math.abs(hash) % TAG_PALETTE.length]
+}
+
+export function normalizeTagLabel(label: string): string {
+  return label.toLowerCase().trim()
+}
+
+export function normalizeCollectionName(name: string): string {
+  return name.trim()
 }
 
 function toGitHubRepoId(repo: StarredRepo): number {
@@ -204,7 +223,7 @@ export async function createTag(
 ): Promise<Tag> {
   const { data, error } = await supabase
     .from('tags')
-    .insert({ user_id: userId, label: label.toLowerCase().trim(), color })
+    .insert({ user_id: userId, label: normalizeTagLabel(label), color })
     .select()
     .single()
   if (error) throw error
@@ -219,13 +238,64 @@ export async function updateTag(
 ): Promise<Tag> {
   const { data, error } = await supabase
     .from('tags')
-    .update({ label: label.toLowerCase().trim(), color })
+    .update({ label: normalizeTagLabel(label), color })
     .eq('id', tagId)
     .select()
     .single()
 
   if (error) throw error
   return { id: data.id, label: data.label, color: data.color }
+}
+
+export async function ensureTags(
+  supabase: SupabaseClient,
+  userId: string,
+  tags: TagInput[]
+): Promise<Tag[]> {
+  const requested = Array.from(
+    new Map(
+      tags
+        .map((tag) => ({
+          label: normalizeTagLabel(tag.label),
+          color: tag.color,
+        }))
+        .filter((tag) => tag.label)
+        .map((tag) => [tag.label, tag])
+    ).values()
+  )
+
+  if (requested.length === 0) return []
+
+  const labels = requested.map((tag) => tag.label)
+  const { data: existingTags, error: existingError } = await supabase
+    .from('tags')
+    .select('id, label, color')
+    .eq('user_id', userId)
+    .in('label', labels)
+
+  if (existingError) throw existingError
+
+  const existingLabelSet = new Set((existingTags ?? []).map((tag) => tag.label))
+  const missingTags = requested.filter((tag) => !existingLabelSet.has(tag.label))
+
+  let insertedTags: Tag[] = []
+  if (missingTags.length > 0) {
+    const { data, error } = await supabase
+      .from('tags')
+      .insert(missingTags.map((tag) => ({ user_id: userId, label: tag.label, color: tag.color })))
+      .select('id, label, color')
+
+    if (error) throw error
+    insertedTags = (data ?? []).map((tag) => ({ id: tag.id, label: tag.label, color: tag.color }))
+  }
+
+  const allTags = [
+    ...((existingTags ?? []).map((tag) => ({ id: tag.id, label: tag.label, color: tag.color }))),
+    ...insertedTags,
+  ]
+
+  const tagMap = new Map(allTags.map((tag) => [tag.label, tag]))
+  return labels.map((label) => tagMap.get(label)).filter((tag): tag is Tag => Boolean(tag))
 }
 
 export async function deleteTag(
@@ -276,7 +346,7 @@ export async function createCollection(
 ): Promise<Collection> {
   const { data, error } = await supabase
     .from('collections')
-    .insert({ user_id: userId, name, emoji, color })
+    .insert({ user_id: userId, name: normalizeCollectionName(name), emoji, color })
     .select()
     .single()
   if (error) throw error
@@ -292,13 +362,84 @@ export async function updateCollection(
 ): Promise<Collection> {
   const { data, error } = await supabase
     .from('collections')
-    .update({ name: name.trim(), emoji, color })
+    .update({ name: normalizeCollectionName(name), emoji, color })
     .eq('id', collectionId)
     .select()
     .single()
 
   if (error) throw error
   return { id: data.id, name: data.name, emoji: data.emoji || '', color: data.color, repoCount: 0 }
+}
+
+export async function ensureCollections(
+  supabase: SupabaseClient,
+  userId: string,
+  collections: CollectionInput[]
+): Promise<Collection[]> {
+  const requested = Array.from(
+    new Map(
+      collections
+        .map((collection) => ({
+          name: normalizeCollectionName(collection.name),
+          emoji: collection.emoji,
+          color: collection.color,
+        }))
+        .filter((collection) => collection.name)
+        .map((collection) => [collection.name, collection])
+    ).values()
+  )
+
+  if (requested.length === 0) return []
+
+  const names = requested.map((collection) => collection.name)
+  const { data: existingCollections, error: existingError } = await supabase
+    .from('collections')
+    .select('id, name, emoji, color')
+    .eq('user_id', userId)
+    .in('name', names)
+
+  if (existingError) throw existingError
+
+  const existingNameSet = new Set((existingCollections ?? []).map((collection) => collection.name))
+  const missingCollections = requested.filter((collection) => !existingNameSet.has(collection.name))
+
+  let insertedCollections: Collection[] = []
+  if (missingCollections.length > 0) {
+    const { data, error } = await supabase
+      .from('collections')
+      .insert(
+        missingCollections.map((collection) => ({
+          user_id: userId,
+          name: collection.name,
+          emoji: collection.emoji,
+          color: collection.color,
+        }))
+      )
+      .select('id, name, emoji, color')
+
+    if (error) throw error
+    insertedCollections = (data ?? []).map((collection) => ({
+      id: collection.id,
+      name: collection.name,
+      emoji: collection.emoji || '',
+      color: collection.color,
+      repoCount: 0,
+    }))
+  }
+
+  const allCollections = [
+    ...((existingCollections ?? []).map((collection) => ({
+      id: collection.id,
+      name: collection.name,
+      emoji: collection.emoji || '',
+      color: collection.color,
+      repoCount: 0,
+    }))),
+    ...insertedCollections,
+  ]
+
+  const collectionMap = new Map(allCollections.map((collection) => [collection.name, collection]))
+  return names.map((name) => collectionMap.get(name)).filter((collection): collection is Collection => Boolean(collection))
 }
 
 export async function deleteCollection(

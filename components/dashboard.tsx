@@ -142,15 +142,6 @@ export function Dashboard({ user }: DashboardProps) {
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
 
-  // Load AI categorization from localStorage on mount
-  useEffect(() => {
-    if (!user?.id) return
-    try {
-      const stored = localStorage.getItem(`stardash_categorization_${user.id}`)
-      if (stored) setCategorization(JSON.parse(stored))
-    } catch {}
-  }, [user?.id])
-
   const rawRepos = data?.repos || []
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
@@ -392,9 +383,8 @@ export function Dashboard({ user }: DashboardProps) {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Failed to categorize')
       setCategorization(result as CategorizationResult)
-      if (user?.id) {
-        localStorage.setItem(`stardash_categorization_${user.id}`, JSON.stringify(result))
-      }
+      if (user?.id) localStorage.removeItem(`stardash_categorization_${user.id}`)
+      await mutateMetadata()
       toast.success(
         `Created ${(result as CategorizationResult).collections.length} collections · tagged ${Object.keys((result as CategorizationResult).repoTags).length} repos`
       )
