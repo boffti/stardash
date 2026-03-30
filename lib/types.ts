@@ -67,7 +67,7 @@ export interface StarredRepo {
   tags: Tag[]
   collections: string[]
   readme: string | null
-  archived: boolean
+  archived?: boolean
   // Health signal fields (computed from snapshots/releases)
   isTrending?: boolean // Stars doubled in 30 days
   latestRelease?: {

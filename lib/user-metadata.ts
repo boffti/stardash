@@ -15,6 +15,47 @@ export function pickTagColor(label: string): string {
   return TAG_PALETTE[Math.abs(hash) % TAG_PALETTE.length]
 }
 
+const STARRED_REPOS_UPSERT_BATCH_SIZE = 500
+
+export async function upsertStarredRepos(
+  supabase: SupabaseClient,
+  repos: StarredRepo[],
+  userId: string
+): Promise<void> {
+  if (repos.length === 0) return
+
+  for (let i = 0; i < repos.length; i += STARRED_REPOS_UPSERT_BATCH_SIZE) {
+    const batch = repos.slice(i, i + STARRED_REPOS_UPSERT_BATCH_SIZE)
+
+    const { error } = await supabase
+      .from('starred_repos')
+      .upsert(
+        batch.map((repo) => ({
+          user_id: userId,
+          github_repo_id: parseInt(repo.id, 10),
+          owner: repo.owner,
+          name: repo.name,
+          full_name: repo.fullName,
+          description: repo.description,
+          language: repo.language,
+          language_color: repo.languageColor,
+          topics: repo.topics,
+          homepage: repo.homepage,
+          license: repo.license,
+          stargazers_count: repo.stargazersCount,
+          forks_count: repo.forksCount,
+          open_issues_count: repo.openIssuesCount,
+          pushed_at: repo.pushedAt,
+          starred_at: repo.starredAt,
+          avatar_url: repo.avatarUrl,
+        })),
+        { onConflict: 'user_id,github_repo_id' }
+      )
+
+    if (error) throw error
+  }
+}
+
 /** Upsert a repo to get its DB UUID. Safe to call repeatedly. */
 export async function ensureRepo(
   supabase: SupabaseClient,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchRepoStarCount } from '@/lib/github'
+import { getAnyValidGitHubToken } from '@/lib/tokens'
 
 // This route is called by Vercel Cron to snapshot star counts daily
 // It processes repos in batches to avoid rate limits
@@ -24,6 +25,9 @@ export async function GET(request: NextRequest) {
   )
 
   try {
+    const tokenResult = await getAnyValidGitHubToken()
+    const accessToken = tokenResult.token ?? undefined
+
     // Get all unique repos from starred_repos table
     const { data: repos, error: reposError } = await supabase
       .from('starred_repos')
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
       await Promise.all(
         batch.map(async (repo) => {
           try {
-            const starCount = await fetchRepoStarCount(repo.owner, repo.name)
+            const starCount = await fetchRepoStarCount(repo.owner, repo.name, accessToken)
 
             if (starCount !== null) {
               // Upsert the snapshot (insert or update if exists for today)

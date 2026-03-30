@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchAllStarredRepos } from '@/lib/github'
 import { getValidGitHubToken } from '@/lib/tokens'
+import { upsertStarredRepos } from '@/lib/user-metadata'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -30,6 +31,7 @@ export async function GET() {
     }
 
     const repos = await fetchAllStarredRepos(tokenResult.token)
+    await upsertStarredRepos(supabase, repos, session.user.id)
 
     supabase
       .from('profiles')
