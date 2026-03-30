@@ -111,6 +111,37 @@ export function Dashboard({ user }: DashboardProps) {
     revalidateOnReconnect: false,
   })
 
+  // Fetch repo health data (trending, releases) - batched to avoid long URLs
+  const repoIdsForHealth = useMemo(() => {
+    return data?.repos?.map(r => r.id) || []
+  }, [data?.repos])
+
+  // Batch health requests in chunks of 50 to avoid URL length limits
+  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
+    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
+    async () => {
+      const batchSize = 50
+      const batches = []
+      for (let i = 0; i < repoIdsForHealth.length; i += batchSize) {
+        const batch = repoIdsForHealth.slice(i, i + batchSize)
+        batches.push(batch)
+      }
+
+      const results = await Promise.all(
+        batches.map(async (batch) => {
+          const url = `/api/github/health?repoIds=${batch.join(',')}`
+          const res = await fetch(url)
+          if (!res.ok) return {}
+          return res.json()
+        })
+      )
+
+      // Merge all batch results
+      return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
+    },
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
+
   // Load AI categorization from localStorage on mount
   useEffect(() => {
     if (!user?.id) return
@@ -125,14 +156,18 @@ export function Dashboard({ user }: DashboardProps) {
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
-  // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
+  // Merge DB metadata + AI categorization + health data over raw GitHub data. DB wins.
   const repos = useMemo(() => {
     return rawRepos.map(repo => {
       const dbMeta = metadata?.repoMeta[repo.id]
+      const health = healthData?.[repo.id]
+
+      let mergedRepo = repo
+
       if (dbMeta) {
         const dbTags = (metadata?.tags ?? []).filter(t => dbMeta.tagIds.includes(t.id))
-        return {
-          ...repo,
+        mergedRepo = {
+          ...mergedRepo,
           status: dbMeta.status ?? repo.status,
           isPinned: dbMeta.isPinned,
           notes: dbMeta.notes ?? repo.notes,
@@ -140,17 +175,28 @@ export function Dashboard({ user }: DashboardProps) {
           collections: dbMeta.collectionIds,
         }
       }
+
       // Fall back to AI categorization for repos not yet touched by user
       if (categorization) {
-        return {
-          ...repo,
-          tags: categorization.repoTags[repo.id] ?? repo.tags,
-          collections: categorization.repoCollections[repo.id] ?? repo.collections,
+        mergedRepo = {
+          ...mergedRepo,
+          tags: mergedRepo.tags.length > 0 ? mergedRepo.tags : (categorization.repoTags[repo.id] ?? repo.tags),
+          collections: mergedRepo.collections.length > 0 ? mergedRepo.collections : (categorization.repoCollections[repo.id] ?? repo.collections),
         }
       }
-      return repo
+
+      // Merge health data
+      if (health) {
+        mergedRepo = {
+          ...mergedRepo,
+          isTrending: health.isTrending,
+          latestRelease: health.latestRelease,
+        }
+      }
+
+      return mergedRepo
     })
-  }, [rawRepos, metadata, categorization])
+  }, [rawRepos, metadata, categorization, healthData])
 
   const collections = useMemo(() => {
     const dbCollections = metadata?.collections ?? []
@@ -657,12 +703,6 @@ export function Dashboard({ user }: DashboardProps) {
               {/* Results count + view toggle + per-page selector + top pagination */}
               <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                  <p className="text-sm text-muted-foreground">
-                    {pageSize === "all" || filteredRepos.length === 0
-                      ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                      : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                    }
-                  </p>
                   <ToggleGroup
                     type="single"
                     value={viewMode}
@@ -676,6 +716,12 @@ export function Dashboard({ user }: DashboardProps) {
                       <List className="h-3.5 w-3.5" />
                     </ToggleGroupItem>
                   </ToggleGroup>
+                  <p className="text-sm text-muted-foreground">
+                    {pageSize === "all" || filteredRepos.length === 0
+                      ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                      : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                    }
+                  </p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Inline page nav */}
