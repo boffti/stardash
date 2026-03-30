@@ -20,6 +20,7 @@ interface GitHubRepo {
   open_issues_count: number
   pushed_at: string
   html_url: string
+  archived: boolean
 }
 
 // When using application/vnd.github.star+json, the response wraps repo in an object
@@ -78,6 +79,7 @@ export async function fetchStarredRepos(
     tags: [],
     collections: [],
     readme: null,
+    archived: item.repo.archived,
   }))
 
   return { repos, hasMore }

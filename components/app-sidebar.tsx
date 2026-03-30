@@ -139,7 +139,7 @@ export function AppSidebar({
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent" suppressHydrationWarning>
             <Star className="h-4 w-4 text-accent-foreground" />
           </div>
           <div>
