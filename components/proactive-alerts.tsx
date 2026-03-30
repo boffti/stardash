@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Archive, Tag, TrendingUp, ChevronDown, ChevronUp, X, Bell, Package } from "lucide-react"
+import { Archive, TrendingUp, ChevronDown, ChevronUp, X, Bell, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,7 @@ interface ProactiveAlertsProps {
   userId: string | undefined
 }
 
-type AlertType = 'archived' | 'dormant' | 'trending' | 'release'
+type AlertType = 'archived' | 'trending' | 'release'
 
 interface Alert {
   id: string
@@ -29,14 +29,6 @@ interface Alert {
 }
 
 const STORAGE_KEY = 'stardash_dismissed_alerts'
-
-// Check if repo is dormant (no commits in 12+ months)
-function isDormant(pushedAt: string): boolean {
-  const lastPush = new Date(pushedAt)
-  const twelveMonthsAgo = new Date()
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
-  return lastPush < twelveMonthsAgo
-}
 
 export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
@@ -84,21 +76,6 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
             repoId: repo.id,
             repoName: repo.fullName,
             message: `${repo.fullName} was archived`,
-            timestamp: new Date().toISOString(),
-          })
-        }
-      }
-
-      // Dormant alert
-      if (isDormant(repo.pushedAt)) {
-        const alertId = `dormant-${repo.id}`
-        if (!dismissedAlerts.has(alertId)) {
-          newAlerts.push({
-            id: alertId,
-            type: 'dormant',
-            repoId: repo.id,
-            repoName: repo.fullName,
-            message: `${repo.fullName} hasn't been updated in over a year`,
             timestamp: new Date().toISOString(),
           })
         }
@@ -152,8 +129,6 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
     switch (type) {
       case 'archived':
         return <Archive className="h-4 w-4 text-amber-500" />
-      case 'dormant':
-        return <Tag className="h-4 w-4 text-slate-500" />
       case 'trending':
         return <TrendingUp className="h-4 w-4 text-emerald-500" />
       case 'release':
@@ -169,12 +144,6 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
         return (
           <Badge variant="outline" className="text-[10px] h-5 bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400">
             Archived
-          </Badge>
-        )
-      case 'dormant':
-        return (
-          <Badge variant="outline" className="text-[10px] h-5 bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-400">
-            Dormant
           </Badge>
         )
       case 'trending':
@@ -245,7 +214,6 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
                       <span className="font-medium">{alert.repoName}</span>
                       {' '}
                       {alert.type === 'archived' && 'was archived'}
-                      {alert.type === 'dormant' && "hasn't been updated in over a year"}
                       {alert.type === 'trending' && 'doubled in stars this month'}
                       {alert.type === 'release' && `released ${alert.meta?.tagName || 'a new version'}`}
                     </span>

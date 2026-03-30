@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { fetchRepoLatestRelease } from '@/lib/github'
+import { fetchRepoLatestRelease, type ReleaseInfo } from '@/lib/github'
+import { getValidGitHubToken } from '@/lib/tokens'
+
+function isMajorReleaseTag(tagName: string): boolean {
+  const normalized = tagName.trim().replace(/^release[-/]/i, '').replace(/^v/i, '')
+  const match = normalized.match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/)
+
+  if (!match) return false
+
+  const minor = match[2] ? Number(match[2]) : 0
+  const patch = match[3] ? Number(match[3]) : 0
+  return minor === 0 && patch === 0
+}
 
 // GET /api/github/health?repoIds=id1,id2,id3
 // Returns health signals for the specified repos:
@@ -17,6 +29,9 @@ export async function GET(request: NextRequest) {
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const tokenResult = await getValidGitHubToken(user.id)
+    const accessToken = tokenResult.token ?? undefined
 
     const { searchParams } = new URL(request.url)
     const repoIdsParam = searchParams.get('repoIds')
@@ -59,7 +74,6 @@ export async function GET(request: NextRequest) {
 
     // Calculate trending status for each repo
     const trendingMap = new Map<number, boolean>()
-    const starCountMap = new Map<number, number>()
 
     // Group snapshots by repo
     const snapshotsByRepo = new Map<number, { count: number; date: string }[]>()
@@ -79,9 +93,6 @@ export async function GET(request: NextRequest) {
         const oldest = repoSnapshots[0]
         const newest = repoSnapshots[repoSnapshots.length - 1]
 
-        // Store current count
-        starCountMap.set(repoId, newest.count)
-
         // Check if doubled (and had at least 10 stars to avoid noise)
         if (oldest.count >= 10 && newest.count >= oldest.count * 2) {
           trendingMap.set(repoId, true)
@@ -94,22 +105,28 @@ export async function GET(request: NextRequest) {
 
     // Process releases sequentially to avoid rate limits
     for (const repo of repos || []) {
-      const release = await fetchRepoLatestRelease(repo.owner, repo.name)
+      const release = await fetchRepoLatestRelease(repo.owner, repo.name, accessToken)
       if (release) {
         releaseMap.set(repo.github_repo_id, release)
       }
     }
 
     // Build response
-    const result: Record<string, { isTrending: boolean; latestRelease: ReturnType<typeof fetchRepoLatestRelease> }> = {}
+    const result: Record<string, { isTrending: boolean; latestRelease: ReleaseInfo | null }> = {}
 
     for (const repo of repos || []) {
       const release = releaseMap.get(repo.github_repo_id)
-      const hasNewRelease = release && new Date(release.publishedAt) > new Date(repo.starred_at)
+      const hasNewRelease = Boolean(
+        release &&
+        !release.isPrerelease &&
+        isMajorReleaseTag(release.tagName) &&
+        repo.starred_at &&
+        new Date(release.publishedAt) > new Date(repo.starred_at)
+      )
 
       result[repo.github_repo_id] = {
         isTrending: trendingMap.get(repo.github_repo_id) || false,
-        latestRelease: hasNewRelease ? release : null,
+        latestRelease: hasNewRelease ? (release ?? null) : null,
       }
     }
 

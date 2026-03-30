@@ -80,6 +80,12 @@ export function RepoDetailPanel({
     setNotes(repo?.notes || "")
   }, [repo?.id, repo?.notes])
 
+  useEffect(() => {
+    return () => {
+      if (notesTimer.current) clearTimeout(notesTimer.current)
+    }
+  }, [])
+
   if (!repo) return null
 
   const handleCopyClone = () => {
@@ -96,6 +102,16 @@ export function RepoDetailPanel({
       await onNotesChange?.(repo, value)
       setSavingNotes(false)
     }, 800)
+  }
+
+  const flushNotesSave = async (value: string) => {
+    if (notesTimer.current) {
+      clearTimeout(notesTimer.current)
+      notesTimer.current = null
+    }
+    setSavingNotes(true)
+    await onNotesChange?.(repo, value)
+    setSavingNotes(false)
   }
 
   const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -160,7 +176,7 @@ export function RepoDetailPanel({
   // Handle note prompt submission
   const handleNotePromptSubmit = () => {
     if (promptNote.trim() && repo) {
-      const currentNotes = repo.notes || ""
+      const currentNotes = notes
       const prefix = notePromptTarget
         ? `Added to ${notePromptTarget.type === 'collection' ? 'collection' : 'tag'} "${notePromptTarget.name}": `
         : ""
@@ -545,6 +561,7 @@ export function RepoDetailPanel({
                   placeholder="Add your personal notes about this repo..."
                   value={notes}
                   onChange={(e) => handleNotesChange(e.target.value)}
+                  onBlur={() => flushNotesSave(notes)}
                   className="min-h-[100px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground mt-1.5">Saves automatically</p>
