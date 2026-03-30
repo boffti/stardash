@@ -585,7 +585,7 @@ export function Dashboard({ user }: DashboardProps) {
             <>
               {/* Active Filters */}
               {hasActiveFilters && (
-                <div className="mb-4 flex items-center gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted-foreground">Filters:</span>
                   {searchQuery && (
                     <Badge variant="secondary" className="gap-1">
@@ -629,8 +629,8 @@ export function Dashboard({ user }: DashboardProps) {
               )}
 
               {/* Results count + view toggle + per-page selector + top pagination */}
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 shrink-0">
+              <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 shrink-0 flex-wrap">
                   <p className="text-sm text-muted-foreground">
                     {pageSize === "all" || filteredRepos.length === 0
                       ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
@@ -651,7 +651,7 @@ export function Dashboard({ user }: DashboardProps) {
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   {/* Inline page nav */}
                   {pageSize !== "all" && totalPages > 1 && (
                     <div className="flex items-center gap-1">
@@ -719,9 +719,9 @@ export function Dashboard({ user }: DashboardProps) {
                 )
               )}
 
-              {/* Pagination controls */}
+              {/* Pagination controls - desktop (hidden on mobile) */}
               {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-center">
+                <div className="mt-6 hidden md:flex items-center justify-center">
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
