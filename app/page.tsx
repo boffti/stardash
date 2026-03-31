@@ -48,13 +48,14 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_34%),linear-gradient(to_bottom,transparent,rgba(255,255,255,0.02))]" />
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:linear-gradient(to_bottom,white,transparent_85%)]" />
+      {/* Background — visible in both modes */}
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.04),transparent_34%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_34%)]" />
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:linear-gradient(to_bottom,white,transparent_85%)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)]" />
 
-      <header className="border-b border-white/10">
+      <header className="border-b border-black/8 dark:border-white/10">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
               <Star className="h-4 w-4" />
             </div>
             <div>
@@ -72,7 +73,7 @@ export default async function HomePage() {
             </Button>
             <Button
               asChild
-              className="border border-white/10 bg-white text-black hover:bg-zinc-200"
+              className="border border-black/10 bg-zinc-900 text-white hover:bg-zinc-700 dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
             >
               <Link href="/auth/login">Get started</Link>
             </Button>
@@ -84,7 +85,7 @@ export default async function HomePage() {
         {/* ── Hero ── */}
         <section className="mx-auto flex w-full max-w-7xl flex-col items-center gap-12 px-6 py-16 text-center lg:px-8 lg:py-24">
           <div className="max-w-3xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-muted-foreground dark:border-white/10 dark:bg-white/5">
               <Github className="h-3.5 w-3.5" />
               Built for developers with too many stars
             </div>
@@ -102,7 +103,7 @@ export default async function HomePage() {
                 <Button
                   asChild
                   size="lg"
-                  className="h-11 border border-white/10 bg-white text-black hover:bg-zinc-200"
+                  className="h-11 border border-black/10 bg-zinc-900 text-white hover:bg-zinc-700 dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                 >
                   <Link href="/auth/login">
                     Sign in with GitHub
@@ -112,8 +113,8 @@ export default async function HomePage() {
                 <BorderBeam
                   size={60}
                   duration={8}
-                  colorFrom="#ffffff"
-                  colorTo="rgba(255,255,255,0.2)"
+                  colorFrom="#71717a"
+                  colorTo="rgba(113,113,122,0.2)"
                   borderWidth={1.5}
                 />
               </div>
@@ -121,13 +122,13 @@ export default async function HomePage() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-11 border-white/10 bg-transparent hover:bg-white/5"
+                className="h-11 border-black/10 bg-transparent hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
               >
                 <Link href="#workflow">See how it works</Link>
               </Button>
             </div>
 
-            <div className="mt-12 grid gap-6 border-t border-white/10 pt-8 text-left sm:grid-cols-3">
+            <div className="mt-12 grid gap-6 border-t border-black/8 pt-8 text-left dark:border-white/10 sm:grid-cols-3">
               <div>
                 <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground/60">Scale</div>
                 <div className="mt-2 text-2xl font-semibold tracking-tight">5,000 repos</div>
@@ -155,16 +156,16 @@ export default async function HomePage() {
           <div className="w-full max-w-6xl space-y-5">
             <LandingHeroMedia />
 
-            <div className="grid gap-3 rounded-2xl border border-white/10 bg-card/70 p-4 text-xs text-muted-foreground sm:grid-cols-3">
-              <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-3">
+            <div className="grid gap-3 rounded-2xl border border-black/8 bg-black/[0.02] p-4 text-xs text-muted-foreground dark:border-white/10 dark:bg-white/[0.03] sm:grid-cols-3">
+              <div className="rounded-lg border border-black/8 bg-black/[0.03] px-3 py-3 dark:border-white/8 dark:bg-white/[0.03]">
                 <div className="mb-1 font-mono text-zinc-900 dark:text-zinc-100">search</div>
                 owner · repo · note · tag · language · topic
               </div>
-              <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-3">
+              <div className="rounded-lg border border-black/8 bg-black/[0.03] px-3 py-3 dark:border-white/8 dark:bg-white/[0.03]">
                 <div className="mb-1 font-mono text-zinc-900 dark:text-zinc-100">organize</div>
                 collections · statuses · personal taxonomy
               </div>
-              <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-3">
+              <div className="rounded-lg border border-black/8 bg-black/[0.03] px-3 py-3 dark:border-white/8 dark:bg-white/[0.03]">
                 <div className="mb-1 font-mono text-zinc-900 dark:text-zinc-100">revisit</div>
                 inline README · private notes · trending signals
               </div>
@@ -173,7 +174,7 @@ export default async function HomePage() {
         </section>
 
         {/* ── Tagline bar ── */}
-        <section className="border-y border-white/10 bg-white/[0.02]">
+        <section className="border-y border-black/8 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02]">
           <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
             <p className="mb-6 text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
               For developers who star repos as research, backlog, and long-term reference
@@ -186,9 +187,9 @@ export default async function HomePage() {
               ].map((text) => (
                 <div
                   key={text}
-                  className="flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-muted-foreground"
+                  className="flex items-center gap-2.5 rounded-full border border-black/10 bg-black/[0.03] px-4 py-2 text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]"
                 >
-                  <div className="h-1 w-1 rounded-full bg-white/30" />
+                  <div className="h-1 w-1 rounded-full bg-black/30 dark:bg-white/30" />
                   {text}
                 </div>
               ))}
@@ -214,19 +215,19 @@ export default async function HomePage() {
           <div className="mt-12 grid gap-4 lg:grid-cols-3">
 
             {/* Card 1 — Search (large, 2-col) */}
-            <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 lg:col-span-2">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.04),transparent_65%)]" />
+            <div className="group relative overflow-hidden rounded-2xl border border-black/8 bg-black/[0.02] p-6 dark:border-white/10 dark:bg-white/[0.02] lg:col-span-2">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(0,0,0,0.03),transparent_65%)] dark:bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.04),transparent_65%)]" />
               {/* Decorative search preview */}
-              <div className="absolute right-5 top-5 hidden w-56 overflow-hidden rounded-xl border border-white/10 bg-background/80 p-3 backdrop-blur-sm lg:block">
-                <div className="mb-2.5 flex items-center gap-2 rounded-md bg-white/[0.04] px-2 py-1.5">
+              <div className="absolute right-5 top-5 hidden w-56 overflow-hidden rounded-xl border border-black/10 bg-background/90 p-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-background/80 lg:block">
+                <div className="mb-2.5 flex items-center gap-2 rounded-md bg-black/[0.04] px-2 py-1.5 dark:bg-white/[0.04]">
                   <Search className="h-3 w-3 text-muted-foreground" />
-                  <span className="font-mono text-[10px] text-white/50">language:rust tags:async</span>
+                  <span className="font-mono text-[10px] text-foreground/50">language:rust tags:async</span>
                 </div>
                 <div className="space-y-1.5">
                   {["tokio/tokio", "rayon-rs/rayon", "dtolnay/async-trait"].map((repo) => (
                     <div
                       key={repo}
-                      className="flex items-center gap-2 rounded-md bg-white/[0.03] px-2 py-1.5 font-mono text-[10px] text-white/40"
+                      className="flex items-center gap-2 rounded-md bg-black/[0.03] px-2 py-1.5 font-mono text-[10px] text-foreground/40 dark:bg-white/[0.03]"
                     >
                       <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-orange-400/60" />
                       {repo}
@@ -236,7 +237,7 @@ export default async function HomePage() {
               </div>
 
               <div className="relative flex h-full flex-col justify-end pt-28 lg:pt-24">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
                   <Search className="h-4 w-4" />
                 </div>
                 <h3 className="mt-3 text-xl font-semibold tracking-tight">
@@ -249,8 +250,8 @@ export default async function HomePage() {
             </div>
 
             {/* Card 2 — AI Categorization (small, 1-col) */}
-            <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 lg:col-span-1">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(139,92,246,0.06),transparent_70%)]" />
+            <div className="group relative overflow-hidden rounded-2xl border border-black/8 bg-black/[0.02] p-6 dark:border-white/10 dark:bg-white/[0.02] lg:col-span-1">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(139,92,246,0.05),transparent_70%)]" />
               {/* Decorative classification preview */}
               <div className="mb-6 space-y-1.5">
                 {[
@@ -260,17 +261,17 @@ export default async function HomePage() {
                 ].map(({ label, tag }) => (
                   <div
                     key={label}
-                    className="flex items-center justify-between rounded-md bg-white/[0.04] px-2.5 py-1.5 font-mono text-[10px]"
+                    className="flex items-center justify-between rounded-md bg-black/[0.04] px-2.5 py-1.5 font-mono text-[10px] dark:bg-white/[0.04]"
                   >
-                    <span className="text-white/40">{label}</span>
-                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-400">
+                    <span className="text-foreground/40">{label}</span>
+                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-600 dark:text-violet-400">
                       {tag}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
                 <Sparkles className="h-4 w-4" />
               </div>
               <h3 className="mt-3 text-xl font-semibold tracking-tight">AI does the first taxonomy pass</h3>
@@ -280,8 +281,8 @@ export default async function HomePage() {
             </div>
 
             {/* Card 3 — Tags & Collections (small, 1-col) */}
-            <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 lg:col-span-1">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.04),transparent_60%)]" />
+            <div className="group relative overflow-hidden rounded-2xl border border-black/8 bg-black/[0.02] p-6 dark:border-white/10 dark:bg-white/[0.02] lg:col-span-1">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(0,0,0,0.02),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.04),transparent_60%)]" />
               {/* Tag cloud decoration */}
               <div className="mb-6 flex flex-wrap gap-1.5">
                 {[
@@ -295,14 +296,14 @@ export default async function HomePage() {
                 ].map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                    className="rounded-full border border-black/10 bg-black/[0.04] px-2 py-0.5 font-mono text-[10px] text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
                   >
                     {tag}
                   </span>
                 ))}
               </div>
 
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
                 <Tags className="h-4 w-4" />
               </div>
               <h3 className="mt-3 text-xl font-semibold tracking-tight">Collections and tags that stay yours</h3>
@@ -312,28 +313,28 @@ export default async function HomePage() {
             </div>
 
             {/* Card 4 — Status Tracking (large, 2-col) */}
-            <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 lg:col-span-2">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(255,255,255,0.03),transparent_60%)]" />
+            <div className="group relative overflow-hidden rounded-2xl border border-black/8 bg-black/[0.02] p-6 dark:border-white/10 dark:bg-white/[0.02] lg:col-span-2">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(0,0,0,0.02),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_bottom_right,rgba(255,255,255,0.03),transparent_60%)]" />
               {/* Status pill decoration */}
               <div className="absolute right-5 top-5 hidden space-y-2 lg:block">
                 {[
-                  { color: "bg-emerald-400", status: "currently-using", repo: "vercel/next.js" },
-                  { color: "bg-amber-400", status: "want-to-try", repo: "gleam-lang/gleam" },
-                  { color: "bg-zinc-500", status: "archived", repo: "socketio/socket.io" },
+                  { color: "bg-emerald-500", status: "currently-using", repo: "vercel/next.js" },
+                  { color: "bg-amber-500", status: "want-to-try", repo: "gleam-lang/gleam" },
+                  { color: "bg-zinc-400", status: "archived", repo: "socketio/socket.io" },
                 ].map(({ color, status, repo }) => (
                   <div
                     key={repo}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-background/80 px-3 py-2 backdrop-blur-sm"
+                    className="flex items-center gap-2 rounded-xl border border-black/10 bg-background/90 px-3 py-2 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-background/80"
                   >
                     <div className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${color}`} />
-                    <span className="font-mono text-[10px] text-white/60">{status}</span>
-                    <span className="font-mono text-[10px] text-white/30">· {repo}</span>
+                    <span className="font-mono text-[10px] text-foreground/60">{status}</span>
+                    <span className="font-mono text-[10px] text-foreground/30">· {repo}</span>
                   </div>
                 ))}
               </div>
 
               <div className="relative flex h-full flex-col justify-end pt-28 lg:pt-24">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
                   <BookOpen className="h-4 w-4" />
                 </div>
                 <h3 className="mt-3 text-xl font-semibold tracking-tight">Track intent, not just interest</h3>
@@ -348,7 +349,7 @@ export default async function HomePage() {
         {/* ── Workflow ── */}
         <section
           id="workflow"
-          className="border-t border-white/10 bg-[linear-gradient(to_bottom,transparent,rgba(255,255,255,0.02))]"
+          className="border-t border-black/8 bg-[linear-gradient(to_bottom,transparent,rgba(0,0,0,0.01))] dark:border-white/10 dark:bg-[linear-gradient(to_bottom,transparent,rgba(255,255,255,0.02))]"
         >
           <div className="mx-auto grid w-full max-w-7xl gap-12 px-6 py-20 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
             <div className="max-w-xl">
@@ -362,9 +363,9 @@ export default async function HomePage() {
                 The loop is simple by design: sync, sort, annotate, revisit. No ceremony, no database migrations, no subscriptions to configure.
               </p>
 
-              <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="mt-8 rounded-xl border border-black/8 bg-black/[0.03] p-5 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                  <Zap className="h-4 w-4 text-amber-400" />
+                  <Zap className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                   Works with your existing GitHub stars
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">
@@ -377,7 +378,7 @@ export default async function HomePage() {
               {workflow.map((item) => (
                 <div
                   key={item.step}
-                  className="grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-[72px_1fr]"
+                  className="grid gap-4 rounded-2xl border border-black/8 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.03] sm:grid-cols-[72px_1fr]"
                 >
                   <div className="font-mono text-sm text-muted-foreground">{item.step}</div>
                   <div>
@@ -391,7 +392,7 @@ export default async function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-white/10">
+      <footer className="border-t border-black/8 dark:border-white/10">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8 text-sm text-muted-foreground lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center gap-3">
             <FolderTree className="h-4 w-4" />
