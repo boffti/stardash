@@ -95,7 +95,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
-        <SheetHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0 space-y-0">
+        <SheetHeader className="border-b border-border shrink-0 space-y-0 py-3 pl-4 pr-16 sm:py-4 sm:pl-6 sm:pr-20">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <Avatar className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
@@ -113,7 +113,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                 </SheetDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
               <Button variant="outline" size="sm" className="gap-1.5 h-8 px-2 sm:px-3" asChild>
                 <a
                   href={`https://github.com/${repo.fullName}#readme`}

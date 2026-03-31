@@ -482,6 +482,7 @@ export function SettingsPage({ user }: SettingsPageProps) {
           onShowUncategorized={() => {}}
           totalStars={Object.keys(metadata?.repoMeta ?? {}).length}
           uncategorizedCount={uncategorizedCount}
+          userId={user.id}
         />
         <SidebarInset className="overflow-x-hidden">
           <AppPageHeader

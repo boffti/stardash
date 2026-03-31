@@ -158,7 +158,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
                 </Badge>
               ))}
               {repo.tags.length + repo.topics.length > 3 && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 text-muted-foreground/50 border-border/40">
                   +{repo.tags.length + repo.topics.length - 3}
                 </Badge>
               )}

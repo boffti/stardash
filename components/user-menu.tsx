@@ -47,18 +47,25 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
   const githubUrl = user?.user_metadata?.user_name 
     ? `https://github.com/${user.user_metadata.user_name}` 
     : 'https://github.com'
+  const avatarButton = (
+    <Button variant="ghost" size="icon" className="rounded-full">
+      <Avatar className="h-8 w-8">
+        <AvatarImage src={avatarUrl} alt={username} />
+        <AvatarFallback>
+          <User className="h-4 w-4" />
+        </AvatarFallback>
+      </Avatar>
+    </Button>
+  )
+
+  if (!mounted) {
+    return avatarButton
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={avatarUrl} alt={username} />
-            <AvatarFallback>
-              <User className="h-4 w-4" />
-            </AvatarFallback>
-          </Avatar>
-        </Button>
+        {avatarButton}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">
