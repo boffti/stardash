@@ -1,14 +1,7 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
 import { TrendingDashboard } from "@/components/trending-dashboard"
+import { requireAuth } from "@/lib/auth"
 
 export default async function TrendingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
+  const user = await requireAuth()
   return <TrendingDashboard user={user} />
 }

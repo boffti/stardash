@@ -1,14 +1,7 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
 import { SettingsPage } from "@/components/settings-page"
+import { requireAuth } from "@/lib/auth"
 
 export default async function SettingsRoute() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
+  const user = await requireAuth()
   return <SettingsPage user={user} />
 }

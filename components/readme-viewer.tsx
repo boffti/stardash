@@ -18,7 +18,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { StarredRepo } from "@/lib/types"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import rehypeRaw from "rehype-raw"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
@@ -194,7 +193,6 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
                   components={{
                     pre: ({ children }) => {
                       const codeBlock = getCodeBlockProps(children)

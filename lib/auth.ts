@@ -1,9 +1,10 @@
 'use server'
 
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-export async function getUser() {
+export const getUser = cache(async () => {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   
@@ -12,7 +13,7 @@ export async function getUser() {
   }
   
   return user
-}
+})
 
 export async function getSession() {
   const supabase = await createClient()
@@ -35,7 +36,7 @@ export async function getUserProfile() {
   
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, github_username, github_avatar_url, github_id')
     .eq('id', user.id)
     .single()
   
@@ -61,8 +62,10 @@ export async function signOut() {
 
 export async function requireAuth() {
   const user = await getUser()
+
   if (!user) {
     redirect('/auth/login')
   }
+
   return user
 }

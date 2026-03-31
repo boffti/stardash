@@ -1,16 +1,7 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
 import { RecentlyViewedDashboard } from "@/components/recently-viewed-dashboard"
+import { requireAuth } from "@/lib/auth"
 
 export default async function RecentlyViewedPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
+  const user = await requireAuth()
   return <RecentlyViewedDashboard user={user} />
 }

@@ -1,5 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export interface TokenResult {
   token: string | null
@@ -7,19 +6,7 @@ export interface TokenResult {
 }
 
 export async function getAnyValidGitHubToken(): Promise<TokenResult> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return { token: null, error: 'server' }
-  }
-
-  const supabase = createSupabaseClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  })
+  const supabase = createAdminClient()
 
   try {
     const nowIso = new Date().toISOString()
@@ -42,7 +29,7 @@ export async function getAnyValidGitHubToken(): Promise<TokenResult> {
 }
 
 export async function getValidGitHubToken(userId: string): Promise<TokenResult> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   
   try {
     const { data: profile, error } = await supabase
@@ -76,7 +63,7 @@ export async function updateGitHubToken(
   userId: string, 
   token: string
 ): Promise<void> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   
   const expiresAt = new Date()
   expiresAt.setHours(expiresAt.getHours() + 8)
@@ -92,7 +79,7 @@ export async function updateGitHubToken(
 }
 
 export async function clearGitHubToken(userId: string): Promise<void> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   
   await supabase
     .from('profiles')
