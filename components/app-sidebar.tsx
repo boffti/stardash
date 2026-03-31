@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
@@ -121,6 +122,7 @@ export function AppSidebar({
   onCreateCollection,
   onCreateTag,
 }: AppSidebarProps) {
+  const pathname = usePathname()
   const [collectionsOpen, setCollectionsOpen] = useState(true)
   const [tagsOpen, setTagsOpen] = useState(true)
   const [tagSearch, setTagSearch] = useState("")
@@ -135,11 +137,17 @@ export function AppSidebar({
     ? filteredTags
     : filteredTags.slice(0, TAGS_VISIBLE_DEFAULT)
   const hiddenCount = filteredTags.length - visibleTags.length
+  const isHomeRoute = pathname === "/"
+  const isTrendingRoute = pathname === "/trending"
+  const isSettingsRoute = pathname === "/settings"
 
   return (
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-2">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent" suppressHydrationWarning>
             <Star className="h-4 w-4 text-accent-foreground" />
           </div>
@@ -147,7 +155,7 @@ export function AppSidebar({
             <h1 className="font-semibold text-foreground">StarDash</h1>
             <p className="text-xs text-muted-foreground">Your GitHub stars</p>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
@@ -155,18 +163,28 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={!selectedCollection && !selectedTag && !showUncategorized}
-                  onClick={() => {
-                    onSelectCollection(null)
-                    onSelectTag(null)
-                    onShowUncategorized(false)
-                  }}
-                >
-                  <Star className="h-4 w-4" />
-                  <span>All Stars</span>
-                  <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
-                </SidebarMenuButton>
+                {isHomeRoute ? (
+                  <SidebarMenuButton
+                    isActive={!selectedCollection && !selectedTag && !showUncategorized}
+                    onClick={() => {
+                      onSelectCollection(null)
+                      onSelectTag(null)
+                      onShowUncategorized(false)
+                    }}
+                  >
+                    <Star className="h-4 w-4" />
+                    <span>All Stars</span>
+                    <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton asChild isActive={false}>
+                    <Link href="/">
+                      <Star className="h-4 w-4" />
+                      <span>All Stars</span>
+                      <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                    </Link>
+                  </SidebarMenuButton>
+                )}
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton>
@@ -175,7 +193,7 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={isTrendingRoute}>
                   <Link href="/trending">
                     <TrendingUp className="h-4 w-4" />
                     <span>Trending</span>
@@ -183,7 +201,7 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={isSettingsRoute}>
                   <Link href="/settings">
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>

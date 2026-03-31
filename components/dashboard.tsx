@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import useSWR from "swr"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
+import { DashboardCommandPalette } from "./dashboard-command-palette"
 import { DashboardHeader } from "./dashboard-header"
 import { RepoGrid } from "./repo-grid"
 import { RepoList } from "./repo-list"
@@ -12,7 +13,7 @@ import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List, StarOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -23,11 +24,22 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { formatDistanceToNow } from "date-fns"
-import { getCachedRepos, setCachedRepos, clearCachedRepos } from "@/lib/repo-cache"
+import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
 import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Collection, Tag } from "@/lib/types"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { useStarredRepos } from "@/lib/use-starred-repos"
 import {
   updateRepoStatus, updateRepoNotes, togglePin,
   createTag, assignTag, removeTag,
@@ -43,19 +55,8 @@ interface DashboardProps {
   user: User | null
 }
 
-function makefetcher(userId: string | undefined) {
-  return async (url: string) => {
-    if (userId) {
-      const cached = getCachedRepos(userId)
-      if (cached) return { repos: cached.repos, lastSynced: cached.cachedAt, fromCache: true }
-    }
-    const data = await fetch(url).then((res) => res.json())
-    if (userId && data.repos) setCachedRepos(userId, data.repos)
-    return data
-  }
-}
-
 const VIEW_MODE_KEY = "stardash_view_mode"
+const MAX_HEALTH_REPOS_PER_VIEW = 50
 
 export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -86,6 +87,9 @@ export function Dashboard({ user }: DashboardProps) {
   const [categorization, setCategorization] = useState<CategorizationResult | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const supabase = createClient()
   const sensors = useSensors(
@@ -101,57 +105,18 @@ export function Dashboard({ user }: DashboardProps) {
   )
 
   // Fetch starred repos — checks localStorage cache before hitting GitHub API
-  const { data, error, isLoading, mutate } = useSWR<{
-    repos: StarredRepo[]
-    lastSynced: string
-    fromCache?: boolean
-    error?: string
-  }>("/api/github/starred", makefetcher(user?.id), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  })
-
-  // Fetch repo health data (trending, releases) - batched to avoid long URLs
-  const repoIdsForHealth = useMemo(() => {
-    return data?.repos?.map(r => r.id) || []
-  }, [data?.repos])
-
-  // Batch health requests in chunks of 50 to avoid URL length limits
-  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
-    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
-    async () => {
-      const batchSize = 50
-      const batches = []
-      for (let i = 0; i < repoIdsForHealth.length; i += batchSize) {
-        const batch = repoIdsForHealth.slice(i, i + batchSize)
-        batches.push(batch)
-      }
-
-      const results = await Promise.all(
-        batches.map(async (batch) => {
-          const url = `/api/github/health?repoIds=${batch.join(',')}`
-          const res = await fetch(url)
-          if (!res.ok) return {}
-          return res.json()
-        })
-      )
-
-      // Merge all batch results
-      return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
-    },
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
+  const { data, error, isLoading, isRefreshing, mutate, refresh } = useStarredRepos(user?.id)
 
   const rawRepos = data?.repos || []
+  const hasRepoData = Boolean(data)
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
-  // Merge DB metadata + AI categorization + health data over raw GitHub data. DB wins.
+  // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
   const repos = useMemo(() => {
     return rawRepos.map(repo => {
       const dbMeta = metadata?.repoMeta[repo.id]
-      const health = healthData?.[repo.id]
 
       let mergedRepo = repo
 
@@ -176,18 +141,9 @@ export function Dashboard({ user }: DashboardProps) {
         }
       }
 
-      // Merge health data
-      if (health) {
-        mergedRepo = {
-          ...mergedRepo,
-          isTrending: health.isTrending,
-          latestRelease: health.latestRelease,
-        }
-      }
-
       return mergedRepo
     })
-  }, [rawRepos, metadata, categorization, healthData])
+  }, [rawRepos, metadata, categorization])
 
   const collections = useMemo(() => {
     const dbCollections = metadata?.collections ?? []
@@ -333,6 +289,71 @@ export function Dashboard({ user }: DashboardProps) {
   const endIndex = pageSize === "all" ? filteredRepos.length : Math.min(startIndex + (pageSize as number), filteredRepos.length)
   const paginatedRepos = pageSize === "all" ? filteredRepos : filteredRepos.slice(startIndex, endIndex)
 
+  // Fetch repo health data only for the currently visible slice to avoid hammering GitHub.
+  const repoIdsForHealth = useMemo(() => {
+    const ids = paginatedRepos.map((repo) => repo.id)
+    if (selectedRepo?.id) {
+      ids.unshift(selectedRepo.id)
+    }
+    return Array.from(new Set(ids)).slice(0, MAX_HEALTH_REPOS_PER_VIEW)
+  }, [paginatedRepos, selectedRepo?.id])
+
+  // Batch health requests in chunks of 50 to avoid long URLs
+  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
+    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
+    async () => {
+      const batchSize = 50
+      const batches = []
+      for (let i = 0; i < repoIdsForHealth.length; i += batchSize) {
+        const batch = repoIdsForHealth.slice(i, i + batchSize)
+        batches.push(batch)
+      }
+
+      const results = await Promise.all(
+        batches.map(async (batch) => {
+          const url = `/api/github/health?repoIds=${batch.join(',')}`
+          const res = await fetch(url)
+          if (!res.ok) return {}
+          return res.json()
+        })
+      )
+
+      return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+      dedupingInterval: 60 * 1000,
+    }
+  )
+
+  const paginatedReposWithHealth = useMemo(() => {
+    return paginatedRepos.map((repo) => {
+      const health = healthData?.[repo.id]
+      if (!health) return repo
+
+      return {
+        ...repo,
+        isTrending: health.isTrending,
+        latestRelease: health.latestRelease,
+      }
+    })
+  }, [paginatedRepos, healthData])
+
+  const selectedRepoWithHealth = useMemo(() => {
+    if (!selectedRepo) return null
+
+    const health = healthData?.[selectedRepo.id]
+    if (!health) return selectedRepo
+
+    return {
+      ...selectedRepo,
+      isTrending: health.isTrending,
+      latestRelease: health.latestRelease,
+    }
+  }, [selectedRepo, healthData])
+
   const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
     if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total]
@@ -364,11 +385,11 @@ export function Dashboard({ user }: DashboardProps) {
     setLanguageFilter(null)
     setSelectedCollection(null)
     setSelectedTag(null)
+    setShowUncategorized(false)
   }
 
   const handleRefresh = () => {
-    if (user?.id) clearCachedRepos(user.id)
-    mutate(undefined, { revalidate: true })
+    refresh({ manual: true })
   }
 
   const handleCategorize = async () => {
@@ -549,6 +570,70 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
+  const handleRemoveStarRequest = (repo: StarredRepo) => {
+    setRepoToRemove(repo)
+  }
+
+  const handleRemoveStarConfirm = () => {
+    const repo = repoToRemove
+    if (!repo) return
+    setRepoToRemove(null)
+
+    // Optimistic remove from SWR cache and localStorage
+    mutate(prev => prev ? { ...prev, repos: prev.repos.filter(r => r.id !== repo.id) } : prev, { revalidate: false })
+    mutateMetadata(prev => {
+      if (!prev) return prev
+      const { [repo.id]: _, ...remainingMeta } = prev.repoMeta
+      return { ...prev, repoMeta: remainingMeta }
+    }, { revalidate: false })
+    if (user?.id) {
+      const cached = getCachedRepos(user.id)
+      if (cached) setCachedRepos(user.id, cached.repos.filter(r => r.id !== repo.id))
+    }
+
+    let undone = false
+    const toastId = toast(`Removed star from ${repo.owner}/${repo.name}`, {
+      icon: <StarOff className="h-4 w-4" />,
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          undone = true
+          if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
+          // Restore to SWR cache and localStorage
+          mutate(prev => prev ? { ...prev, repos: [repo, ...(prev.repos ?? [])] } : prev, { revalidate: false })
+          mutateMetadata()
+          if (user?.id) {
+            const cached = getCachedRepos(user.id)
+            if (cached) setCachedRepos(user.id, [repo, ...cached.repos])
+          }
+          toast.dismiss(toastId)
+        },
+      },
+    })
+
+    undoTimeoutRef.current = setTimeout(async () => {
+      if (undone) return
+      try {
+        const res = await fetch('/api/github/star', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ owner: repo.owner, repo: repo.name, githubRepoId: Number(repo.id) }),
+        })
+        if (!res.ok) throw new Error('Failed to remove star')
+      } catch {
+        // Restore on failure
+        mutate(prev => prev ? { ...prev, repos: [repo, ...(prev.repos ?? [])] } : prev, { revalidate: false })
+        mutateMetadata()
+        if (user?.id) {
+          const cached = getCachedRepos(user.id)
+          if (cached) setCachedRepos(user.id, [repo, ...cached.repos])
+        }
+        toast.error(`Failed to remove star from ${repo.owner}/${repo.name}`)
+      }
+    }, 5000)
+  }
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveRepoId(null)
@@ -564,7 +649,7 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
-  const hasActiveFilters = searchQuery || languageFilter || selectedCollection || selectedTag
+  const hasActiveFilters = searchQuery || languageFilter || selectedCollection || selectedTag || showUncategorized
 
   const getActiveFilterLabel = () => {
     if (selectedCollection) {
@@ -614,21 +699,53 @@ export function Dashboard({ user }: DashboardProps) {
           lastSynced={lastSynced}
           user={user}
           onRefresh={handleRefresh}
-          isRefreshing={isLoading}
+          isRefreshing={isRefreshing}
           onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        />
+        <DashboardCommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          repos={repos}
+          filteredRepos={filteredRepos}
+          collections={collections}
+          tags={allTags}
+          languages={languages}
+          searchQuery={searchQuery}
+          selectedCollection={selectedCollection}
+          selectedTag={selectedTag}
+          languageFilter={languageFilter}
+          showUncategorized={showUncategorized}
+          sortBy={sortBy}
+          viewMode={viewMode}
+          isRefreshing={isLoading}
+          isCategorizing={isCategorizing}
+          onSearchChange={setSearchQuery}
+          onSelectCollection={setSelectedCollection}
+          onSelectTag={setSelectedTag}
+          onLanguageFilterChange={setLanguageFilter}
+          onShowUncategorized={setShowUncategorized}
+          onSortChange={setSortBy}
+          onViewModeChange={setViewMode}
+          onRefresh={handleRefresh}
+          onCategorize={handleCategorize}
+          onRepoOpen={handleRepoClick}
+          onClearFilters={clearAllFilters}
         />
         <main className="flex-1 p-6">
           {/* Loading State */}
-          {isLoading && (
+          {isLoading && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">Loading your starred repositories...</p>
+              <p className="text-muted-foreground">
+                {data?.fromCache ? "Refreshing your starred repositories..." : "Loading your starred repositories..."}
+              </p>
             </div>
           )}
 
           {/* Error State */}
-          {error && (
+          {error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
@@ -640,7 +757,7 @@ export function Dashboard({ user }: DashboardProps) {
           )}
 
           {/* API Error (e.g., token issues) */}
-          {data?.error && (
+          {data?.error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">{data.error}</p>
@@ -651,7 +768,7 @@ export function Dashboard({ user }: DashboardProps) {
           )}
 
           {/* Content */}
-          {!isLoading && !error && !data?.error && (
+          {hasRepoData && !data?.error && (
             <>
               {/* Active Filters */}
               {hasActiveFilters && (
@@ -684,6 +801,15 @@ export function Dashboard({ user }: DashboardProps) {
                           setSelectedCollection(null)
                           setSelectedTag(null)
                         }}
+                      />
+                    </Badge>
+                  )}
+                  {showUncategorized && (
+                    <Badge variant="secondary" className="gap-1">
+                      Uncategorized
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setShowUncategorized(false)}
                       />
                     </Badge>
                   )}
@@ -771,7 +897,7 @@ export function Dashboard({ user }: DashboardProps) {
               </div>
 
               {/* Proactive Alerts - Updates on starred repos */}
-              <ProactiveAlerts repos={repos} userId={user?.id} />
+              <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
 
               {/* Empty State */}
               {repos.length === 0 && (
@@ -786,9 +912,9 @@ export function Dashboard({ user }: DashboardProps) {
               {/* View */}
               {repos.length > 0 && (
                 viewMode === "grid" ? (
-                  <RepoGrid repos={paginatedRepos} onRepoClick={handleRepoClick} />
+                  <RepoGrid repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} onRemoveStar={handleRemoveStarRequest} />
                 ) : (
-                  <RepoList repos={paginatedRepos} onRepoClick={handleRepoClick} />
+                  <RepoList repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} />
                 )
               )}
 
@@ -853,7 +979,7 @@ export function Dashboard({ user }: DashboardProps) {
 
       {/* Detail Panel */}
       <RepoDetailPanel
-        repo={selectedRepo}
+        repo={selectedRepoWithHealth}
         open={detailPanelOpen}
         onClose={handleCloseDetail}
         onViewReadme={handleViewReadme}
@@ -870,10 +996,31 @@ export function Dashboard({ user }: DashboardProps) {
 
       {/* README Viewer */}
       <ReadmeViewer
-        repo={selectedRepo}
+        repo={selectedRepoWithHealth}
         open={readmeViewerOpen}
         onClose={handleCloseReadme}
       />
+
+      {/* Remove Star Confirmation */}
+      <AlertDialog open={!!repoToRemove} onOpenChange={(open) => { if (!open) setRepoToRemove(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove star?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will unstar <span className="font-mono font-medium text-foreground">{repoToRemove?.owner}/{repoToRemove?.name}</span> on GitHub and delete all associated tags, collections, and notes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleRemoveStarConfirm}
+            >
+              Remove Star
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
     <DragOverlay>
       {activeRepo && (

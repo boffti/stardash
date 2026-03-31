@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { Github, RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTheme } from '@/components/theme-provider'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user, lastSynced }: UserMenuProps) {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
@@ -89,10 +89,10 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
             Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+            <Sun className={`mr-2 h-4 w-4 transition-all ${resolvedTheme === 'dark' ? 'scale-0 -rotate-90' : 'scale-100 rotate-0'}`} />
+            <Moon className={`absolute mr-2 h-4 w-4 transition-all ${resolvedTheme === 'dark' ? 'scale-100 rotate-0' : 'scale-0 rotate-90'}`} />
             <span>Theme</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
