@@ -6,6 +6,11 @@ import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
 import type { StarredRepo } from "@/lib/types"
 import { toast } from "sonner"
 
+const MIN_BACKGROUND_SYNC_INTERVAL_MS = 5 * 60 * 1000
+const STARRED_REPOS_SYNC_URL = "/api/github/starred"
+
+export type StarredReposSyncTriggerKind = "time-based" | "user" | "app"
+
 export interface StarredReposResponse {
   repos: StarredRepo[]
   lastSynced: string
@@ -15,10 +20,32 @@ export interface StarredReposResponse {
 
 interface RefreshOptions {
   manual?: boolean
+  triggerKind?: StarredReposSyncTriggerKind
+  triggerSource?: string
+  triggerContext?: string
 }
 
-async function fetchStarredRepos(url: string, userId?: string) {
-  const response = await fetch(url)
+function buildStarredReposSyncUrl(url: string, options: RefreshOptions = {}) {
+  const params = new URLSearchParams()
+
+  if (options.triggerKind) {
+    params.set("triggerKind", options.triggerKind)
+  }
+
+  if (options.triggerSource) {
+    params.set("triggerSource", options.triggerSource)
+  }
+
+  if (options.triggerContext) {
+    params.set("triggerContext", options.triggerContext)
+  }
+
+  const query = params.toString()
+  return query ? `${url}?${query}` : url
+}
+
+async function fetchStarredRepos(url: string, userId?: string, options: RefreshOptions = {}) {
+  const response = await fetch(buildStarredReposSyncUrl(url, options))
   const result = await response.json()
 
   if (!response.ok) {
@@ -37,6 +64,11 @@ export function useStarredRepos(userId?: string) {
   const manualRefreshRef = useRef(false)
   const backgroundFailureNotifiedRef = useRef(false)
   const lastSuccessfulSyncRef = useRef<string | null>(null)
+  const initialSyncCheckedRef = useRef(false)
+
+  useEffect(() => {
+    initialSyncCheckedRef.current = false
+  }, [userId])
 
   useEffect(() => {
     if (!userId) {
@@ -55,10 +87,10 @@ export function useStarredRepos(userId?: string) {
   }, [userId])
 
   const swr = useSWR<StarredReposResponse>(
-    userId ? "/api/github/starred" : null,
+    userId ? STARRED_REPOS_SYNC_URL : null,
     (url: string) => fetchStarredRepos(url, userId),
     {
-      revalidateOnMount: true,
+      revalidateOnMount: false,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshWhenHidden: false,
@@ -69,12 +101,31 @@ export function useStarredRepos(userId?: string) {
     }
   )
 
-  const refresh = async ({ manual = false }: RefreshOptions = {}) => {
+  const refresh = async ({ manual = false, ...options }: RefreshOptions = {}) => {
     manualRefreshRef.current = manual
-    return swr.mutate()
+    return swr.mutate(fetchStarredRepos(STARRED_REPOS_SYNC_URL, userId, { manual, ...options }), {
+      revalidate: false,
+    })
   }
 
   const data = swr.data ?? cachedData
+
+  useEffect(() => {
+    if (!userId || initialSyncCheckedRef.current) return
+
+    const cached = getCachedRepos(userId)
+    const shouldBackgroundSync = !cached || (Date.now() - new Date(cached.cachedAt).getTime()) >= MIN_BACKGROUND_SYNC_INTERVAL_MS
+
+    initialSyncCheckedRef.current = true
+
+    if (shouldBackgroundSync) {
+      void refresh({
+        triggerKind: "time-based",
+        triggerSource: cached ? "background-cooldown-expired" : "initial-load-no-cache",
+        triggerContext: "use-starred-repos",
+      })
+    }
+  }, [userId])
 
   useEffect(() => {
     if (!data?.lastSynced) return

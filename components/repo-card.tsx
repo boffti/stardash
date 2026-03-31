@@ -115,7 +115,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={() => onRemoveStar?.(repo)}
+                  onSelect={() => onRemoveStar?.(repo)}
                 >
                   Remove Star
                 </DropdownMenuItem>
