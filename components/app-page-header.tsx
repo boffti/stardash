@@ -1,11 +1,29 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import React, { useState } from "react"
-import { Menu, RefreshCw, Search } from "lucide-react"
+import { Menu, RefreshCw, Search, Sparkles, User as UserIcon } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { UserMenu } from "@/components/user-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
+
+const UserMenu = dynamic(
+  () => import("@/components/user-menu").then((module) => module.UserMenu),
+  {
+    ssr: false,
+    loading: () => (
+      <Button variant="ghost" size="icon" className="rounded-full">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>
+            <UserIcon className="h-4 w-4" />
+          </AvatarFallback>
+        </Avatar>
+      </Button>
+    ),
+  },
+)
 
 interface AppPageHeaderProps {
   searchLabel?: string
@@ -15,6 +33,8 @@ interface AppPageHeaderProps {
   actions?: React.ReactNode
   lastSynced: string | null
   user: User | null
+  onCategorize?: () => void
+  isCategorizing?: boolean
   onRefresh?: () => void
   isRefreshing?: boolean
 }
@@ -27,6 +47,8 @@ export function AppPageHeader({
   actions,
   lastSynced,
   user,
+  onCategorize,
+  isCategorizing = false,
   onRefresh,
   isRefreshing = false,
 }: AppPageHeaderProps) {
@@ -89,6 +111,18 @@ export function AppPageHeader({
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {actions}
+          <button
+            type="button"
+            onClick={onCategorize}
+            disabled={Boolean(isCategorizing) || !onCategorize}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            title={isCategorizing ? "Analyzing…" : "Auto-categorize with AI"}
+          >
+            <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
+            <span suppressHydrationWarning className="hidden sm:inline">
+              {isCategorizing ? "Analyzing…" : "Categorize"}
+            </span>
+          </button>
           <button
             type="button"
             onClick={onRefresh}

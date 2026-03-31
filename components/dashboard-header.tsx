@@ -1,6 +1,4 @@
 "use client"
-
-import { Sparkles } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -159,20 +157,10 @@ export function DashboardHeader({
       onOpenCommandPalette={onOpenCommandPalette}
       desktopControls={filterControls}
       mobileControls={mobileFilterControls}
-      actions={
-        <button
-          type="button"
-          onClick={onCategorize}
-          disabled={Boolean(isCategorizing)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-          title="Auto-categorize with AI"
-        >
-          <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
-          <span className="hidden sm:inline">{isCategorizing ? "Analyzing…" : ""}</span>
-        </button>
-      }
       lastSynced={lastSynced}
       user={user}
+      onCategorize={onCategorize}
+      isCategorizing={isCategorizing}
       onRefresh={onRefresh}
       isRefreshing={isRefreshing}
     />
