@@ -9,13 +9,13 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-    if (sessionError || !session) {
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tokenResult = await getValidGitHubToken(session.user.id)
+    const tokenResult = await getValidGitHubToken(user.id)
     
     if (tokenResult.error === 'expired') {
       return NextResponse.json(
@@ -33,7 +33,7 @@ export async function GET() {
 
     const repos = await fetchAllStarredRepos(tokenResult.token)
     const adminSupabase = createAdminClient()
-    await upsertStarredRepos(adminSupabase, repos, session.user.id)
+    await upsertStarredRepos(adminSupabase, repos, user.id)
 
     supabase
       .from('profiles')
@@ -41,11 +41,12 @@ export async function GET() {
         last_github_sync_at: new Date().toISOString(),
         total_starred_count: repos.length,
       })
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .then(() => {})
 
     return NextResponse.json({ repos, lastSynced: new Date().toISOString() })
   } catch (error) {
+    console.error('Error fetching starred repos:', error)
     if (error instanceof Error && error.message.includes('401')) {
       return NextResponse.json(
         { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },

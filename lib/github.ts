@@ -184,6 +184,29 @@ export interface ReadmeResult {
   error?: 'auth' | 'not_found' | 'server'
 }
 
+export async function unstarRepo(
+  accessToken: string,
+  owner: string,
+  repo: string
+): Promise<void> {
+  const response = await fetch(
+    `https://api.github.com/user/starred/${owner}/${repo}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    }
+  )
+
+  // 204 = success, 404 = already unstarred (treat as success)
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`GitHub API error: ${response.status}`)
+  }
+}
+
 export async function fetchRepoReadme(
   accessToken: string,
   owner: string,

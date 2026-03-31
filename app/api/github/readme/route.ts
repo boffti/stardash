@@ -17,16 +17,16 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
-    if (sessionError || !session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const tokenResult = await getValidGitHubToken(session.user.id)
+    const tokenResult = await getValidGitHubToken(user.id)
     
     if (tokenResult.error === 'expired') {
       return NextResponse.json(

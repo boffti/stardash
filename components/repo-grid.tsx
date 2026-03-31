@@ -8,9 +8,10 @@ import { Inbox } from "lucide-react"
 interface RepoGridProps {
   repos: StarredRepo[]
   onRepoClick: (repo: StarredRepo) => void
+  onRemoveStar?: (repo: StarredRepo) => void
 }
 
-export function RepoGrid({ repos, onRepoClick }: RepoGridProps) {
+export function RepoGrid({ repos, onRepoClick, onRemoveStar }: RepoGridProps) {
   if (repos.length === 0) {
     return (
       <Empty className="py-16">
@@ -28,7 +29,7 @@ export function RepoGrid({ repos, onRepoClick }: RepoGridProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
       {repos.map((repo) => (
-        <RepoCard key={repo.id} repo={repo} onClick={() => onRepoClick(repo)} />
+        <RepoCard key={repo.id} repo={repo} onClick={() => onRepoClick(repo)} onRemoveStar={onRemoveStar} />
       ))}
     </div>
   )

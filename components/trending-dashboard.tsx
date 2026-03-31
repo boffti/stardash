@@ -2,37 +2,27 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
+import Link from "next/link"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { TrendingSection } from "./trending-section"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { TrendingEmptyState } from "./trending-empty-state"
+import { UserMenu } from "./user-menu"
 import type { User } from "@supabase/supabase-js"
-import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { Loader2, AlertCircle, RefreshCw, SidebarOpen, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
 import type { StarredRepo, Collection, Tag, UserMetadata } from "@/lib/types"
 import { analyzeTrending, TrendingAnalysis } from "@/lib/trending"
-import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useStarredRepos } from "@/lib/use-starred-repos"
 
 interface TrendingDashboardProps {
   user: User | null
-}
-
-function makefetcher(userId: string | undefined) {
-  return async (url: string) => {
-    if (userId) {
-      const cached = getCachedRepos(userId)
-      if (cached) return { repos: cached.repos, lastSynced: cached.cachedAt, fromCache: true }
-    }
-    const data = await fetch(url).then((res) => res.json())
-    if (userId && data.repos) setCachedRepos(userId, data.repos)
-    return data
-  }
 }
 
 export function TrendingDashboard({ user }: TrendingDashboardProps) {
@@ -49,15 +39,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   )
 
   // Fetch starred repos
-  const { data, error, isLoading, mutate } = useSWR<{
-    repos: StarredRepo[]
-    lastSynced: string
-    fromCache?: boolean
-    error?: string
-  }>("/api/github/starred", makefetcher(user?.id), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  })
+  const { data, error, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
 
   // Fetch user metadata (tags, collections) from Supabase
   const { data: metadata } = useSWR<UserMetadata>(
@@ -82,10 +64,10 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
+  const hasRepoData = Boolean(data)
 
   const handleRefresh = async () => {
-    await mutate()
-    toast.success("Repositories refreshed")
+    await refresh({ manual: true })
   }
 
   const handleRepoClick = (repo: StarredRepo) => {
@@ -127,81 +109,86 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
         uncategorizedCount={0}
       />
       <SidebarInset className="overflow-x-hidden">
-        {/* Header */}
-        <header className="border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
+        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <SidebarTrigger className="-ml-1 shrink-0" />
+            <Link
+              href="/trending"
+              className="hidden h-10 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
+            >
+              <TrendingUp className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">Trending recommendations</span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={Boolean(isLoading)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              title={isRefreshing ? "Refreshing…" : (lastSynced ?? "Refresh")}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">{isRefreshing ? "Refreshing…" : "Refresh"}</span>
+            </button>
+            <UserMenu user={user} lastSynced={lastSynced} />
+          </div>
+        </header>
+
+        <main className="flex-1 p-6">
+          <section className="mb-8 space-y-4">
+            <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Trending</h1>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground">
                 Discover repositories based on your last {trendingAnalysis.totalAnalyzed} starred repos
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              {lastSynced && (
-                <span className="text-xs text-muted-foreground">{lastSynced}</span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                <span className="ml-2">Refresh</span>
-              </Button>
-            </div>
-          </div>
 
-          {/* Pattern Summary */}
-          {trendingAnalysis.topLanguages.length > 0 && (
-            <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border/50">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Top languages:</span>
-                <div className="flex items-center gap-1">
-                  {trendingAnalysis.topLanguages.slice(0, 3).map((lang) => (
-                    <span
-                      key={lang}
-                      className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-                    >
-                      {lang}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {trendingAnalysis.topTopics.length > 0 && (
+            {trendingAnalysis.topLanguages.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Top topics:</span>
-                  <div className="flex items-center gap-1">
-                    {trendingAnalysis.topTopics.slice(0, 3).map((topic) => (
+                  <span className="text-xs text-muted-foreground">Top languages:</span>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {trendingAnalysis.topLanguages.slice(0, 3).map((lang) => (
                       <span
-                        key={topic}
-                        className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                        key={lang}
+                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                       >
-                        {topic}
+                        {lang}
                       </span>
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-        </header>
-
-        <main className="flex-1 p-6">
+                {trendingAnalysis.topTopics.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Top topics:</span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {trendingAnalysis.topTopics.slice(0, 3).map((topic) => (
+                        <span
+                          key={topic}
+                          className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
           {/* Loading State */}
-          {isLoading && (
+          {isLoading && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">Analyzing your starred repositories...</p>
+              <p className="text-muted-foreground">
+                {data?.fromCache ? "Refreshing your starred repositories..." : "Analyzing your starred repositories..."}
+              </p>
             </div>
           )}
 
           {/* Error State */}
-          {error && (
+          {error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
@@ -213,7 +200,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
 
           {/* API Error */}
-          {data?.error && (
+          {data?.error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">{data.error}</p>
@@ -224,7 +211,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
 
           {/* Empty State - Not Enough Stars */}
-          {!isLoading && !error && !data?.error && data?.repos && data.repos.length < 25 && (
+          {hasRepoData && !data?.error && data?.repos && data.repos.length < 25 && (
             <TrendingEmptyState
               currentCount={data.repos.length}
               requiredCount={25}
@@ -232,8 +219,8 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
 
           {/* Trending Sections */}
-          {!isLoading && !error && !data?.error && data?.repos && data.repos.length >= 25 && (
-            <div className="space-y-12">
+          {hasRepoData && !data?.error && data?.repos && data.repos.length >= 25 && (
+            <div className="space-y-6">
               {trendingAnalysis.categories.map((category) => (
                 <TrendingSection
                   key={category.id}
