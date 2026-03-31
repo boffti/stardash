@@ -87,15 +87,15 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-muted-foreground dark:border-white/10 dark:bg-white/5">
               <Github className="h-3.5 w-3.5" />
-              Built for developers with too many stars
+              Star it. Find it. Actually use it.
             </div>
 
             <h1 className="max-w-4xl text-5xl font-semibold tracking-[-0.06em] text-balance sm:text-6xl lg:text-7xl">
-              The workspace your starred repos never had.
+              The GitHub stars dashboard you've been missing.
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
-              StarDash converts a flat list of GitHub stars into a searchable, AI-categorized knowledge base. Query by owner, language, tags, or private notes — and actually find what you starred.
+              Connect your GitHub account and every repo you've ever starred becomes searchable, filterable, and annotatable. Tag by language, mark your intent, attach private notes, let AI draft the structure — and actually find the thing you saved eight months ago.
             </p>
 
             <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
@@ -130,24 +130,24 @@ export default async function HomePage() {
 
             <div className="mt-12 grid gap-6 border-t border-black/8 pt-8 text-left dark:border-white/10 sm:grid-cols-3">
               <div>
-                <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground/60">Scale</div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight">5,000 repos</div>
+                <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground/60">Search</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight">Any field, instant</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Your full star history, indexed and searchable in a single sync. No partial imports, no rate-limit errors.
+                  Filter by language, topic, tag, owner, or your own private notes. No pagination, no scroll hunting.
                 </p>
               </div>
               <div>
-                <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground/60">Storage</div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight">No migrations</div>
+                <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground/60">Intent</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight">6 status labels</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Tags, notes, and collections live in the browser. Nothing to provision or maintain server-side.
+                  want-to-try · currently-using · tried-liked · tried-dropped · just-interesting · reference
                 </p>
               </div>
               <div>
                 <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground/60">AI</div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight">One LLM pass</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight">Taxonomy in one pass</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  The model drafts your taxonomy. You review, adjust, and own the result.
+                  AI drafts tags and collections across your full star history. You review, edit, and own the result.
                 </p>
               </div>
             </div>
@@ -181,9 +181,9 @@ export default async function HomePage() {
             </p>
             <div className="flex flex-wrap gap-3 text-sm">
               {[
-                "Full-text search instead of endless GitHub pagination",
-                "Private metadata without spreadsheet drift",
-                "A real workspace — not a reskin of the GitHub UI",
+                "Find any starred repo in under 10 seconds",
+                "Remember why you saved it with private notes",
+                "AI-organized taxonomy, your edits, zero lock-in",
               ].map((text) => (
                 <div
                   key={text}
@@ -339,7 +339,7 @@ export default async function HomePage() {
                 </div>
                 <h3 className="mt-3 text-xl font-semibold tracking-tight">Track intent, not just interest</h3>
                 <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                  Mark repos as want-to-try, currently-using, or archived. Attach private notes that persist across sessions — stop reconstructing why a tool mattered when you need it.
+                  Six statuses model exactly where a repo sits in your workflow: <span className="text-foreground/70">want-to-try · currently-using · tried-liked · tried-dropped · just-interesting · reference</span>. Attach private notes so you stop reconstructing why something mattered when you finally need it.
                 </p>
               </div>
             </div>
