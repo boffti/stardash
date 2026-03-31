@@ -5,13 +5,13 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
-    if (sessionError || !session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
-    const result = await getValidGitHubToken(session.user.id)
+
+    const result = await getValidGitHubToken(user.id)
     
     if (result.error === 'expired') {
       return NextResponse.json(
@@ -46,12 +46,18 @@ export async function GET() {
 export async function POST() {
   try {
     const supabase = await createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
+
     if (sessionError || !session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
+
     const providerToken = session.provider_token
     
     if (!providerToken) {
@@ -64,7 +70,7 @@ export async function POST() {
     const { data: profile } = await supabase
       .from('profiles')
       .select('token_expires_at')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
     
     const expiresAt = new Date()
@@ -78,7 +84,7 @@ export async function POST() {
         last_token_refresh_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', session.user.id)
+      .eq('id', user.id)
     
     return NextResponse.json({ success: true, expiresAt: expiresAt.toISOString() })
   } catch {

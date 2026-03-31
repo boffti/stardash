@@ -14,28 +14,15 @@ import type { User } from "@supabase/supabase-js"
 import { Loader2, AlertCircle, RefreshCw, SidebarOpen, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
 import type { StarredRepo, Collection, Tag, UserMetadata } from "@/lib/types"
 import { analyzeTrending, TrendingAnalysis } from "@/lib/trending"
-import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useStarredRepos } from "@/lib/use-starred-repos"
 
 interface TrendingDashboardProps {
   user: User | null
-}
-
-function makefetcher(userId: string | undefined) {
-  return async (url: string) => {
-    if (userId) {
-      const cached = getCachedRepos(userId)
-      if (cached) return { repos: cached.repos, lastSynced: cached.cachedAt, fromCache: true }
-    }
-    const data = await fetch(url).then((res) => res.json())
-    if (userId && data.repos) setCachedRepos(userId, data.repos)
-    return data
-  }
 }
 
 export function TrendingDashboard({ user }: TrendingDashboardProps) {
@@ -52,15 +39,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   )
 
   // Fetch starred repos
-  const { data, error, isLoading, mutate } = useSWR<{
-    repos: StarredRepo[]
-    lastSynced: string
-    fromCache?: boolean
-    error?: string
-  }>("/api/github/starred", makefetcher(user?.id), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  })
+  const { data, error, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
 
   // Fetch user metadata (tags, collections) from Supabase
   const { data: metadata } = useSWR<UserMetadata>(
@@ -85,10 +64,10 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
+  const hasRepoData = Boolean(data)
 
   const handleRefresh = async () => {
-    await mutate()
-    toast.success("Repositories refreshed")
+    await refresh({ manual: true })
   }
 
   const handleRepoClick = (repo: StarredRepo) => {
@@ -147,10 +126,10 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
               onClick={handleRefresh}
               disabled={Boolean(isLoading)}
               className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-              title={isLoading ? "Refreshing…" : (lastSynced ?? "Refresh")}
+              title={isRefreshing ? "Refreshing…" : (lastSynced ?? "Refresh")}
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">{isLoading ? "Refreshing…" : "Refresh"}</span>
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">{isRefreshing ? "Refreshing…" : "Refresh"}</span>
             </button>
             <UserMenu user={user} lastSynced={lastSynced} />
           </div>
@@ -199,15 +178,17 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
             )}
           </section>
           {/* Loading State */}
-          {isLoading && (
+          {isLoading && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">Analyzing your starred repositories...</p>
+              <p className="text-muted-foreground">
+                {data?.fromCache ? "Refreshing your starred repositories..." : "Analyzing your starred repositories..."}
+              </p>
             </div>
           )}
 
           {/* Error State */}
-          {error && (
+          {error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
@@ -219,7 +200,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
 
           {/* API Error */}
-          {data?.error && (
+          {data?.error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">{data.error}</p>
@@ -230,7 +211,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
 
           {/* Empty State - Not Enough Stars */}
-          {!isLoading && !error && !data?.error && data?.repos && data.repos.length < 25 && (
+          {hasRepoData && !data?.error && data?.repos && data.repos.length < 25 && (
             <TrendingEmptyState
               currentCount={data.repos.length}
               requiredCount={25}
@@ -238,7 +219,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
 
           {/* Trending Sections */}
-          {!isLoading && !error && !data?.error && data?.repos && data.repos.length >= 25 && (
+          {hasRepoData && !data?.error && data?.repos && data.repos.length >= 25 && (
             <div className="space-y-6">
               {trendingAnalysis.categories.map((category) => (
                 <TrendingSection

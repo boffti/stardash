@@ -35,10 +35,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { formatDistanceToNow } from "date-fns"
-import { getCachedRepos, setCachedRepos, clearCachedRepos } from "@/lib/repo-cache"
+import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
 import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Collection, Tag } from "@/lib/types"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { useStarredRepos } from "@/lib/use-starred-repos"
 import {
   updateRepoStatus, updateRepoNotes, togglePin,
   createTag, assignTag, removeTag,
@@ -54,19 +55,8 @@ interface DashboardProps {
   user: User | null
 }
 
-function makefetcher(userId: string | undefined) {
-  return async (url: string) => {
-    if (userId) {
-      const cached = getCachedRepos(userId)
-      if (cached) return { repos: cached.repos, lastSynced: cached.cachedAt, fromCache: true }
-    }
-    const data = await fetch(url).then((res) => res.json())
-    if (userId && data.repos) setCachedRepos(userId, data.repos)
-    return data
-  }
-}
-
 const VIEW_MODE_KEY = "stardash_view_mode"
+const MAX_HEALTH_REPOS_PER_VIEW = 50
 
 export function Dashboard({ user }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -115,57 +105,18 @@ export function Dashboard({ user }: DashboardProps) {
   )
 
   // Fetch starred repos — checks localStorage cache before hitting GitHub API
-  const { data, error, isLoading, mutate } = useSWR<{
-    repos: StarredRepo[]
-    lastSynced: string
-    fromCache?: boolean
-    error?: string
-  }>("/api/github/starred", makefetcher(user?.id), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  })
-
-  // Fetch repo health data (trending, releases) - batched to avoid long URLs
-  const repoIdsForHealth = useMemo(() => {
-    return data?.repos?.map(r => r.id) || []
-  }, [data?.repos])
-
-  // Batch health requests in chunks of 50 to avoid URL length limits
-  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
-    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
-    async () => {
-      const batchSize = 50
-      const batches = []
-      for (let i = 0; i < repoIdsForHealth.length; i += batchSize) {
-        const batch = repoIdsForHealth.slice(i, i + batchSize)
-        batches.push(batch)
-      }
-
-      const results = await Promise.all(
-        batches.map(async (batch) => {
-          const url = `/api/github/health?repoIds=${batch.join(',')}`
-          const res = await fetch(url)
-          if (!res.ok) return {}
-          return res.json()
-        })
-      )
-
-      // Merge all batch results
-      return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
-    },
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
+  const { data, error, isLoading, isRefreshing, mutate, refresh } = useStarredRepos(user?.id)
 
   const rawRepos = data?.repos || []
+  const hasRepoData = Boolean(data)
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
-  // Merge DB metadata + AI categorization + health data over raw GitHub data. DB wins.
+  // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
   const repos = useMemo(() => {
     return rawRepos.map(repo => {
       const dbMeta = metadata?.repoMeta[repo.id]
-      const health = healthData?.[repo.id]
 
       let mergedRepo = repo
 
@@ -190,18 +141,9 @@ export function Dashboard({ user }: DashboardProps) {
         }
       }
 
-      // Merge health data
-      if (health) {
-        mergedRepo = {
-          ...mergedRepo,
-          isTrending: health.isTrending,
-          latestRelease: health.latestRelease,
-        }
-      }
-
       return mergedRepo
     })
-  }, [rawRepos, metadata, categorization, healthData])
+  }, [rawRepos, metadata, categorization])
 
   const collections = useMemo(() => {
     const dbCollections = metadata?.collections ?? []
@@ -347,6 +289,71 @@ export function Dashboard({ user }: DashboardProps) {
   const endIndex = pageSize === "all" ? filteredRepos.length : Math.min(startIndex + (pageSize as number), filteredRepos.length)
   const paginatedRepos = pageSize === "all" ? filteredRepos : filteredRepos.slice(startIndex, endIndex)
 
+  // Fetch repo health data only for the currently visible slice to avoid hammering GitHub.
+  const repoIdsForHealth = useMemo(() => {
+    const ids = paginatedRepos.map((repo) => repo.id)
+    if (selectedRepo?.id) {
+      ids.unshift(selectedRepo.id)
+    }
+    return Array.from(new Set(ids)).slice(0, MAX_HEALTH_REPOS_PER_VIEW)
+  }, [paginatedRepos, selectedRepo?.id])
+
+  // Batch health requests in chunks of 50 to avoid long URLs
+  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
+    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
+    async () => {
+      const batchSize = 50
+      const batches = []
+      for (let i = 0; i < repoIdsForHealth.length; i += batchSize) {
+        const batch = repoIdsForHealth.slice(i, i + batchSize)
+        batches.push(batch)
+      }
+
+      const results = await Promise.all(
+        batches.map(async (batch) => {
+          const url = `/api/github/health?repoIds=${batch.join(',')}`
+          const res = await fetch(url)
+          if (!res.ok) return {}
+          return res.json()
+        })
+      )
+
+      return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+      dedupingInterval: 60 * 1000,
+    }
+  )
+
+  const paginatedReposWithHealth = useMemo(() => {
+    return paginatedRepos.map((repo) => {
+      const health = healthData?.[repo.id]
+      if (!health) return repo
+
+      return {
+        ...repo,
+        isTrending: health.isTrending,
+        latestRelease: health.latestRelease,
+      }
+    })
+  }, [paginatedRepos, healthData])
+
+  const selectedRepoWithHealth = useMemo(() => {
+    if (!selectedRepo) return null
+
+    const health = healthData?.[selectedRepo.id]
+    if (!health) return selectedRepo
+
+    return {
+      ...selectedRepo,
+      isTrending: health.isTrending,
+      latestRelease: health.latestRelease,
+    }
+  }, [selectedRepo, healthData])
+
   const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
     if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total]
@@ -382,8 +389,7 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleRefresh = () => {
-    if (user?.id) clearCachedRepos(user.id)
-    mutate(undefined, { revalidate: true })
+    refresh({ manual: true })
   }
 
   const handleCategorize = async () => {
@@ -693,7 +699,7 @@ export function Dashboard({ user }: DashboardProps) {
           lastSynced={lastSynced}
           user={user}
           onRefresh={handleRefresh}
-          isRefreshing={isLoading}
+          isRefreshing={isRefreshing}
           onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
@@ -729,15 +735,17 @@ export function Dashboard({ user }: DashboardProps) {
         />
         <main className="flex-1 p-6">
           {/* Loading State */}
-          {isLoading && (
+          {isLoading && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">Loading your starred repositories...</p>
+              <p className="text-muted-foreground">
+                {data?.fromCache ? "Refreshing your starred repositories..." : "Loading your starred repositories..."}
+              </p>
             </div>
           )}
 
           {/* Error State */}
-          {error && (
+          {error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
@@ -749,7 +757,7 @@ export function Dashboard({ user }: DashboardProps) {
           )}
 
           {/* API Error (e.g., token issues) */}
-          {data?.error && (
+          {data?.error && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">{data.error}</p>
@@ -760,7 +768,7 @@ export function Dashboard({ user }: DashboardProps) {
           )}
 
           {/* Content */}
-          {!isLoading && !error && !data?.error && (
+          {hasRepoData && !data?.error && (
             <>
               {/* Active Filters */}
               {hasActiveFilters && (
@@ -889,7 +897,7 @@ export function Dashboard({ user }: DashboardProps) {
               </div>
 
               {/* Proactive Alerts - Updates on starred repos */}
-              <ProactiveAlerts repos={repos} userId={user?.id} />
+              <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
 
               {/* Empty State */}
               {repos.length === 0 && (
@@ -904,9 +912,9 @@ export function Dashboard({ user }: DashboardProps) {
               {/* View */}
               {repos.length > 0 && (
                 viewMode === "grid" ? (
-                  <RepoGrid repos={paginatedRepos} onRepoClick={handleRepoClick} onRemoveStar={handleRemoveStarRequest} />
+                  <RepoGrid repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} onRemoveStar={handleRemoveStarRequest} />
                 ) : (
-                  <RepoList repos={paginatedRepos} onRepoClick={handleRepoClick} />
+                  <RepoList repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} />
                 )
               )}
 
@@ -971,7 +979,7 @@ export function Dashboard({ user }: DashboardProps) {
 
       {/* Detail Panel */}
       <RepoDetailPanel
-        repo={selectedRepo}
+        repo={selectedRepoWithHealth}
         open={detailPanelOpen}
         onClose={handleCloseDetail}
         onViewReadme={handleViewReadme}
@@ -988,7 +996,7 @@ export function Dashboard({ user }: DashboardProps) {
 
       {/* README Viewer */}
       <ReadmeViewer
-        repo={selectedRepo}
+        repo={selectedRepoWithHealth}
         open={readmeViewerOpen}
         onClose={handleCloseReadme}
       />
