@@ -426,7 +426,7 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Card 5 — Inline README + Notes (1-col, new) */}
+            {/* Card 5 — Inline README + Notes (1-col) */}
             <div className="group relative overflow-hidden rounded-2xl border border-black/8 bg-black/[0.02] p-6 transition-colors hover:border-black/15 hover:bg-black/[0.035] dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20 dark:hover:bg-white/[0.035] lg:col-span-1">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(0,0,0,0.02),transparent_65%)] dark:bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.03),transparent_65%)]" />
               {/* README mock decoration */}
@@ -455,6 +455,54 @@ export default async function HomePage() {
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Every repo detail panel renders the README in place and surfaces your private note — so you never lose the context you wrote when you starred it.
               </p>
+            </div>
+
+            {/* Card 6 — By the numbers (2-col, fills the last row gap) */}
+            <div className="group relative overflow-hidden rounded-2xl border border-black/8 bg-black/[0.02] p-6 transition-colors hover:border-black/15 hover:bg-black/[0.035] dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20 dark:hover:bg-white/[0.035] lg:col-span-2">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,197,94,0.04),transparent_70%)]" />
+
+              <div className="mb-1 text-xs uppercase tracking-[0.24em] text-muted-foreground/60">
+                Designed for scale
+              </div>
+              <h3 className="text-xl font-semibold tracking-tight">Numbers that hold up at any star count.</h3>
+              <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+                Whether you have 80 stars or 5,000 — search stays instant, syncs stay reliable, and the taxonomy is always yours to edit.
+              </p>
+
+              <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-black/8 bg-black/8 dark:border-white/10 dark:bg-white/10">
+                {[
+                  { value: "5,000", unit: "repos", label: "max per sync pass" },
+                  { value: "< 50ms", unit: "p99", label: "full-text search latency" },
+                  { value: "100%", unit: "yours", label: "tags, notes & collections" },
+                ].map(({ value, unit, label }) => (
+                  <div key={label} className="flex flex-col gap-1 bg-background px-5 py-5">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-mono text-2xl font-semibold tracking-tight text-foreground">
+                        {value}
+                      </span>
+                      <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400">{unit}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {[
+                  "GitHub OAuth · no extra scopes",
+                  "no CSV imports",
+                  "background pagination",
+                  "private by default",
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="flex items-center gap-1.5 rounded-full border border-black/8 bg-black/[0.03] px-3 py-1 font-mono text-[10px] text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]"
+                  >
+                    <span className="h-1 w-1 rounded-full bg-emerald-500/60" />
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </section>
