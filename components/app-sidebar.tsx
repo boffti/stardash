@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   Star,
   FolderOpen,
@@ -40,8 +40,32 @@ import { Collection, Tag as TagType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { CreateCollectionModal } from "./create-collection-modal"
 import { CreateTagModal } from "./create-tag-modal"
+import { useRecentlyViewed } from "@/lib/recently-viewed"
 
 const TAGS_VISIBLE_DEFAULT = 10
+
+function createDashboardFilterHref(filters: {
+  collectionId?: string | null
+  tagId?: string | null
+  uncategorized?: boolean
+}) {
+  const params = new URLSearchParams()
+
+  if (filters.collectionId) {
+    params.set("collection", filters.collectionId)
+  }
+
+  if (filters.tagId) {
+    params.set("tag", filters.tagId)
+  }
+
+  if (filters.uncategorized) {
+    params.set("uncategorized", "true")
+  }
+
+  const query = params.toString()
+  return query ? `/dashboard?${query}` : "/dashboard"
+}
 
 function DroppableItem({ id, children }: { id: string; children: (isOver: boolean) => React.ReactNode }) {
   const { isOver, setNodeRef } = useDroppable({ id })
@@ -102,6 +126,8 @@ interface AppSidebarProps {
   onShowUncategorized: (show: boolean) => void
   totalStars: number
   uncategorizedCount: number
+  recentCount?: number
+  userId?: string
   onAICategorize?: () => void
   onCreateCollection?: (name: string, emoji: string, color: string) => Promise<void>
   onCreateTag?: (label: string) => Promise<void>
@@ -118,6 +144,8 @@ export function AppSidebar({
   onShowUncategorized,
   totalStars,
   uncategorizedCount,
+  recentCount,
+  userId,
   onAICategorize,
   onCreateCollection,
   onCreateTag,
@@ -138,8 +166,14 @@ export function AppSidebar({
     : filteredTags.slice(0, TAGS_VISIBLE_DEFAULT)
   const hiddenCount = filteredTags.length - visibleTags.length
   const isHomeRoute = pathname === "/dashboard"
+  const isRecentlyViewedRoute = pathname === "/recently-viewed"
   const isTrendingRoute = pathname === "/trending"
   const isSettingsRoute = pathname === "/settings"
+  const recentEntries = useRecentlyViewed(userId)
+  const resolvedRecentCount = useMemo(
+    () => recentCount ?? recentEntries.length,
+    [recentCount, recentEntries.length],
+  )
 
   return (
     <Sidebar className="border-r border-sidebar-border">
@@ -187,9 +221,14 @@ export function AppSidebar({
                 )}
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Clock className="h-4 w-4" />
-                  <span>Recently Viewed</span>
+                <SidebarMenuButton asChild isActive={isRecentlyViewedRoute}>
+                  <Link href="/recently-viewed">
+                    <Clock className="h-4 w-4" />
+                    <span>Recently Viewed</span>
+                    {resolvedRecentCount > 0 && (
+                      <SidebarMenuBadge>{resolvedRecentCount}</SidebarMenuBadge>
+                    )}
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -209,22 +248,36 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={showUncategorized}
-                  onClick={() => {
-                    onShowUncategorized(!showUncategorized)
-                    onSelectCollection(null)
-                    onSelectTag(null)
-                  }}
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>Uncategorized</span>
-                  {uncategorizedCount > 0 && (
-                    <SidebarMenuBadge className="bg-orange-500/20 text-orange-400">
-                      {uncategorizedCount}
-                    </SidebarMenuBadge>
-                  )}
-                </SidebarMenuButton>
+                {isHomeRoute ? (
+                  <SidebarMenuButton
+                    isActive={showUncategorized}
+                    onClick={() => {
+                      onShowUncategorized(!showUncategorized)
+                      onSelectCollection(null)
+                      onSelectTag(null)
+                    }}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>Uncategorized</span>
+                    {uncategorizedCount > 0 && (
+                      <SidebarMenuBadge className="bg-orange-500/20 text-orange-400">
+                        {uncategorizedCount}
+                      </SidebarMenuBadge>
+                    )}
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton asChild isActive={false}>
+                    <Link href={createDashboardFilterHref({ uncategorized: true })}>
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Uncategorized</span>
+                      {uncategorizedCount > 0 && (
+                        <SidebarMenuBadge className="bg-orange-500/20 text-orange-400">
+                          {uncategorizedCount}
+                        </SidebarMenuBadge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                )}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -260,22 +313,39 @@ export function AppSidebar({
                     <DroppableItem key={collection.id} id={`collection::${collection.id}`}>
                       {(isOver) => (
                         <SidebarMenuItem>
-                          <SidebarMenuButton
-                            isActive={selectedCollection === collection.id}
-                            onClick={() => {
-                              onSelectCollection(collection.id)
-                              onSelectTag(null)
-                              onShowUncategorized(false)
-                            }}
-                            className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
-                          >
-                            <span className="shrink-0">{collection.emoji}</span>
-                            <span className="flex-1 truncate min-w-0" title={collection.name}>{collection.name}</span>
-                            {isOver
-                              ? <Plus className="h-3 w-3 shrink-0 text-violet-400" />
-                              : <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
-                            }
-                          </SidebarMenuButton>
+                          {isHomeRoute ? (
+                            <SidebarMenuButton
+                              isActive={selectedCollection === collection.id}
+                              onClick={() => {
+                                onSelectCollection(collection.id)
+                                onSelectTag(null)
+                                onShowUncategorized(false)
+                              }}
+                              className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                            >
+                              <span className="shrink-0">{collection.emoji}</span>
+                              <span className="flex-1 truncate min-w-0" title={collection.name}>{collection.name}</span>
+                              {isOver
+                                ? <Plus className="h-3 w-3 shrink-0 text-violet-400" />
+                                : <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
+                              }
+                            </SidebarMenuButton>
+                          ) : (
+                            <SidebarMenuButton
+                              asChild
+                              isActive={false}
+                              className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                            >
+                              <Link href={createDashboardFilterHref({ collectionId: collection.id })}>
+                                <span className="shrink-0">{collection.emoji}</span>
+                                <span className="flex-1 truncate min-w-0" title={collection.name}>{collection.name}</span>
+                                {isOver
+                                  ? <Plus className="h-3 w-3 shrink-0 text-violet-400" />
+                                  : <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
+                                }
+                              </Link>
+                            </SidebarMenuButton>
+                          )}
                         </SidebarMenuItem>
                       )}
                     </DroppableItem>
@@ -334,19 +404,33 @@ export function AppSidebar({
                           <DroppableItem key={tag.id} id={`tag::${tag.id}`}>
                             {(isOver) => (
                               <SidebarMenuItem>
-                                <SidebarMenuButton
-                                  isActive={selectedTag === tag.id}
-                                  onClick={() => {
-                                    onSelectTag(tag.id)
-                                    onSelectCollection(null)
-                                    onShowUncategorized(false)
-                                  }}
-                                  className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
-                                >
-                                  <Tag className="h-3 w-3 shrink-0" style={{ color: isOver ? '#8b5cf6' : tag.color }} />
-                                  <span className="flex-1 truncate min-w-0">{tag.label}</span>
-                                  {isOver && <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />}
-                                </SidebarMenuButton>
+                                {isHomeRoute ? (
+                                  <SidebarMenuButton
+                                    isActive={selectedTag === tag.id}
+                                    onClick={() => {
+                                      onSelectTag(tag.id)
+                                      onSelectCollection(null)
+                                      onShowUncategorized(false)
+                                    }}
+                                    className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                                  >
+                                    <Tag className="h-3 w-3 shrink-0" style={{ color: isOver ? '#8b5cf6' : tag.color }} />
+                                    <span className="flex-1 truncate min-w-0">{tag.label}</span>
+                                    {isOver && <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />}
+                                  </SidebarMenuButton>
+                                ) : (
+                                  <SidebarMenuButton
+                                    asChild
+                                    isActive={false}
+                                    className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                                  >
+                                    <Link href={createDashboardFilterHref({ tagId: tag.id })}>
+                                      <Tag className="h-3 w-3 shrink-0" style={{ color: isOver ? '#8b5cf6' : tag.color }} />
+                                      <span className="flex-1 truncate min-w-0">{tag.label}</span>
+                                      {isOver && <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />}
+                                    </Link>
+                                  </SidebarMenuButton>
+                                )}
                               </SidebarMenuItem>
                             )}
                           </DroppableItem>
