@@ -35,8 +35,8 @@ import {
 import { CreateCollectionModal } from "@/components/create-collection-modal"
 import { CreateTagModal } from "@/components/create-tag-modal"
 import { AppSidebar } from "@/components/app-sidebar"
-import { UserMenu } from "@/components/user-menu"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AppPageHeader } from "@/components/app-page-header"
 import { cn } from "@/lib/utils"
 
 interface SettingsPageProps {
@@ -484,28 +484,28 @@ export function SettingsPage({ user }: SettingsPageProps) {
           uncategorizedCount={uncategorizedCount}
         />
         <SidebarInset>
-          <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 sm:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <SidebarTrigger className="-ml-1 shrink-0" />
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">Workspace Settings</p>
-                <h1 className="text-sm font-medium text-foreground sm:text-base">Collections & Tags</h1>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">
-                {collections.length} collections
-              </Badge>
-              <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">
-                {tags.length} tags
-              </Badge>
-              <UserMenu user={user} lastSynced={null} />
-            </div>
-          </header>
+          <AppPageHeader
+            lastSynced={null}
+            user={user}
+            actions={
+              <>
+                <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">
+                  {collections.length} collections
+                </Badge>
+                <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">
+                  {tags.length} tags
+                </Badge>
+              </>
+            }
+          />
 
           <main className="px-4 py-6 sm:px-6">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">Workspace Settings</p>
+                <h1 className="text-xl font-semibold tracking-tight text-foreground">Collections & Tags</h1>
+              </div>
+
               <div className="grid gap-3 md:grid-cols-3">
                 <Card className="border-border/60 bg-card shadow-sm">
                   <CardContent className="flex items-center justify-between p-4">

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import useSWR from "swr"
+import { useSearchParams } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { DashboardCommandPalette } from "./dashboard-command-palette"
@@ -40,6 +41,7 @@ import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Colle
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useStarredRepos } from "@/lib/use-starred-repos"
+import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import {
   updateRepoStatus, updateRepoNotes, togglePin,
   createTag, assignTag, removeTag,
@@ -59,6 +61,7 @@ const VIEW_MODE_KEY = "stardash_view_mode"
 const MAX_HEALTH_REPOS_PER_VIEW = 50
 
 export function Dashboard({ user }: DashboardProps) {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
   const [viewMode, setViewModeState] = useState<"grid" | "list">("grid")
@@ -187,6 +190,16 @@ export function Dashboard({ user }: DashboardProps) {
       return a.label.localeCompare(b.label)
     })
   }, [metadata?.tags, categorization?.allTags])
+
+  useEffect(() => {
+    const collectionFromUrl = searchParams.get("collection")
+    const tagFromUrl = searchParams.get("tag")
+    const uncategorizedFromUrl = searchParams.get("uncategorized") === "true"
+
+    setSelectedCollection(collectionFromUrl)
+    setSelectedTag(tagFromUrl)
+    setShowUncategorized(uncategorizedFromUrl)
+  }, [searchParams])
 
   // Get unique languages for filter
   const languages = useMemo(() => {
@@ -362,6 +375,9 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleRepoClick = (repo: StarredRepo) => {
+    if (user?.id) {
+      trackRecentlyViewedRepo(user.id, repo, "dashboard")
+    }
     setSelectedRepo(repo)
     setDetailPanelOpen(true)
   }
@@ -683,6 +699,7 @@ export function Dashboard({ user }: DashboardProps) {
         onShowUncategorized={setShowUncategorized}
         totalStars={repos.length}
         uncategorizedCount={uncategorizedCount}
+        userId={user?.id}
         onAICategorize={handleCategorize}
         onCreateCollection={handleCollectionCreate}
         onCreateTag={handleTagCreateSimple}
