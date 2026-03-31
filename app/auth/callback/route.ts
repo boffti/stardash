@@ -1,12 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+
+function sanitizeNextPath(next: string | null): string {
+  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+    return '/'
+  }
+
+  return next
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const error_param = searchParams.get('error')
   const error_description = searchParams.get('error_description')
-  const next = searchParams.get('next') ?? '/'
+  const next = sanitizeNextPath(searchParams.get('next'))
 
   if (error_param) {
     return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(error_description || error_param)}`)
@@ -20,10 +29,11 @@ export async function GET(request: Request) {
       const providerToken = data.session.provider_token
       
       if (providerToken && data.user) {
+        const adminSupabase = createAdminClient()
         const expiresAt = new Date()
         expiresAt.setHours(expiresAt.getHours() + 8)
         
-        await supabase.from('profiles').upsert({
+        await adminSupabase.from('profiles').upsert({
           id: data.user.id,
           github_username: data.user.user_metadata?.user_name || data.user.user_metadata?.preferred_username,
           github_avatar_url: data.user.user_metadata?.avatar_url,
