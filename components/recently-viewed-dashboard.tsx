@@ -107,8 +107,13 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
     return repos.filter((repo) => repo.tags.length === 0 && repo.collections.length === 0).length
   }, [repos])
 
-  const handleRefresh = async () => {
-    await refresh({ manual: true })
+  const handleRefresh = async (triggerSource: string = "recently-viewed-navbar-refresh") => {
+    await refresh({
+      manual: true,
+      triggerKind: "user",
+      triggerSource,
+      triggerContext: "recently-viewed",
+    })
   }
 
   const handleRepoClick = (repo: StarredRepo) => {
@@ -155,7 +160,7 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           lastSynced={lastSynced}
           user={user}
-          onRefresh={handleRefresh}
+          onRefresh={() => handleRefresh("recently-viewed-navbar-refresh")}
           isRefreshing={isRefreshing}
         />
 
@@ -229,7 +234,7 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
             label: "Refresh starred repositories",
             shortcut: "Sync",
             icon: RefreshCw,
-            onSelect: handleRefresh,
+            onSelect: () => handleRefresh("recently-viewed-command-palette"),
           },
         ]}
         onRepoOpen={handleRepoClick}

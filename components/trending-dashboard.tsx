@@ -87,8 +87,13 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
     : null
   const hasRepoData = Boolean(data)
 
-  const handleRefresh = async () => {
-    await refresh({ manual: true })
+  const handleRefresh = async (triggerSource: string = "trending-navbar-refresh") => {
+    await refresh({
+      manual: true,
+      triggerKind: "user",
+      triggerSource,
+      triggerContext: "trending",
+    })
   }
 
   const handleRepoClick = (repo: StarredRepo) => {
@@ -153,7 +158,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           lastSynced={lastSynced}
           user={user}
-          onRefresh={handleRefresh}
+          onRefresh={() => handleRefresh("trending-navbar-refresh")}
           isRefreshing={isRefreshing}
         />
 
@@ -214,7 +219,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
-              <Button variant="outline" onClick={handleRefresh}>
+              <Button variant="outline" onClick={() => handleRefresh("trending-inline-retry")}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
               </Button>
@@ -282,7 +287,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
             label: "Refresh starred repositories",
             shortcut: "Sync",
             icon: RefreshCw,
-            onSelect: handleRefresh,
+            onSelect: () => handleRefresh("trending-command-palette"),
           },
         ]}
         onRepoOpen={handleRepoClick}

@@ -66,6 +66,8 @@ export async function DELETE(request: Request) {
   } catch (err) {
     Sentry.captureException(err)
     console.error('Unstar error:', err)
-    return NextResponse.json({ error: 'Failed to remove star' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Failed to remove star'
+    const status = message.includes('401') ? 401 : message.includes('403') ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

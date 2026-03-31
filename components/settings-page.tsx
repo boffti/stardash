@@ -3,7 +3,7 @@
 import { type ReactNode, useMemo, useState } from "react"
 import useSWR from "swr"
 import type { User } from "@supabase/supabase-js"
-import { FolderOpen, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
+import { FolderOpen, Layers3, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
@@ -114,7 +114,7 @@ function CollectionEditor({
   return (
     <>
       <Card className="border-border/60 bg-background/80 shadow-sm">
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               {editing ? (
@@ -141,19 +141,19 @@ function CollectionEditor({
               ) : (
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 text-xl shadow-sm"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 text-base shadow-sm"
                     style={{ backgroundColor: `${color}16` }}
                   >
                     {emoji || "📁"}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="truncate font-medium text-foreground">{collection.name}</p>
-                      <Badge variant="secondary" className="rounded-full px-2.5">
+                      <p className="truncate text-sm font-medium text-foreground">{collection.name}</p>
+                      <Badge variant="secondary" className="h-5 rounded-full px-2 text-[11px]">
                         {repoCount} repos
                       </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       Used to group related starred repositories.
                     </p>
                   </div>
@@ -165,15 +165,15 @@ function CollectionEditor({
               {!editing && (
                 <div className="flex items-center gap-2">
                   <button
-                    className="h-8 w-8 rounded-full border border-border/70 transition-colors hover:bg-muted"
+                    className="h-6 w-6 rounded-full border border-border/70 transition-colors hover:bg-muted"
                     style={{ backgroundColor: color }}
                     aria-label={`${collection.name} color`}
                     disabled
                   />
-                  <Button variant="outline" size="icon" onClick={() => setEditing(true)}>
+                  <Button variant="outline" size="icon-sm" onClick={() => setEditing(true)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="icon" onClick={() => setConfirmOpen(true)}>
+                  <Button variant="outline" size="icon-sm" onClick={() => setConfirmOpen(true)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -279,7 +279,7 @@ function TagEditor({
   return (
     <>
       <Card className="border-border/60 bg-background/80 shadow-sm">
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               {editing ? (
@@ -295,17 +295,17 @@ function TagEditor({
               ) : (
                 <div className="flex items-center gap-3">
                   <span
-                    className="h-4 w-4 shrink-0 rounded-full border border-background shadow-sm"
+                    className="h-3.5 w-3.5 shrink-0 rounded-full border border-background shadow-sm"
                     style={{ backgroundColor: color }}
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="truncate font-medium text-foreground">{tag.label}</p>
-                      <Badge variant="secondary" className="rounded-full px-2.5">
+                      <p className="truncate text-sm font-medium text-foreground">{tag.label}</p>
+                      <Badge variant="secondary" className="h-5 rounded-full px-2 text-[11px]">
                         {repoCount} repos
                       </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       Lightweight labels for technologies, workflows, and themes.
                     </p>
                   </div>
@@ -315,10 +315,10 @@ function TagEditor({
 
             {!editing && (
               <div className="flex shrink-0 items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => setEditing(true)}>
+                <Button variant="outline" size="icon-sm" onClick={() => setEditing(true)}>
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" onClick={() => setConfirmOpen(true)}>
+                <Button variant="outline" size="icon-sm" onClick={() => setConfirmOpen(true)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -483,7 +483,7 @@ export function SettingsPage({ user }: SettingsPageProps) {
           totalStars={Object.keys(metadata?.repoMeta ?? {}).length}
           uncategorizedCount={uncategorizedCount}
         />
-        <SidebarInset>
+        <SidebarInset className="overflow-x-hidden">
           <AppPageHeader
             lastSynced={null}
             user={user}
@@ -499,55 +499,62 @@ export function SettingsPage({ user }: SettingsPageProps) {
             }
           />
 
-          <main className="px-4 py-6 sm:px-6">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-              <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">Workspace Settings</p>
-                <h1 className="text-xl font-semibold tracking-tight text-foreground">Collections & Tags</h1>
-              </div>
+          <main className="flex-1 p-6">
+            <div className="flex w-full flex-col gap-6">
+              <section className="space-y-3">
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">Workspace Settings</p>
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">Collections & Tags</h1>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Tune the labels and buckets that power organization and filtering across StarDash.
+                  </p>
+                </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
-                <Card className="border-border/60 bg-card shadow-sm">
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/70">Collections</p>
-                      <p className="text-2xl font-semibold text-foreground">{collections.length}</p>
-                    </div>
-                    <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5">
-                      <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Card className="border-border/60 bg-card/80 shadow-sm">
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">Collections</p>
+                        <p className="text-xl font-semibold tracking-tight text-foreground">{collections.length}</p>
+                        <p className="text-xs text-muted-foreground">Long-lived groups</p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
+                        <FolderOpen className="h-4 w-4" />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <Card className="border-border/60 bg-card shadow-sm">
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/70">Tags</p>
-                      <p className="text-2xl font-semibold text-foreground">{tags.length}</p>
-                    </div>
-                    <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5">
-                      <Tag className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Card className="border-border/60 bg-card/80 shadow-sm">
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">Tags</p>
+                        <p className="text-xl font-semibold tracking-tight text-foreground">{tags.length}</p>
+                        <p className="text-xs text-muted-foreground">Cross-cutting labels</p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
+                        <Tag className="h-4 w-4" />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <Card className="border-border/60 bg-card shadow-sm">
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/70">Coverage</p>
-                      <p className="text-2xl font-semibold text-foreground">{assignmentCount}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Assignments</p>
-                      <p className="text-xs text-muted-foreground/70">{uncategorizedCount} uncategorized</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  <Card className="border-border/60 bg-card/80 shadow-sm">
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">Coverage</p>
+                        <p className="text-xl font-semibold tracking-tight text-foreground">{assignmentCount}</p>
+                        <p className="text-xs text-muted-foreground">{uncategorizedCount} uncategorized repos</p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
+                        <Layers3 className="h-4 w-4" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </section>
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
-                  <CardHeader className="border-b border-border/60 bg-muted/20">
+                  <CardHeader className="border-b border-border/60 bg-muted/15 px-5 py-5 sm:px-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                       <div className="space-y-2">
                         <CardTitle className="flex items-center gap-2 text-base">
@@ -568,11 +575,11 @@ export function SettingsPage({ user }: SettingsPageProps) {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => setCreateCollectionOpen(true)}>
+                        <Button variant="outline" className="rounded-xl" onClick={() => setCreateCollectionOpen(true)}>
                           <Plus className="h-4 w-4" />
                           New Collection
                         </Button>
-                        <Button onClick={() => setCreateTagOpen(true)}>
+                        <Button className="rounded-xl" onClick={() => setCreateTagOpen(true)}>
                           <Plus className="h-4 w-4" />
                           New Tag
                         </Button>
@@ -580,14 +587,14 @@ export function SettingsPage({ user }: SettingsPageProps) {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-4 sm:p-6">
+                  <CardContent className="p-5 sm:p-6">
                     {isLoading ? (
-                      <div className="flex min-h-[240px] items-center justify-center">
+                      <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
-                      <Tabs defaultValue="collections" className="gap-5">
-                        <TabsList className="grid w-full grid-cols-2 bg-muted/40 sm:w-[320px]">
+                      <Tabs defaultValue="collections" className="gap-6">
+                        <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/40 p-1 sm:w-[320px]">
                           <TabsTrigger value="collections">
                             <FolderOpen className="h-4 w-4" />
                             Collections
@@ -598,7 +605,7 @@ export function SettingsPage({ user }: SettingsPageProps) {
                           </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="collections" className="space-y-3">
+                        <TabsContent value="collections" className="space-y-3 pt-1">
                           {collections.length === 0 ? (
                             <EmptyState
                               icon={<FolderOpen className="h-5 w-5 text-muted-foreground" />}
@@ -655,7 +662,7 @@ export function SettingsPage({ user }: SettingsPageProps) {
                           )}
                         </TabsContent>
 
-                        <TabsContent value="tags" className="space-y-3">
+                        <TabsContent value="tags" className="space-y-3 pt-1">
                           {tags.length === 0 ? (
                             <EmptyState
                               icon={<Tag className="h-5 w-5 text-muted-foreground" />}
@@ -757,6 +764,23 @@ export function SettingsPage({ user }: SettingsPageProps) {
                       </div>
                       <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
                         Changes here flow straight into filtering, repo detail panels, and dashboard organization.
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/60 bg-card shadow-sm">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Design Intent</CardTitle>
+                      <CardDescription>
+                        The strongest setups usually use a small number of durable collections and lightweight tags.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm text-muted-foreground">
+                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                        Start broad with collections, then add tags only where they improve search and scanning.
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                        If a label stops being obvious after a week, merge it or delete it.
                       </div>
                     </CardContent>
                   </Card>
