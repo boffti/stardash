@@ -569,6 +569,39 @@ export default async function HomePage() {
                   1,247 / 1,643 repos synced
                 </div>
               </div>
+
+              {/* Keyboard shortcuts card */}
+              <div className="mt-4 overflow-hidden rounded-xl border border-black/8 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02]">
+                <div className="flex items-center justify-between border-b border-black/6 px-5 py-3 dark:border-white/8">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">keyboard shortcuts</span>
+                  <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/50 dark:bg-white/[0.04]">
+                    works everywhere
+                  </span>
+                </div>
+                <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+                  {[
+                    { keys: ["⌘", "K"], action: "Open command palette" },
+                    { keys: ["/"], action: "Focus search" },
+                    { keys: ["G", "T"], action: "Go to trending" },
+                    { keys: ["G", "C"], action: "Go to collections" },
+                    { keys: ["N"], action: "New note on selected repo" },
+                  ].map(({ keys, action }) => (
+                    <div key={action} className="flex items-center justify-between px-5 py-2.5">
+                      <span className="text-xs text-muted-foreground/70">{action}</span>
+                      <div className="flex items-center gap-1">
+                        {keys.map((k) => (
+                          <kbd
+                            key={k}
+                            className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-black/10 bg-black/[0.04] px-1.5 font-mono text-[9px] text-foreground/50 dark:border-white/10 dark:bg-white/[0.04]"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="space-y-3">
