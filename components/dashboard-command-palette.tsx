@@ -124,6 +124,7 @@ export function DashboardCommandPalette({
   onClearFilters,
 }: DashboardCommandPaletteProps) {
   const [query, setQuery] = useState("")
+  const [selectedValue, setSelectedValue] = useState("")
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -141,6 +142,7 @@ export function DashboardCommandPalette({
   useEffect(() => {
     if (!open) {
       setQuery("")
+      setSelectedValue("")
     }
   }, [open])
 
@@ -173,6 +175,117 @@ export function DashboardCommandPalette({
       })
       .slice(0, RESULT_LIMIT)
   }, [filteredRepos, normalizedQuery, repos])
+
+  const orderedItemMatches = useMemo(() => {
+    const matches: Array<{ value: string; matchesQuery: boolean }> = []
+
+    if (query.trim()) {
+      matches.push({
+        value: `search-${query}`,
+        matchesQuery: true,
+      })
+    }
+
+    matches.push(
+      {
+        value: "refresh-stars",
+        matchesQuery: "refresh starred repositories sync".includes(normalizedQuery),
+      },
+      {
+        value: "auto-categorize",
+        matchesQuery: "auto categorize with ai sparkles".includes(normalizedQuery),
+      },
+      {
+        value: `view-${viewMode === "grid" ? "list" : "grid"}`,
+        matchesQuery: `switch to ${viewMode === "grid" ? "list" : "grid"} view`.includes(normalizedQuery),
+      },
+      {
+        value: "clear-filters",
+        matchesQuery: hasActiveFilters && "clear active filters reset".includes(normalizedQuery),
+      }
+    )
+
+    Object.entries(sortLabels).forEach(([value, label]) => {
+      matches.push({
+        value: `sort-${value}`,
+        matchesQuery: label.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    matches.push({
+      value: "language-all",
+      matchesQuery: "all languages".includes(normalizedQuery),
+    })
+
+    languages.forEach((language) => {
+      matches.push({
+        value: `language-${language}`,
+        matchesQuery: language.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    collections.forEach((collection) => {
+      matches.push({
+        value: `collection-${collection.name}`,
+        matchesQuery: `${collection.name} ${collection.emoji ?? ""}`.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    tags.slice(0, 24).forEach((tag) => {
+      matches.push({
+        value: `tag-${tag.label}`,
+        matchesQuery: tag.label.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    matches.push(
+      {
+        value: "health-all",
+        matchesQuery: "all health states".includes(normalizedQuery),
+      },
+      {
+        value: "health-archived",
+        matchesQuery: "archived repositories".includes(normalizedQuery),
+      },
+      {
+        value: "health-dormant",
+        matchesQuery: "dormant repositories".includes(normalizedQuery),
+      },
+      {
+        value: "uncategorized",
+        matchesQuery: "show uncategorized repositories".includes(normalizedQuery),
+      }
+    )
+
+    visibleRepos.forEach((repo) => {
+      matches.push({
+        value: `repo-${repo.owner}-${repo.name}`,
+        matchesQuery: [
+          repo.owner,
+          repo.name,
+          repo.description,
+          repo.notes,
+          repo.language,
+          ...repo.tags.map((tag) => tag.label),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      })
+    })
+
+    return matches
+  }, [collections, hasActiveFilters, languages, normalizedQuery, query, tags, viewMode, visibleRepos])
+
+  useEffect(() => {
+    if (!open) return
+
+    const nextSelection =
+      orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
+
+    setSelectedValue(nextSelection)
+  }, [open, orderedItemMatches])
 
   const applyDashboardSearch = () => {
     if (!query.trim()) return
@@ -221,6 +334,8 @@ export function DashboardCommandPalette({
         </DialogHeader>
         <Command
           shouldFilter={false}
+          value={selectedValue}
+          onValueChange={setSelectedValue}
           className="rounded-none bg-popover text-popover-foreground [&_[data-slot=command-input-wrapper]]:h-14 [&_[data-slot=command-input-wrapper]]:border-b [&_[data-slot=command-input-wrapper]]:border-border/70 [&_[data-slot=command-input-wrapper]]:px-4 [&_[data-slot=command-input-wrapper]_svg]:h-4 [&_[data-slot=command-input-wrapper]_svg]:w-4 [&_[data-slot=command-input]]:h-14 [&_[data-slot=command-input]]:text-sm"
         >
           <div className="border-b border-border/70 bg-secondary/20">
