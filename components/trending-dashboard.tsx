@@ -14,12 +14,12 @@ import type { User } from "@supabase/supabase-js"
 import { Loader2, AlertCircle, RefreshCw, SidebarOpen, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import type { StarredRepo, Collection, Tag, UserMetadata } from "@/lib/types"
+import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { analyzeTrending, TrendingAnalysis } from "@/lib/trending"
-import { createClient } from "@/lib/supabase/client"
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useStarredRepos } from "@/lib/use-starred-repos"
+import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 
 interface TrendingDashboardProps {
   user: User | null
@@ -29,8 +29,6 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
-
-  const supabase = createClient()
 
   // Sensors for DnD
   const sensors = useSensors(
@@ -48,9 +46,32 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
     { revalidateOnFocus: false }
   )
 
+  const repos = useMemo(() => {
+    const rawRepos = data?.repos ?? []
+
+    return rawRepos.map((repo) => {
+      const dbMeta = metadata?.repoMeta[repo.id]
+      if (!dbMeta) return repo
+
+      const dbTags = (metadata?.tags ?? []).filter((tag) => dbMeta.tagIds.includes(tag.id))
+      return {
+        ...repo,
+        status: dbMeta.status ?? repo.status,
+        isPinned: dbMeta.isPinned,
+        notes: dbMeta.notes ?? repo.notes,
+        tags: dbTags,
+        collections: dbMeta.collectionIds,
+      }
+    })
+  }, [data?.repos, metadata])
+
+  const uncategorizedCount = useMemo(() => {
+    return repos.filter((repo) => repo.tags.length === 0 && repo.collections.length === 0).length
+  }, [repos])
+
   // Analyze repos for trending recommendations
   const trendingAnalysis = useMemo<TrendingAnalysis>(() => {
-    if (!data?.repos) {
+    if (repos.length === 0) {
       return {
         categories: [],
         topLanguages: [],
@@ -58,8 +79,8 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
         totalAnalyzed: 0,
       }
     }
-    return analyzeTrending(data.repos)
-  }, [data?.repos])
+    return analyzeTrending(repos)
+  }, [repos])
 
   const lastSynced = data?.lastSynced
     ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
@@ -71,6 +92,9 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   }
 
   const handleRepoClick = (repo: StarredRepo) => {
+    if (user?.id) {
+      trackRecentlyViewedRepo(user.id, repo, "trending")
+    }
     setSelectedRepo(repo)
     setDetailPanelOpen(true)
   }
@@ -105,8 +129,9 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
         onSelectCollection={() => {}}
         onSelectTag={() => {}}
         onShowUncategorized={() => {}}
-        totalStars={data?.repos?.length || 0}
-        uncategorizedCount={0}
+        totalStars={repos.length}
+        uncategorizedCount={uncategorizedCount}
+        userId={user?.id}
       />
       <SidebarInset className="overflow-x-hidden">
         <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
