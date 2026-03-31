@@ -403,8 +403,13 @@ export function Dashboard({ user }: DashboardProps) {
     setShowUncategorized(false)
   }
 
-  const handleRefresh = () => {
-    refresh({ manual: true })
+  const handleRefresh = (triggerSource: string = "dashboard-navbar-refresh") => {
+    refresh({
+      manual: true,
+      triggerKind: "user",
+      triggerSource,
+      triggerContext: "dashboard",
+    })
   }
 
   const handleCategorize = async () => {
@@ -648,7 +653,11 @@ export function Dashboard({ user }: DashboardProps) {
         throw new Error(result?.error || 'Failed to remove star')
       }
 
-      await refresh()
+      await refresh({
+        triggerKind: "app",
+        triggerSource: "repo-unstar-reconcile",
+        triggerContext: "dashboard",
+      })
       toast(`Removed star from ${repo.owner}/${repo.name}`, {
         icon: <StarOff className="h-4 w-4" />,
       })
@@ -738,7 +747,7 @@ export function Dashboard({ user }: DashboardProps) {
           languages={languages}
           lastSynced={lastSynced}
           user={user}
-          onRefresh={handleRefresh}
+          onRefresh={() => handleRefresh("dashboard-navbar-refresh")}
           isRefreshing={isRefreshing}
           onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
@@ -768,7 +777,7 @@ export function Dashboard({ user }: DashboardProps) {
           onShowUncategorized={setShowUncategorized}
           onSortChange={setSortBy}
           onViewModeChange={setViewMode}
-          onRefresh={handleRefresh}
+          onRefresh={() => handleRefresh("dashboard-command-palette")}
           onCategorize={handleCategorize}
           onRepoOpen={handleRepoClick}
           onClearFilters={clearAllFilters}
@@ -789,7 +798,7 @@ export function Dashboard({ user }: DashboardProps) {
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
-              <Button variant="outline" onClick={handleRefresh}>
+              <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
               </Button>

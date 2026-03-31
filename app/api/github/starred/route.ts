@@ -5,7 +5,14 @@ import { upsertStarredRepos } from '@/lib/user-metadata'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const syncLog = {
+    triggerKind: searchParams.get('triggerKind') ?? 'unknown',
+    triggerSource: searchParams.get('triggerSource') ?? 'unknown',
+    triggerContext: searchParams.get('triggerContext') ?? 'unknown',
+  }
+
   try {
     const supabase = await createClient()
 
@@ -31,6 +38,14 @@ export async function GET() {
       )
     }
 
+    const startedAt = Date.now()
+    const scopedSyncLog = {
+      ...syncLog,
+      userId: user.id,
+    }
+
+    console.info('[github-star-sync:start]', scopedSyncLog)
+
     const repos = await fetchAllStarredRepos(tokenResult.token)
     const adminSupabase = createAdminClient()
     await upsertStarredRepos(adminSupabase, repos, user.id)
@@ -44,9 +59,18 @@ export async function GET() {
       .eq('id', user.id)
       .then(() => {})
 
+    console.info('[github-star-sync:success]', {
+      ...scopedSyncLog,
+      repoCount: repos.length,
+      durationMs: Date.now() - startedAt,
+    })
+
     return NextResponse.json({ repos, lastSynced: new Date().toISOString() })
   } catch (error) {
-    console.error('Error fetching starred repos:', error)
+    console.error('[github-star-sync:error]', {
+      ...syncLog,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
     if (error instanceof Error && error.message.includes('401')) {
       return NextResponse.json(
         { error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' },
