@@ -137,7 +137,7 @@ export function AppSidebar({
     ? filteredTags
     : filteredTags.slice(0, TAGS_VISIBLE_DEFAULT)
   const hiddenCount = filteredTags.length - visibleTags.length
-  const isHomeRoute = pathname === "/"
+  const isHomeRoute = pathname === "/dashboard"
   const isTrendingRoute = pathname === "/trending"
   const isSettingsRoute = pathname === "/settings"
 
@@ -145,7 +145,7 @@ export function AppSidebar({
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <Link
-          href="/"
+          href="/dashboard"
           className="flex items-center gap-2 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent" suppressHydrationWarning>
@@ -178,7 +178,7 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 ) : (
                   <SidebarMenuButton asChild isActive={false}>
-                    <Link href="/">
+                    <Link href="/dashboard">
                       <Star className="h-4 w-4" />
                       <span>All Stars</span>
                       <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
