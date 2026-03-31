@@ -202,8 +202,6 @@ export function AppSidebar({
                     isActive={!selectedCollection && !selectedTag && !showUncategorized}
                     onClick={() => {
                       onSelectCollection(null)
-                      onSelectTag(null)
-                      onShowUncategorized(false)
                     }}
                   >
                     <Star className="h-4 w-4" />
@@ -253,8 +251,6 @@ export function AppSidebar({
                     isActive={showUncategorized}
                     onClick={() => {
                       onShowUncategorized(!showUncategorized)
-                      onSelectCollection(null)
-                      onSelectTag(null)
                     }}
                   >
                     <AlertTriangle className="h-4 w-4" />
@@ -316,11 +312,7 @@ export function AppSidebar({
                           {isHomeRoute ? (
                             <SidebarMenuButton
                               isActive={selectedCollection === collection.id}
-                              onClick={() => {
-                                onSelectCollection(collection.id)
-                                onSelectTag(null)
-                                onShowUncategorized(false)
-                              }}
+                              onClick={() => onSelectCollection(collection.id)}
                               className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
                             >
                               <span className="shrink-0">{collection.emoji}</span>
@@ -407,11 +399,7 @@ export function AppSidebar({
                                 {isHomeRoute ? (
                                   <SidebarMenuButton
                                     isActive={selectedTag === tag.id}
-                                    onClick={() => {
-                                      onSelectTag(tag.id)
-                                      onSelectCollection(null)
-                                      onShowUncategorized(false)
-                                    }}
+                                    onClick={() => onSelectTag(tag.id)}
                                     className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
                                   >
                                     <Tag className="h-3 w-3 shrink-0" style={{ color: isOver ? '#8b5cf6' : tag.color }} />

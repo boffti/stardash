@@ -3,20 +3,13 @@
 import { AlertTriangle, Circle, TrendingUp, Tag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { StarredRepo } from "@/lib/types"
+import { isDormantRepo } from "@/lib/repo-health"
 import { cn } from "@/lib/utils"
 
 interface RepoHealthBadgesProps {
   repo: StarredRepo
   className?: string
   size?: "sm" | "md"
-}
-
-// Check if repo is dormant (no commits in 12+ months)
-function isDormant(pushedAt: string): boolean {
-  const lastPush = new Date(pushedAt)
-  const twelveMonthsAgo = new Date()
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
-  return lastPush < twelveMonthsAgo
 }
 
 export function RepoHealthBadges({ repo, className, size = "sm" }: RepoHealthBadgesProps) {
@@ -41,7 +34,7 @@ export function RepoHealthBadges({ repo, className, size = "sm" }: RepoHealthBad
   }
 
   // Dormant badge
-  if (isDormant(repo.pushedAt)) {
+  if (isDormantRepo(repo.pushedAt)) {
     badges.push(
       <Badge
         key="dormant"
@@ -107,7 +100,7 @@ export function RepoHealthBadges({ repo, className, size = "sm" }: RepoHealthBad
 // Helper to check if a repo has any health signals
 export function hasHealthSignals(repo: StarredRepo): boolean {
   if (repo.archived) return true
-  if (isDormant(repo.pushedAt)) return true
+  if (isDormantRepo(repo.pushedAt)) return true
   if (repo.isTrending) return true
   if (repo.latestRelease) return true
   return false

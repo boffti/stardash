@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 
 import type { Collection, StarredRepo, Tag as RepoTag } from "@/lib/types"
+import type { RepoHealthFilter } from "@/lib/repo-health"
 import {
   Command,
   CommandEmpty,
@@ -47,6 +48,7 @@ interface DashboardCommandPaletteProps {
   selectedCollection: string | null
   selectedTag: string | null
   languageFilter: string | null
+  healthFilter: RepoHealthFilter | null
   showUncategorized: boolean
   sortBy: string
   viewMode: "grid" | "list"
@@ -56,6 +58,7 @@ interface DashboardCommandPaletteProps {
   onSelectCollection: (collectionId: string | null) => void
   onSelectTag: (tagId: string | null) => void
   onLanguageFilterChange: (language: string | null) => void
+  onHealthFilterChange: (filter: RepoHealthFilter | null) => void
   onShowUncategorized: (value: boolean) => void
   onSortChange: (value: string) => void
   onViewModeChange: (value: "grid" | "list") => void
@@ -101,6 +104,7 @@ export function DashboardCommandPalette({
   selectedCollection,
   selectedTag,
   languageFilter,
+  healthFilter,
   showUncategorized,
   sortBy,
   viewMode,
@@ -110,6 +114,7 @@ export function DashboardCommandPalette({
   onSelectCollection,
   onSelectTag,
   onLanguageFilterChange,
+  onHealthFilterChange,
   onShowUncategorized,
   onSortChange,
   onViewModeChange,
@@ -141,7 +146,7 @@ export function DashboardCommandPalette({
 
   const normalizedQuery = query.trim().toLowerCase()
   const hasActiveFilters = Boolean(
-    searchQuery || selectedCollection || selectedTag || languageFilter || showUncategorized
+    searchQuery || selectedCollection || selectedTag || languageFilter || healthFilter || showUncategorized
   )
 
   const visibleRepos = useMemo(() => {
@@ -177,15 +182,11 @@ export function DashboardCommandPalette({
 
   const selectCollection = (collectionId: string | null) => {
     onSelectCollection(collectionId)
-    onSelectTag(null)
-    onShowUncategorized(false)
     onOpenChange(false)
   }
 
   const selectTag = (tagId: string | null) => {
     onSelectTag(tagId)
-    onSelectCollection(null)
-    onShowUncategorized(false)
     onOpenChange(false)
   }
 
@@ -194,10 +195,13 @@ export function DashboardCommandPalette({
     onOpenChange(false)
   }
 
+  const selectHealthFilter = (filter: RepoHealthFilter | null) => {
+    onHealthFilterChange(filter)
+    onOpenChange(false)
+  }
+
   const toggleUncategorized = () => {
     onShowUncategorized(!showUncategorized)
-    onSelectCollection(null)
-    onSelectTag(null)
     onOpenChange(false)
   }
 
@@ -365,6 +369,23 @@ export function DashboardCommandPalette({
                 </CommandGroup>
               </>
             )}
+
+            <CommandSeparator />
+
+            <CommandGroup heading="Health">
+              <CommandItem value="health-all" onSelect={() => selectHealthFilter(null)} className="rounded-md">
+                <Check className={`h-4 w-4 ${healthFilter === null ? "opacity-100" : "opacity-0"}`} />
+                <span className="flex-1">All health states</span>
+              </CommandItem>
+              <CommandItem value="health-archived" onSelect={() => selectHealthFilter("archived")} className="rounded-md">
+                <Check className={`h-4 w-4 ${healthFilter === "archived" ? "opacity-100" : "opacity-0"}`} />
+                <span className="flex-1">Archived repositories</span>
+              </CommandItem>
+              <CommandItem value="health-dormant" onSelect={() => selectHealthFilter("dormant")} className="rounded-md">
+                <Check className={`h-4 w-4 ${healthFilter === "dormant" ? "opacity-100" : "opacity-0"}`} />
+                <span className="flex-1">Dormant repositories</span>
+              </CommandItem>
+            </CommandGroup>
 
             <CommandSeparator />
 

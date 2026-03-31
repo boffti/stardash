@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import useSWR from "swr"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { DashboardCommandPalette } from "./dashboard-command-palette"
@@ -42,6 +42,7 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
+import { isDormantRepo, type RepoHealthFilter } from "@/lib/repo-health"
 import {
   updateRepoStatus, updateRepoNotes, togglePin,
   createTag, assignTag, removeTag,
@@ -61,6 +62,8 @@ const VIEW_MODE_KEY = "stardash_view_mode"
 const MAX_HEALTH_REPOS_PER_VIEW = 50
 
 export function Dashboard({ user }: DashboardProps) {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
@@ -79,6 +82,7 @@ export function Dashboard({ user }: DashboardProps) {
     localStorage.setItem(VIEW_MODE_KEY, value)
   }
   const [languageFilter, setLanguageFilter] = useState<string | null>(null)
+  const [healthFilter, setHealthFilter] = useState<RepoHealthFilter | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [showUncategorized, setShowUncategorized] = useState(false)
@@ -200,6 +204,47 @@ export function Dashboard({ user }: DashboardProps) {
     setShowUncategorized(uncategorizedFromUrl)
   }, [searchParams])
 
+  const replaceDashboardFilterUrl = (filters: {
+    collectionId?: string | null
+    tagId?: string | null
+    uncategorized?: boolean
+  }) => {
+    const params = new URLSearchParams(searchParams.toString())
+
+    if (filters.collectionId) params.set("collection", filters.collectionId)
+    else params.delete("collection")
+
+    if (filters.tagId) params.set("tag", filters.tagId)
+    else params.delete("tag")
+
+    if (filters.uncategorized) params.set("uncategorized", "true")
+    else params.delete("uncategorized")
+
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+  }
+
+  const handleSelectCollection = (collectionId: string | null) => {
+    setSelectedCollection(collectionId)
+    setSelectedTag(null)
+    setShowUncategorized(false)
+    replaceDashboardFilterUrl({ collectionId, tagId: null, uncategorized: false })
+  }
+
+  const handleSelectTag = (tagId: string | null) => {
+    setSelectedCollection(null)
+    setSelectedTag(tagId)
+    setShowUncategorized(false)
+    replaceDashboardFilterUrl({ collectionId: null, tagId, uncategorized: false })
+  }
+
+  const handleShowUncategorized = (show: boolean) => {
+    setSelectedCollection(null)
+    setSelectedTag(null)
+    setShowUncategorized(show)
+    replaceDashboardFilterUrl({ collectionId: null, tagId: null, uncategorized: show })
+  }
+
   // Get unique languages for filter
   const languages = useMemo(() => {
     const langs = new Set<string>()
@@ -236,6 +281,13 @@ export function Dashboard({ user }: DashboardProps) {
     // Language filter
     if (languageFilter) {
       filtered = filtered.filter((repo) => repo.language === languageFilter)
+    }
+
+    // Health filter
+    if (healthFilter === "archived") {
+      filtered = filtered.filter((repo) => Boolean(repo.archived))
+    } else if (healthFilter === "dormant") {
+      filtered = filtered.filter((repo) => isDormantRepo(repo.pushedAt))
     }
 
     // Collection filter
@@ -283,12 +335,12 @@ export function Dashboard({ user }: DashboardProps) {
     })
 
     return filtered
-  }, [repos, searchQuery, sortBy, languageFilter, selectedCollection, selectedTag, showUncategorized])
+  }, [repos, searchQuery, sortBy, languageFilter, healthFilter, selectedCollection, selectedTag, showUncategorized])
 
   // Reset to page 1 when filters/sort change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, sortBy, languageFilter, selectedCollection, selectedTag, showUncategorized])
+  }, [searchQuery, sortBy, languageFilter, healthFilter, selectedCollection, selectedTag, showUncategorized])
 
   // Reset to page 1 when page size changes
   useEffect(() => {
@@ -398,9 +450,8 @@ export function Dashboard({ user }: DashboardProps) {
   const clearAllFilters = () => {
     setSearchQuery("")
     setLanguageFilter(null)
-    setSelectedCollection(null)
-    setSelectedTag(null)
-    setShowUncategorized(false)
+    setHealthFilter(null)
+    handleSelectCollection(null)
   }
 
   const handleRefresh = (triggerSource: string = "dashboard-navbar-refresh") => {
@@ -683,7 +734,7 @@ export function Dashboard({ user }: DashboardProps) {
     }
   }
 
-  const hasActiveFilters = searchQuery || languageFilter || selectedCollection || selectedTag || showUncategorized
+  const hasActiveFilters = searchQuery || languageFilter || healthFilter || selectedCollection || selectedTag || showUncategorized
 
   const getActiveFilterLabel = () => {
     if (selectedCollection) {
@@ -694,6 +745,12 @@ export function Dashboard({ user }: DashboardProps) {
       const tag = allTags.find((t) => t.id === selectedTag)
       return tag ? tag.label : null
     }
+    return null
+  }
+
+  const getHealthFilterLabel = () => {
+    if (healthFilter === "archived") return "Archived"
+    if (healthFilter === "dormant") return "Dormant"
     return null
   }
 
@@ -726,9 +783,9 @@ export function Dashboard({ user }: DashboardProps) {
         selectedCollection={selectedCollection}
         selectedTag={selectedTag}
         showUncategorized={showUncategorized}
-        onSelectCollection={setSelectedCollection}
-        onSelectTag={setSelectedTag}
-        onShowUncategorized={setShowUncategorized}
+        onSelectCollection={handleSelectCollection}
+        onSelectTag={handleSelectTag}
+        onShowUncategorized={handleShowUncategorized}
         totalStars={repos.length}
         uncategorizedCount={uncategorizedCount}
         userId={user?.id}
@@ -744,6 +801,8 @@ export function Dashboard({ user }: DashboardProps) {
           onSortChange={setSortBy}
           languageFilter={languageFilter}
           onLanguageFilterChange={setLanguageFilter}
+          healthFilter={healthFilter}
+          onHealthFilterChange={setHealthFilter}
           languages={languages}
           lastSynced={lastSynced}
           user={user}
@@ -765,16 +824,18 @@ export function Dashboard({ user }: DashboardProps) {
           selectedCollection={selectedCollection}
           selectedTag={selectedTag}
           languageFilter={languageFilter}
+          healthFilter={healthFilter}
           showUncategorized={showUncategorized}
           sortBy={sortBy}
           viewMode={viewMode}
           isRefreshing={isLoading}
           isCategorizing={isCategorizing}
           onSearchChange={setSearchQuery}
-          onSelectCollection={setSelectedCollection}
-          onSelectTag={setSelectedTag}
+          onSelectCollection={handleSelectCollection}
+          onSelectTag={handleSelectTag}
           onLanguageFilterChange={setLanguageFilter}
-          onShowUncategorized={setShowUncategorized}
+          onHealthFilterChange={setHealthFilter}
+          onShowUncategorized={handleShowUncategorized}
           onSortChange={setSortBy}
           onViewModeChange={setViewMode}
           onRefresh={() => handleRefresh("dashboard-command-palette")}
@@ -829,14 +890,16 @@ export function Dashboard({ user }: DashboardProps) {
                   {languageFilter && (
                     renderFilterBadge(languageFilter, () => setLanguageFilter(null))
                   )}
+                  {healthFilter && (
+                    renderFilterBadge(getHealthFilterLabel() ?? "Health", () => setHealthFilter(null))
+                  )}
                   {(selectedCollection || selectedTag) && (
                     renderFilterBadge(getActiveFilterLabel() ?? "Category", () => {
-                      setSelectedCollection(null)
-                      setSelectedTag(null)
+                      handleSelectCollection(null)
                     })
                   )}
                   {showUncategorized && (
-                    renderFilterBadge("Uncategorized", () => setShowUncategorized(false))
+                    renderFilterBadge("Uncategorized", () => handleShowUncategorized(false))
                   )}
                   <Button
                     variant="ghost"

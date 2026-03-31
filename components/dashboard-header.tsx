@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select"
 import type { User } from "@supabase/supabase-js"
 import { AppPageHeader } from "@/components/app-page-header"
+import type { RepoHealthFilter } from "@/lib/repo-health"
 
 interface DashboardHeaderProps {
   searchQuery: string
@@ -18,6 +19,8 @@ interface DashboardHeaderProps {
   onSortChange: (value: string) => void
   languageFilter: string | null
   onLanguageFilterChange: (language: string | null) => void
+  healthFilter: RepoHealthFilter | null
+  onHealthFilterChange: (filter: RepoHealthFilter | null) => void
   languages: string[]
   lastSynced: string | null
   user: User | null
@@ -35,6 +38,8 @@ export function DashboardHeader({
   onSortChange,
   languageFilter,
   onLanguageFilterChange,
+  healthFilter,
+  onHealthFilterChange,
   languages,
   lastSynced,
   user,
@@ -66,6 +71,20 @@ export function DashboardHeader({
               {lang}
             </SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={healthFilter ?? "all"}
+        onValueChange={(value) => onHealthFilterChange(value === "all" ? null : value as RepoHealthFilter)}
+      >
+        <SelectTrigger className={`w-32 lg:w-36 ${desktopControlClassName}`}>
+          <SelectValue placeholder="Health" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Health</SelectItem>
+          <SelectItem value="archived">Archived</SelectItem>
+          <SelectItem value="dormant">Dormant</SelectItem>
         </SelectContent>
       </Select>
 
@@ -101,6 +120,20 @@ export function DashboardHeader({
               {lang}
             </SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={healthFilter ?? "all"}
+        onValueChange={(value) => onHealthFilterChange(value === "all" ? null : value as RepoHealthFilter)}
+      >
+        <SelectTrigger className={`w-full ${mobileControlClassName}`}>
+          <SelectValue placeholder="Health" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Health</SelectItem>
+          <SelectItem value="archived">Archived</SelectItem>
+          <SelectItem value="dormant">Dormant</SelectItem>
         </SelectContent>
       </Select>
 
