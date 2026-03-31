@@ -203,7 +203,8 @@ export async function unstarRepo(
 
   // 204 = success, 404 = already unstarred (treat as success)
   if (!response.ok && response.status !== 404) {
-    throw new Error(`GitHub API error: ${response.status}`)
+    const details = await response.text().catch(() => '')
+    throw new Error(details ? `GitHub API error: ${response.status} ${details}` : `GitHub API error: ${response.status}`)
   }
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect } from "react"
 import useSWR from "swr"
 import { useSearchParams } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
@@ -92,7 +92,6 @@ export function Dashboard({ user }: DashboardProps) {
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const supabase = createClient()
   const sensors = useSensors(
@@ -590,64 +589,74 @@ export function Dashboard({ user }: DashboardProps) {
     setRepoToRemove(repo)
   }
 
-  const handleRemoveStarConfirm = () => {
-    const repo = repoToRemove
-    if (!repo) return
-    setRepoToRemove(null)
-
-    // Optimistic remove from SWR cache and localStorage
+  const removeRepoFromLocalState = (repo: StarredRepo) => {
     mutate(prev => prev ? { ...prev, repos: prev.repos.filter(r => r.id !== repo.id) } : prev, { revalidate: false })
     mutateMetadata(prev => {
       if (!prev) return prev
       const { [repo.id]: _, ...remainingMeta } = prev.repoMeta
       return { ...prev, repoMeta: remainingMeta }
     }, { revalidate: false })
+
+    if (selectedRepo?.id === repo.id) {
+      setSelectedRepo(null)
+      setDetailPanelOpen(false)
+      setReadmeViewerOpen(false)
+    }
+
+    if (activeRepoId === repo.id) {
+      setActiveRepoId(null)
+    }
+
     if (user?.id) {
       const cached = getCachedRepos(user.id)
       if (cached) setCachedRepos(user.id, cached.repos.filter(r => r.id !== repo.id))
     }
+  }
 
-    let undone = false
-    const toastId = toast(`Removed star from ${repo.owner}/${repo.name}`, {
-      icon: <StarOff className="h-4 w-4" />,
-      duration: 5000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          undone = true
-          if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
-          // Restore to SWR cache and localStorage
-          mutate(prev => prev ? { ...prev, repos: [repo, ...(prev.repos ?? [])] } : prev, { revalidate: false })
-          mutateMetadata()
-          if (user?.id) {
-            const cached = getCachedRepos(user.id)
-            if (cached) setCachedRepos(user.id, [repo, ...cached.repos])
-          }
-          toast.dismiss(toastId)
-        },
-      },
-    })
+  const restoreRepoToLocalState = (repo: StarredRepo) => {
+    mutate(prev => {
+      if (!prev) return prev
+      if (prev.repos.some(r => r.id === repo.id)) return prev
+      return { ...prev, repos: [repo, ...prev.repos] }
+    }, { revalidate: false })
+    mutateMetadata()
 
-    undoTimeoutRef.current = setTimeout(async () => {
-      if (undone) return
-      try {
-        const res = await fetch('/api/github/star', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner: repo.owner, repo: repo.name, githubRepoId: Number(repo.id) }),
-        })
-        if (!res.ok) throw new Error('Failed to remove star')
-      } catch {
-        // Restore on failure
-        mutate(prev => prev ? { ...prev, repos: [repo, ...(prev.repos ?? [])] } : prev, { revalidate: false })
-        mutateMetadata()
-        if (user?.id) {
-          const cached = getCachedRepos(user.id)
-          if (cached) setCachedRepos(user.id, [repo, ...cached.repos])
-        }
-        toast.error(`Failed to remove star from ${repo.owner}/${repo.name}`)
+    if (user?.id) {
+      const cached = getCachedRepos(user.id)
+      if (cached && !cached.repos.some(r => r.id === repo.id)) {
+        setCachedRepos(user.id, [repo, ...cached.repos])
       }
-    }, 5000)
+    }
+  }
+
+  const handleRemoveStarConfirm = async () => {
+    const repo = repoToRemove
+    if (!repo) return
+    setRepoToRemove(null)
+
+    // Optimistic remove from SWR cache and localStorage
+    removeRepoFromLocalState(repo)
+    try {
+      const res = await fetch('/api/github/star', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner: repo.owner, repo: repo.name, githubRepoId: Number(repo.id) }),
+      })
+
+      if (!res.ok) {
+        const result = await res.json().catch(() => null)
+        throw new Error(result?.error || 'Failed to remove star')
+      }
+
+      await refresh()
+      toast(`Removed star from ${repo.owner}/${repo.name}`, {
+        icon: <StarOff className="h-4 w-4" />,
+      })
+    } catch (error) {
+      restoreRepoToLocalState(repo)
+      const message = error instanceof Error ? error.message : `Failed to remove star from ${repo.owner}/${repo.name}`
+      toast.error(message)
+    }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -678,6 +687,20 @@ export function Dashboard({ user }: DashboardProps) {
     }
     return null
   }
+
+  const renderFilterBadge = (label: string, onRemove: () => void) => (
+    <Badge variant="secondary" className="gap-1.5 pr-1">
+      <span className="truncate">{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Remove ${label} filter`}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </Badge>
+  )
 
   const activeRepo = activeRepoId ? repos.find(r => r.id === activeRepoId) : null
 
@@ -792,43 +815,19 @@ export function Dashboard({ user }: DashboardProps) {
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted-foreground">Filters:</span>
                   {searchQuery && (
-                    <Badge variant="secondary" className="gap-1">
-                      Search: {searchQuery}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
-                        onClick={() => setSearchQuery("")}
-                      />
-                    </Badge>
+                    renderFilterBadge(`Search: ${searchQuery}`, () => setSearchQuery(""))
                   )}
                   {languageFilter && (
-                    <Badge variant="secondary" className="gap-1">
-                      {languageFilter}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
-                        onClick={() => setLanguageFilter(null)}
-                      />
-                    </Badge>
+                    renderFilterBadge(languageFilter, () => setLanguageFilter(null))
                   )}
                   {(selectedCollection || selectedTag) && (
-                    <Badge variant="secondary" className="gap-1">
-                      {getActiveFilterLabel()}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
-                        onClick={() => {
-                          setSelectedCollection(null)
-                          setSelectedTag(null)
-                        }}
-                      />
-                    </Badge>
+                    renderFilterBadge(getActiveFilterLabel() ?? "Category", () => {
+                      setSelectedCollection(null)
+                      setSelectedTag(null)
+                    })
                   )}
                   {showUncategorized && (
-                    <Badge variant="secondary" className="gap-1">
-                      Uncategorized
-                      <X
-                        className="h-3 w-3 cursor-pointer"
-                        onClick={() => setShowUncategorized(false)}
-                      />
-                    </Badge>
+                    renderFilterBadge("Uncategorized", () => setShowUncategorized(false))
                   )}
                   <Button
                     variant="ghost"
