@@ -72,6 +72,7 @@ export function RepoCommandPalette({
   onRepoOpen,
 }: RepoCommandPaletteProps) {
   const [query, setQuery] = useState("")
+  const [selectedValue, setSelectedValue] = useState("")
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -89,6 +90,7 @@ export function RepoCommandPalette({
   useEffect(() => {
     if (!open) {
       setQuery("")
+      setSelectedValue("")
     }
   }, [open])
 
@@ -110,6 +112,46 @@ export function RepoCommandPalette({
     return matched.slice(0, RESULT_LIMIT)
   }, [normalizedQuery, repos])
 
+  const orderedItemMatches = useMemo(() => {
+    const matches: Array<{ value: string; matchesQuery: boolean }> = []
+
+    actions.forEach((action) => {
+      matches.push({
+        value: action.value,
+        matchesQuery: `${action.label} ${action.shortcut ?? ""}`.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    visibleRepos.forEach((repo) => {
+      matches.push({
+        value: `repo-${repo.owner}-${repo.name}`,
+        matchesQuery: [
+          repo.owner,
+          repo.name,
+          repo.description,
+          repo.notes,
+          repo.language,
+          ...repo.tags.map((tag) => tag.label),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      })
+    })
+
+    return matches
+  }, [actions, normalizedQuery, visibleRepos])
+
+  useEffect(() => {
+    if (!open) return
+
+    const nextSelection =
+      orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
+
+    setSelectedValue(nextSelection)
+  }, [open, orderedItemMatches])
+
   const runAndClose = (action: () => void) => {
     action()
     onOpenChange(false)
@@ -124,6 +166,8 @@ export function RepoCommandPalette({
         </DialogHeader>
         <Command
           shouldFilter={false}
+          value={selectedValue}
+          onValueChange={setSelectedValue}
           className="rounded-none bg-popover text-popover-foreground [&_[data-slot=command-input-wrapper]]:h-14 [&_[data-slot=command-input-wrapper]]:border-b [&_[data-slot=command-input-wrapper]]:border-border/70 [&_[data-slot=command-input-wrapper]]:px-4 [&_[data-slot=command-input-wrapper]_svg]:h-4 [&_[data-slot=command-input-wrapper]_svg]:w-4 [&_[data-slot=command-input]]:h-14 [&_[data-slot=command-input]]:text-sm"
         >
           <div className="border-b border-border/70 bg-secondary/20">
