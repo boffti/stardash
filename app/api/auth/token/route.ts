@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getValidGitHubToken, isTokenExpiringSoon } from '@/lib/tokens'
 import { NextResponse } from 'next/server'
 
@@ -46,6 +47,7 @@ export async function GET() {
 export async function POST() {
   try {
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
     if (userError || !user) {
@@ -67,7 +69,7 @@ export async function POST() {
       )
     }
     
-    const { data: profile } = await supabase
+    const { data: profile } = await adminSupabase
       .from('profiles')
       .select('token_expires_at')
       .eq('id', user.id)
@@ -76,7 +78,7 @@ export async function POST() {
     const expiresAt = new Date()
     expiresAt.setHours(expiresAt.getHours() + 8)
     
-    await supabase
+    await adminSupabase
       .from('profiles')
       .update({
         provider_token: providerToken,
