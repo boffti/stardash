@@ -2,24 +2,23 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
-import Link from "next/link"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { TrendingSection } from "./trending-section"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { TrendingEmptyState } from "./trending-empty-state"
-import { UserMenu } from "./user-menu"
 import type { User } from "@supabase/supabase-js"
-import { Loader2, AlertCircle, RefreshCw, SidebarOpen, TrendingUp } from "lucide-react"
+import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { analyzeTrending, TrendingAnalysis } from "@/lib/trending"
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
+import { AppPageHeader } from "@/components/app-page-header"
+import { RepoCommandPalette } from "@/components/repo-command-palette"
 
 interface TrendingDashboardProps {
   user: User | null
@@ -29,6 +28,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   // Sensors for DnD
   const sensors = useSensors(
@@ -116,6 +116,20 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   // Use real collections/tags from metadata
   const collections = metadata?.collections ?? []
   const tags = metadata?.tags ?? []
+  const trendingRepos = useMemo(() => {
+    const seen = new Set<string>()
+    const flattened: StarredRepo[] = []
+
+    trendingAnalysis.categories.forEach((category) => {
+      category.repos.forEach((repo) => {
+        if (seen.has(repo.id)) return
+        seen.add(repo.id)
+        flattened.push(repo)
+      })
+    })
+
+    return flattened
+  }, [trendingAnalysis.categories])
 
   return (
     <DndContext sensors={sensors}>
@@ -134,31 +148,14 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
         userId={user?.id}
       />
       <SidebarInset className="overflow-x-hidden">
-        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <SidebarTrigger className="-ml-1 shrink-0" />
-            <Link
-              href="/trending"
-              className="hidden h-10 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
-            >
-              <TrendingUp className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">Trending recommendations</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={Boolean(isLoading)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-              title={isRefreshing ? "Refreshing…" : (lastSynced ?? "Refresh")}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">{isRefreshing ? "Refreshing…" : "Refresh"}</span>
-            </button>
-            <UserMenu user={user} lastSynced={lastSynced} />
-          </div>
-        </header>
+        <AppPageHeader
+          searchLabel="Search trending repos and actions"
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          lastSynced={lastSynced}
+          user={user}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
         <main className="flex-1 p-6">
           <section className="mb-8 space-y-4">
@@ -269,6 +266,27 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           )}
         </main>
       </SidebarInset>
+
+      <RepoCommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        title="Search Trending"
+        description="Search trending repositories and run quick actions."
+        headerLabel="Search trending repositories and actions"
+        placeholder="Jump to a trending repo or action..."
+        emptyHint="Try a repo name or a trending recommendation."
+        repos={trendingRepos}
+        actions={[
+          {
+            value: "refresh-trending",
+            label: "Refresh starred repositories",
+            shortcut: "Sync",
+            icon: RefreshCw,
+            onSelect: handleRefresh,
+          },
+        ]}
+        onRepoOpen={handleRepoClick}
+      />
 
       {/* Detail Panel */}
       <RepoDetailPanel

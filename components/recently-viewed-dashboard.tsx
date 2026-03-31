@@ -10,19 +10,19 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { RepoDetailPanel } from "@/components/repo-detail-panel"
 import { ReadmeViewer } from "@/components/readme-viewer"
-import { UserMenu } from "@/components/user-menu"
 import { RepoGrid } from "@/components/repo-grid"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { useRecentlyViewed, trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
+import { AppPageHeader } from "@/components/app-page-header"
+import { RepoCommandPalette } from "@/components/repo-command-palette"
 
 interface RecentlyViewedDashboardProps {
   user: User | null
@@ -32,6 +32,7 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
   const { data, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
@@ -149,31 +150,14 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
         userId={user?.id}
       />
       <SidebarInset className="overflow-x-hidden">
-        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <SidebarTrigger className="-ml-1 shrink-0" />
-            <Link
-              href="/recently-viewed"
-              className="hidden h-10 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
-            >
-              <History className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">Recently viewed stack</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={Boolean(isLoading)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-              title={isRefreshing ? "Refreshing…" : (lastSynced ?? "Refresh")}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">{isRefreshing ? "Refreshing…" : "Refresh"}</span>
-            </button>
-            <UserMenu user={user} lastSynced={lastSynced} />
-          </div>
-        </header>
+        <AppPageHeader
+          searchLabel="Search recently viewed repos"
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          lastSynced={lastSynced}
+          user={user}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
         <main className="flex-1 p-6">
           <section className="mb-8 space-y-4">
@@ -229,6 +213,27 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
           )}
         </main>
       </SidebarInset>
+
+      <RepoCommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        title="Search Recently Viewed"
+        description="Search recently viewed repositories and run quick actions."
+        headerLabel="Search recently viewed repositories and actions"
+        placeholder="Jump to a recently viewed repo or action..."
+        emptyHint="Try a repo name or a language from your recent stack."
+        repos={recentRepos.map(({ repo }) => repo)}
+        actions={[
+          {
+            value: "refresh-recent",
+            label: "Refresh starred repositories",
+            shortcut: "Sync",
+            icon: RefreshCw,
+            onSelect: handleRefresh,
+          },
+        ]}
+        onRepoOpen={handleRepoClick}
+      />
 
       <RepoDetailPanel
         repo={selectedRepo}
