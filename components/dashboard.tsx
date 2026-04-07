@@ -454,8 +454,8 @@ export function Dashboard({ user }: DashboardProps) {
     handleSelectCollection(null)
   }
 
-  const handleRefresh = (triggerSource: string = "dashboard-navbar-refresh") => {
-    refresh({
+  const handleRefresh = async (triggerSource: string = "dashboard-navbar-refresh") => {
+    await refresh({
       manual: true,
       triggerKind: "user",
       triggerSource,
