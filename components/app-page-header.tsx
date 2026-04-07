@@ -35,7 +35,7 @@ interface AppPageHeaderProps {
   user: User | null
   onCategorize?: () => void
   isCategorizing?: boolean
-  onRefresh?: () => void
+  onRefresh?: () => void | Promise<unknown>
   isRefreshing?: boolean
 }
 
@@ -53,6 +53,20 @@ export function AppPageHeader({
   isRefreshing = false,
 }: AppPageHeaderProps) {
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false)
+  const [localRefreshing, setLocalRefreshing] = useState(false)
+
+  const spinning = localRefreshing || isRefreshing
+
+  const handleRefreshClick = async () => {
+    if (!onRefresh || spinning) return
+    setLocalRefreshing(true)
+    try {
+      await onRefresh()
+    } finally {
+      setLocalRefreshing(false)
+    }
+  }
+
   const hasSearch = Boolean(onOpenCommandPalette && searchLabel)
   const hasMobileControls = Boolean(mobileControls)
 
@@ -125,13 +139,13 @@ export function AppPageHeader({
           </button>
           <button
             type="button"
-            onClick={onRefresh}
-            disabled={Boolean(isRefreshing) || !onRefresh}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-            title={isRefreshing ? "Syncing…" : (lastSynced ?? "Sync")}
+            onClick={handleRefreshClick}
+            aria-disabled={spinning || !onRefresh}
+            className={`flex items-center gap-1.5 text-xs transition-colors ${spinning ? "text-blue-400 cursor-default" : !onRefresh ? "text-muted-foreground opacity-50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
+            title={spinning ? "Syncing…" : (lastSynced ?? "Sync")}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">{isRefreshing ? "Syncing…" : "Refresh"}</span>
+            <RefreshCw className={`h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">{spinning ? "Syncing…" : "Sync"}</span>
           </button>
           <UserMenu user={user} lastSynced={lastSynced} />
         </div>

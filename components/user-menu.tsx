@@ -26,6 +26,27 @@ interface UserMenuProps {
   lastSynced?: string | null
 }
 
+function formatCompactSyncLabel(lastSynced: string) {
+  if (lastSynced.includes('less than a minute ago')) {
+    return lastSynced.startsWith('Cached') ? 'Cached just now' : 'Synced just now'
+  }
+
+  return lastSynced
+    .replace(' minutes ago', 'm ago')
+    .replace(' minute ago', 'm ago')
+    .replace(' hours ago', 'h ago')
+    .replace(' hour ago', 'h ago')
+    .replace(' days ago', 'd ago')
+    .replace(' day ago', 'd ago')
+    .replace(' months ago', 'mo ago')
+    .replace(' month ago', 'mo ago')
+    .replace(' years ago', 'y ago')
+    .replace(' year ago', 'y ago')
+    .replace('about ', '')
+    .replace('over ', '')
+    .replace('almost ', '~')
+}
+
 export function UserMenu({ user, lastSynced }: UserMenuProps) {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -47,8 +68,13 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
   const githubUrl = user?.user_metadata?.user_name 
     ? `https://github.com/${user.user_metadata.user_name}` 
     : 'https://github.com'
+  const compactLastSynced = lastSynced ? formatCompactSyncLabel(lastSynced) : null
   const avatarButton = (
-    <Button variant="ghost" size="icon" className="rounded-full">
+    <Button
+      variant="ghost"
+      size="icon"
+      className="rounded-full focus-visible:ring-0 focus-visible:border-transparent"
+    >
       <Avatar className="h-8 w-8">
         <AvatarImage src={avatarUrl} alt={username} />
         <AvatarFallback>
@@ -71,10 +97,10 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium">{username}</p>
           <p className="text-xs text-muted-foreground">@{username}</p>
-          {lastSynced && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/60">
-              <Clock className="h-3 w-3" />
-              {lastSynced}
+          {compactLastSynced && (
+            <p className="mt-1 flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground/60">
+              <Clock className="h-3 w-3 shrink-0" />
+              {compactLastSynced}
             </p>
           )}
         </div>

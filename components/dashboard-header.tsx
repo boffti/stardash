@@ -22,7 +22,7 @@ interface DashboardHeaderProps {
   languages: string[]
   lastSynced: string | null
   user: User | null
-  onRefresh?: () => void
+  onRefresh?: () => void | Promise<unknown>
   isRefreshing?: boolean
   onCategorize?: () => void
   isCategorizing?: boolean
