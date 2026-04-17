@@ -52,6 +52,7 @@ import type {
 } from "@/lib/contribution-opportunities"
 import type { UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { ContributionCommandPalette } from "@/components/contribution-command-palette"
 
 interface ContributionDashboardProps {
   user: User | null
@@ -305,6 +306,8 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   const [language, setLanguage] = useState("all")
   const [difficulty, setDifficulty] = useState<SelectableDifficulty>("all")
   const [contributionType, setContributionType] = useState<SelectableType>("all")
+  const [search, setSearch] = useState("")
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [opportunities, setOpportunities] = useState<ContributionOpportunity[]>([])
   const [scannedRepos, setScannedRepos] = useState(0)
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
@@ -467,18 +470,32 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   }
 
   const filteredOpportunities = useMemo(() => {
+    const q = search.trim().toLowerCase()
     return opportunities.filter((opportunity) => {
       if (language !== "all" && opportunity.repoLanguage !== language) return false
       if (difficulty !== "all" && opportunity.difficulty !== difficulty) return false
       if (contributionType !== "all" && !opportunity.contributionTypes.includes(contributionType)) return false
+      if (q) {
+        const matchesText =
+          opportunity.repoFullName.toLowerCase().includes(q) ||
+          opportunity.title.toLowerCase().includes(q)
+        if (!matchesText) return false
+      }
       return true
     })
-  }, [opportunities, language, difficulty, contributionType])
+  }, [opportunities, language, difficulty, contributionType, search])
 
   const topStats = {
     starter: filteredOpportunities.filter((opportunity) => opportunity.difficulty === "beginner").length,
     docs: filteredOpportunities.filter((opportunity) => opportunity.contributionTypes.includes("docs")).length,
     bugfix: filteredOpportunities.filter((opportunity) => opportunity.contributionTypes.includes("bugfix")).length,
+  }
+
+  const clearFilters = () => {
+    setLanguage("all")
+    setDifficulty("all")
+    setContributionType("all")
+    setSearch("")
   }
 
   return (
@@ -502,6 +519,8 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           user={user}
           onRefresh={handleRefreshRepos}
           isRefreshing={isRefreshing}
+          searchLabel="Search opportunities..."
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           actions={
             <Button
               variant="outline"
@@ -715,6 +734,27 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      <ContributionCommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        opportunities={opportunities}
+        filteredOpportunities={filteredOpportunities}
+        language={language}
+        difficulty={difficulty}
+        contributionType={contributionType}
+        languageOptions={languageOptions}
+        search={search}
+        isLoadingOpportunities={isLoadingOpportunities}
+        isRefreshing={isRefreshing}
+        onLanguageChange={setLanguage}
+        onDifficultyChange={setDifficulty}
+        onContributionTypeChange={setContributionType}
+        onSearchChange={setSearch}
+        onScanIssues={() => loadOpportunities({ force: true })}
+        onRefresh={handleRefreshRepos}
+        onClearFilters={clearFilters}
+      />
     </SidebarProvider>
   )
 }
