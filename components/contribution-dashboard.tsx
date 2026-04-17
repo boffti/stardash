@@ -88,8 +88,35 @@ type SelectableDifficulty = ContributionDifficulty | "all"
 
 const CONTRIBUTION_CACHE_TTL_MS = 60 * 60 * 1000
 const CONTRIBUTION_CACHE_PREFIX = "stardash-contribution-opportunities-v2"
+const BRIEF_CACHE_PREFIX = "stardash-contribution-brief"
+const BRIEF_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const ISSUE_DISCOVERY_REPO_LIMIT = 120
 const ISSUE_SCAN_REPO_LIMIT = 40
+
+function readCachedBrief(opportunityId: string): ContributionBrief | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.localStorage.getItem(`${BRIEF_CACHE_PREFIX}-${opportunityId}`)
+    if (!raw) return null
+    const { brief, cachedAt } = JSON.parse(raw) as { brief: ContributionBrief; cachedAt: string }
+    if (Date.now() - new Date(cachedAt).getTime() > BRIEF_CACHE_TTL_MS) return null
+    return brief
+  } catch {
+    return null
+  }
+}
+
+function writeCachedBrief(opportunityId: string, brief: ContributionBrief) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(
+      `${BRIEF_CACHE_PREFIX}-${opportunityId}`,
+      JSON.stringify({ brief, cachedAt: new Date().toISOString() }),
+    )
+  } catch {
+    // Storage full or unavailable — live result still shown.
+  }
+}
 
 const typeLabels: Record<ContributionType, string> = {
   bugfix: "Bugfix",
@@ -482,8 +509,15 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
 
   const handleBrief = async (opportunity: ContributionOpportunity) => {
     setSelectedOpportunity(opportunity)
-    setBrief(null)
     setBriefError(null)
+
+    const cached = readCachedBrief(opportunity.id)
+    if (cached) {
+      setBrief(cached)
+      return
+    }
+
+    setBrief(null)
     setBriefLoadingId(opportunity.id)
 
     try {
@@ -498,7 +532,9 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         throw new Error(result.error || "Failed to generate contribution brief")
       }
 
-      setBrief(result.brief as ContributionBrief)
+      const brief = result.brief as ContributionBrief
+      setBrief(brief)
+      writeCachedBrief(opportunity.id, brief)
     } catch (loadError) {
       setBriefError(loadError instanceof Error ? loadError.message : "Failed to generate contribution brief")
     } finally {
@@ -649,7 +685,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
             </div>
           </section>
 
-          {isLoading && !data && (
+          {isLoading && !data && opportunities.length === 0 && (
             <div className="columns-1 gap-4 md:columns-2">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="mb-4 break-inside-avoid">
@@ -673,7 +709,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
             </div>
           )}
 
-          {isLoadingOpportunities && (
+          {isLoadingOpportunities && opportunities.length === 0 && (
             <div className="columns-1 gap-4 md:columns-2">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="mb-4 break-inside-avoid">
@@ -683,11 +719,11 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
             </div>
           )}
 
-          {!isLoadingOpportunities && data && filteredOpportunities.length === 0 && (
+          {!isLoadingOpportunities && data && filteredOpportunities.length === 0 && opportunities.length === 0 && (
             <EmptyOpportunities onRefresh={() => loadOpportunities({ force: true })} />
           )}
 
-          {!isLoadingOpportunities && filteredOpportunities.length > 0 && (
+          {filteredOpportunities.length > 0 && (
             <div className="columns-1 gap-4 md:columns-2">
               {filteredOpportunities.map((opportunity) => (
                 <div key={opportunity.id} className="mb-4 break-inside-avoid">
