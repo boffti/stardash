@@ -55,6 +55,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { useCommandPaletteShortcut } from "@/components/use-command-palette-shortcut"
 import {
   Accordion,
   AccordionContent,
@@ -409,15 +410,6 @@ const sortLabels: Record<SortField, string> = {
   name: "Name A-Z",
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
-  return Boolean(
-    target.closest(
-      'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
-    )
-  )
-}
-
 function includesQuery(value: string | undefined | null, query: string) {
   return Boolean(value?.toLowerCase().includes(query))
 }
@@ -455,19 +447,7 @@ function IntelCommandPalette({
 }) {
   const [query, setQuery] = useState("")
   const [selectedValue, setSelectedValue] = useState("")
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        if (!open && isEditableTarget(event.target)) return
-        event.preventDefault()
-        onOpenChange(!open)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [open, onOpenChange])
+  useCommandPaletteShortcut(open, onOpenChange)
 
   useEffect(() => {
     if (!open) {

@@ -42,7 +42,7 @@ interface AppPageHeaderProps {
 
 export function AppPageHeader({
   searchLabel,
-  searchShortcutLabel = "Ctrl",
+  searchShortcutLabel = "⌘",
   onOpenCommandPalette,
   desktopControls,
   mobileControls,
