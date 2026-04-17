@@ -27,6 +27,7 @@ const UserMenu = dynamic(
 
 interface AppPageHeaderProps {
   searchLabel?: string
+  searchShortcutLabel?: string
   onOpenCommandPalette?: () => void
   desktopControls?: React.ReactNode
   mobileControls?: React.ReactNode
@@ -41,6 +42,7 @@ interface AppPageHeaderProps {
 
 export function AppPageHeader({
   searchLabel,
+  searchShortcutLabel = "⌘",
   onOpenCommandPalette,
   desktopControls,
   mobileControls,
@@ -86,7 +88,7 @@ export function AppPageHeader({
               <Search className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{searchLabel}</span>
               <KbdGroup className="shrink-0">
-                <Kbd>Ctrl</Kbd>
+                <Kbd>{searchShortcutLabel}</Kbd>
                 <Kbd>K</Kbd>
               </KbdGroup>
             </button>

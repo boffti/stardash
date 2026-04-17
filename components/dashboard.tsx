@@ -481,12 +481,16 @@ export function Dashboard({ user }: DashboardProps) {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Failed to categorize')
-      setCategorization(result as CategorizationResult)
+      const categorizationResult = result as CategorizationResult
+      setCategorization(categorizationResult)
       if (user?.id) localStorage.removeItem(`stardash_categorization_${user.id}`)
       await mutateMetadata()
-      toast.success(
-        `Created ${(result as CategorizationResult).collections.length} collections · tagged ${Object.keys((result as CategorizationResult).repoTags).length} repos`
-      )
+      const categorizedRepoCount = categorizationResult.categorizedRepoCount ?? Object.keys(categorizationResult.repoTags).length
+      if (categorizedRepoCount === 0) {
+        toast.info('No new starred repos to categorize')
+      } else {
+        toast.success(`Categorized ${categorizedRepoCount} ${categorizedRepoCount === 1 ? 'repo' : 'repos'}`)
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to categorize repositories')
     } finally {

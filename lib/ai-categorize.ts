@@ -44,14 +44,27 @@ const RepoBatchSchema = z.object({
 
 const BATCH_SIZE = 100
 
+interface CategorizeReposOptions {
+  model?: string
+  existingTaxonomy?: {
+    collections: Collection[]
+    tags: Tag[]
+  }
+}
+
 export async function categorizeRepos(
   repos: StarredRepo[],
   apiKey: string,
-  model = 'google/gemini-2.0-flash-001'
+  options: CategorizeReposOptions = {}
 ): Promise<CategorizationResult> {
+  const model = options.model ?? 'google/gemini-2.0-flash-001'
   const openrouter = createOpenRouter({ apiKey })
   const reposToAnalyze = repos.slice(0, 500)
   const repoIdSet = new Set(reposToAnalyze.map(r => r.id))
+  const existingTaxonomy = options.existingTaxonomy
+  const shouldUseExistingTaxonomy = Boolean(
+    existingTaxonomy?.collections.length && existingTaxonomy.tags.length
+  )
 
   const summaries = reposToAnalyze.map(r => ({
     id: r.id,
@@ -61,12 +74,22 @@ export async function categorizeRepos(
     topics: r.topics.join(', '),
   }))
 
-  // Phase 1: generate collection taxonomy + shared tag vocabulary from all repo summaries
-  const { object: taxonomyObj } = await generateObject({
-    model: openrouter(model),
-    schema: TaxonomySchema,
-    experimental_telemetry: { isEnabled: true, functionId: "categorize-taxonomy" },
-    system: `You are an expert at organizing GitHub repositories.
+  let collections: Collection[]
+  let tagVocabulary: string[]
+
+  if (shouldUseExistingTaxonomy && existingTaxonomy) {
+    collections = existingTaxonomy.collections.map((collection) => ({
+      ...collection,
+      repoCount: 0,
+    }))
+    tagVocabulary = existingTaxonomy.tags.map((tag) => tag.label)
+  } else {
+    // Phase 1: generate collection taxonomy + shared tag vocabulary from all repo summaries
+    const { object: taxonomyObj } = await generateObject({
+      model: openrouter(model),
+      schema: TaxonomySchema,
+      experimental_telemetry: { isEnabled: true, functionId: "categorize-taxonomy" },
+      system: `You are an expert at organizing GitHub repositories.
 Given a list of starred repos, produce:
 1. A collection taxonomy of 5-12 thematic groups (e.g. "AI & ML", "Frontend Frameworks", "CLI Tools")
 2. A shared tag vocabulary of exactly 15-25 tags that cover the main technologies and themes across ALL repos
@@ -79,19 +102,21 @@ Tag rules:
 
 Collection name rules: short and scannable, max 22 characters (e.g. "AI & ML", "Frontend", "CLI Tools", "Databases", "DevOps", "Data Science")
 Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
-    prompt: `Define a taxonomy for these ${reposToAnalyze.length} starred repos:\n\n${JSON.stringify(summaries)}`,
-  })
+      prompt: `Define a taxonomy for these ${reposToAnalyze.length} starred repos:\n\n${JSON.stringify(summaries)}`,
+    })
 
-  const collections: Collection[] = taxonomyObj.collections.map((c, i) => ({
-    id: c.id,
-    name: c.name,
-    emoji: c.emoji,
-    color: COLLECTION_COLORS[i % COLLECTION_COLORS.length],
-    repoCount: 0,
-  }))
+    collections = taxonomyObj.collections.map((c, i) => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      color: COLLECTION_COLORS[i % COLLECTION_COLORS.length],
+      repoCount: 0,
+    }))
+    tagVocabulary = taxonomyObj.tags
+  }
+
   const collectionIdSet = new Set(collections.map(c => c.id))
   const collectionsList = collections.map(c => `${c.id}: ${c.name}`).join('\n')
-  const tagVocabulary = taxonomyObj.tags
   const tagVocabularySet = new Set(tagVocabulary)
 
   // Phase 2: classify repos in batches of 100
@@ -99,6 +124,9 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
   const repoTags: Record<string, Tag[]> = {}
   const repoCollections: Record<string, string[]> = {}
   const allTagsMap = new Map<string, Tag>()
+  if (shouldUseExistingTaxonomy && existingTaxonomy) {
+    existingTaxonomy.tags.forEach((tag) => allTagsMap.set(tag.label, tag))
+  }
 
   for (let i = 0; i < reposToAnalyze.length; i += BATCH_SIZE) {
     const batch = summaries.slice(i, i + BATCH_SIZE)
