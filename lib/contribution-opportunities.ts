@@ -97,7 +97,7 @@ function bodyPreview(body: string | null) {
     .trim()
 
   if (!cleaned) return 'No issue description provided.'
-  return cleaned.length > 240 ? `${cleaned.slice(0, 237).trim()}...` : cleaned
+  return cleaned.length > 280 ? `${cleaned.slice(0, 277).trim()}...` : cleaned
 }
 
 function inferTypes(issue: GitHubIssue, repo: StarredRepo): ContributionType[] {

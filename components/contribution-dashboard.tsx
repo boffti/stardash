@@ -28,7 +28,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -53,6 +53,7 @@ import type {
 import type { UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ContributionCommandPalette } from "@/components/contribution-command-palette"
+import { IssueViewer } from "@/components/issue-viewer"
 
 interface ContributionDashboardProps {
   user: User | null
@@ -116,6 +117,29 @@ function scoreTone(score: number) {
   if (score >= 80) return "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
   if (score >= 60) return "border-sky-500/30 bg-sky-500/10 text-sky-400"
   return "border-amber-500/30 bg-amber-500/10 text-amber-400"
+}
+
+const languageColors: Record<string, string> = {
+  TypeScript: "#3178c6",
+  JavaScript: "#f1e05a",
+  Python: "#3572A5",
+  Rust: "#dea584",
+  Go: "#00ADD8",
+  Java: "#b07219",
+  "C++": "#f34b7d",
+  C: "#555555",
+  Ruby: "#701516",
+  Swift: "#F05138",
+  Kotlin: "#A97BFF",
+  Dart: "#00B4AB",
+  Vue: "#41b883",
+  CSS: "#563d7c",
+  HTML: "#e34c26",
+  Shell: "#89e051",
+  Scala: "#c22d40",
+  PHP: "#4F5D95",
+  Elixir: "#6e4a7e",
+  Haskell: "#5e5086",
 }
 
 function getCacheKey(userId: string | undefined) {
@@ -191,103 +215,115 @@ function EmptyOpportunities({ onRefresh }: { onRefresh: () => void }) {
 function OpportunityCard({
   opportunity,
   onBrief,
+  onViewIssue,
   isBriefLoading,
 }: {
   opportunity: ContributionOpportunity
   onBrief: (opportunity: ContributionOpportunity) => void
+  onViewIssue: (opportunity: ContributionOpportunity) => void
   isBriefLoading: boolean
 }) {
+  const langColor = languageColors[opportunity.repoLanguage ?? ""] ?? "#6b7280"
+
   return (
-    <Card className="overflow-hidden border-border/60 bg-card/75 transition-colors hover:border-border">
-      <CardHeader className="gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="flex flex-col overflow-hidden border-border/60 bg-card/75 transition-colors hover:border-border">
+      <CardHeader className="gap-2.5 pb-1">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{opportunity.repoFullName}</span>
+            <div className="mb-1 flex items-center gap-2">
+              {opportunity.repoLanguage && (
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: langColor }} />
+              )}
+              <span className="truncate text-sm font-semibold text-foreground">{opportunity.repoFullName}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               {opportunity.repoLanguage && <span>{opportunity.repoLanguage}</span>}
               <span>#{opportunity.issueNumber}</span>
               <span>Updated {formatDistanceToNow(new Date(opportunity.updatedAt), { addSuffix: true })}</span>
             </div>
-            <CardTitle className="text-base leading-6">
-              <a
-                href={opportunity.htmlUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {opportunity.title}
-              </a>
-            </CardTitle>
           </div>
-          <Badge variant="outline" className={cn("shrink-0", scoreTone(opportunity.score))}>
-            {opportunity.score}% fit
+          <Badge variant="outline" className={cn("shrink-0 tabular-nums", scoreTone(opportunity.score))}>
+            {opportunity.score}%
           </Badge>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{opportunity.difficulty}</Badge>
-          {opportunity.contributionTypes.map((type) => {
-            const Icon = typeIcons[type]
-            return (
-              <Badge key={type} variant="outline" className="gap-1">
-                <Icon className="h-3 w-3" />
-                {typeLabels[type]}
-              </Badge>
-            )
-          })}
-          {opportunity.labels.slice(0, 4).map((label) => (
-            <Badge key={label} variant="secondary" className="max-w-48 truncate">
-              {label}
-            </Badge>
-          ))}
-        </div>
+
+        <button
+          onClick={() => onViewIssue(opportunity)}
+          className="line-clamp-2 text-left text-sm font-medium leading-snug outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {opportunity.title}
+        </button>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <p className="text-sm leading-6 text-muted-foreground">{opportunity.bodyPreview}</p>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-lg border border-border/50 bg-muted/15 p-3">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Why this fits</div>
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {opportunity.fitReasons.slice(0, 3).map((reason) => (
-                <li key={reason} className="flex gap-2">
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                  <span>{reason}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-lg border border-border/50 bg-muted/15 p-3">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Signals</div>
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {[...opportunity.qualitySignals, ...opportunity.risks].slice(0, 3).map((signal) => (
-                <li key={signal} className="flex gap-2">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span>{signal}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+      <CardContent className="flex flex-1 flex-col gap-4 pt-2">
+        <button
+          onClick={() => onViewIssue(opportunity)}
+          className="group text-left"
+        >
+          <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground transition-colors group-hover:text-muted-foreground/80">
+            {opportunity.bodyPreview}
+          </p>
+          <span className="mt-1 text-xs text-muted-foreground/50 transition-colors group-hover:text-muted-foreground">
+            Read full issue →
+          </span>
+        </button>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5" />
-              {opportunity.repoStars.toLocaleString()}
-            </span>
-            <span>{opportunity.comments} comments</span>
+        {opportunity.fitReasons.length > 0 && (
+          <ul className="flex flex-col gap-1">
+            {opportunity.fitReasons.slice(0, 2).map((reason) => (
+              <li key={reason} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />
+                <span>{reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary" className="text-xs">{opportunity.difficulty}</Badge>
+            {opportunity.contributionTypes.map((type) => {
+              const Icon = typeIcons[type]
+              return (
+                <Badge key={type} variant="outline" className="gap-1 text-xs">
+                  <Icon className="h-3 w-3" />
+                  {typeLabels[type]}
+                </Badge>
+              )
+            })}
+            {opportunity.labels.slice(0, 3).map((label) => (
+              <Badge key={label} variant="secondary" className="max-w-32 truncate text-xs">
+                {label}
+              </Badge>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => onBrief(opportunity)} disabled={isBriefLoading}>
-              {isBriefLoading ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <Bot data-icon="inline-start" />}
-              Contribution brief
-            </Button>
-            <Button asChild size="sm">
-              <a href={opportunity.htmlUrl} target="_blank" rel="noreferrer">
-                Open issue
-                <ExternalLink data-icon="inline-end" />
-              </a>
-            </Button>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Star className="h-3.5 w-3.5" />
+                {opportunity.repoStars.toLocaleString()}
+              </span>
+              <span>{opportunity.comments} comments</span>
+            </div>
+            <div className="flex gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onBrief(opportunity)}
+                disabled={isBriefLoading}
+                className="h-7 px-2.5 text-xs"
+              >
+                {isBriefLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
+                <span className="ml-1">Brief</span>
+              </Button>
+              <Button asChild size="sm" className="h-7 px-2.5 text-xs">
+                <a href={opportunity.htmlUrl} target="_blank" rel="noreferrer">
+                  Open
+                  <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -314,6 +350,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   const [opportunityError, setOpportunityError] = useState<string | null>(null)
   const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(false)
   const [selectedOpportunity, setSelectedOpportunity] = useState<ContributionOpportunity | null>(null)
+  const [selectedIssue, setSelectedIssue] = useState<ContributionOpportunity | null>(null)
   const [brief, setBrief] = useState<ContributionBrief | null>(null)
   const [briefError, setBriefError] = useState<string | null>(null)
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
@@ -613,10 +650,12 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           </section>
 
           {isLoading && !data && (
-            <div className="grid gap-4">
-              <OpportunitySkeleton />
-              <OpportunitySkeleton />
-              <OpportunitySkeleton />
+            <div className="columns-1 gap-4 md:columns-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="mb-4 break-inside-avoid">
+                  <OpportunitySkeleton />
+                </div>
+              ))}
             </div>
           )}
 
@@ -635,10 +674,12 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           )}
 
           {isLoadingOpportunities && (
-            <div className="grid gap-4">
-              <OpportunitySkeleton />
-              <OpportunitySkeleton />
-              <OpportunitySkeleton />
+            <div className="columns-1 gap-4 md:columns-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="mb-4 break-inside-avoid">
+                  <OpportunitySkeleton />
+                </div>
+              ))}
             </div>
           )}
 
@@ -647,14 +688,16 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           )}
 
           {!isLoadingOpportunities && filteredOpportunities.length > 0 && (
-            <div className="grid gap-4">
+            <div className="columns-1 gap-4 md:columns-2">
               {filteredOpportunities.map((opportunity) => (
-                <OpportunityCard
-                  key={opportunity.id}
-                  opportunity={opportunity}
-                  onBrief={handleBrief}
-                  isBriefLoading={briefLoadingId === opportunity.id}
-                />
+                <div key={opportunity.id} className="mb-4 break-inside-avoid">
+                  <OpportunityCard
+                    opportunity={opportunity}
+                    onBrief={handleBrief}
+                    onViewIssue={setSelectedIssue}
+                    isBriefLoading={briefLoadingId === opportunity.id}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -755,6 +798,12 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         onScanIssues={() => loadOpportunities({ force: true })}
         onRefresh={handleRefreshRepos}
         onClearFilters={clearFilters}
+      />
+
+      <IssueViewer
+        opportunity={selectedIssue}
+        open={Boolean(selectedIssue)}
+        onClose={() => setSelectedIssue(null)}
       />
     </SidebarProvider>
   )
