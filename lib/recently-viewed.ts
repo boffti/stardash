@@ -7,7 +7,7 @@ const RECENTLY_VIEWED_EVENT = "stardash:recently-viewed-updated"
 export interface RecentlyViewedEntry {
   repo: StarredRepo
   viewedAt: string
-  source: "dashboard" | "trending" | "recently-viewed"
+  source: "dashboard" | "trending" | "recently-viewed" | "intel"
 }
 
 function storageKey(userId: string) {

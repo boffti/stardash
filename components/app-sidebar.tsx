@@ -13,6 +13,7 @@ import {
   Search,
   Sparkles,
   Settings,
+  Brain,
 } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
 import Link from "next/link"
@@ -168,6 +169,7 @@ export function AppSidebar({
   const isHomeRoute = pathname === "/dashboard"
   const isRecentlyViewedRoute = pathname === "/recently-viewed"
   const isTrendingRoute = pathname === "/trending"
+  const isIntelRoute = pathname === "/intel"
   const isSettingsRoute = pathname === "/settings"
   const recentEntries = useRecentlyViewed(userId)
   const resolvedRecentCount = useMemo(
@@ -234,6 +236,14 @@ export function AppSidebar({
                   <Link href="/trending">
                     <TrendingUp className="h-4 w-4" />
                     <span>Trending</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isIntelRoute}>
+                  <Link href="/intel">
+                    <Brain className="h-4 w-4" />
+                    <span>Intel</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

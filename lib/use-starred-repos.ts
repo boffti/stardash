@@ -154,8 +154,12 @@ export function useStarredRepos(userId?: string) {
       return
     }
 
-    if (!backgroundFailureNotifiedRef.current && data) {
-      toast.error("Background sync failed. Showing cached repositories.")
+    if (!backgroundFailureNotifiedRef.current) {
+      if (data) {
+        toast.error("Background sync failed. Showing cached repositories.")
+      } else {
+        toast.error("Failed to sync starred repositories.")
+      }
       backgroundFailureNotifiedRef.current = true
     }
   }, [data, swr.error])
@@ -164,7 +168,7 @@ export function useStarredRepos(userId?: string) {
     ...swr,
     data,
     refresh,
-    isLoading: swr.isLoading && !data,
+    isLoading: (swr.isLoading || swr.isValidating) && !data,
     isRefreshing: swr.isValidating && Boolean(data),
   }
 }
