@@ -14,7 +14,7 @@ import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List, StarOff } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List, StarOff, LogOut, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -89,7 +89,7 @@ export function Dashboard({ user }: DashboardProps) {
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
-  const [pageSize, setPageSize] = useState<number | "all">(25)
+  const [pageSize, setPageSize] = useState<number | "all">(24)
   const [currentPage, setCurrentPage] = useState(1)
   const [categorization, setCategorization] = useState<CategorizationResult | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
@@ -463,6 +463,13 @@ export function Dashboard({ user }: DashboardProps) {
     })
   }
 
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
+
   const handleCategorize = async () => {
     if (!rawRepos.length) return
     setIsCategorizing(true)
@@ -807,7 +814,7 @@ export function Dashboard({ user }: DashboardProps) {
           lastSynced={lastSynced}
           user={user}
           onRefresh={() => handleRefresh("dashboard-navbar-refresh")}
-          isRefreshing={isRefreshing}
+          isRefreshing={isRefreshing || isLoading}
           onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
@@ -844,13 +851,19 @@ export function Dashboard({ user }: DashboardProps) {
           onClearFilters={clearAllFilters}
         />
         <main className="flex-1 p-6">
-          {/* Loading State */}
+          {/* Loading State — initial sync, no cached data */}
           {isLoading && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">
-                {data?.fromCache ? "Refreshing your starred repositories..." : "Loading your starred repositories..."}
-              </p>
+            <div className="flex flex-col items-center justify-center py-32 gap-6">
+              <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
+                <Star className="h-9 w-9 text-muted-foreground/40" />
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-2 ring-background">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                </span>
+              </div>
+              <div className="text-center space-y-1.5">
+                <p className="font-medium text-foreground">Syncing your starred repositories</p>
+                <p className="text-sm text-muted-foreground">Fetching from GitHub — this may take a moment for large collections.</p>
+              </div>
             </div>
           )}
 
@@ -859,10 +872,20 @@ export function Dashboard({ user }: DashboardProps) {
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">Failed to load starred repositories</p>
-              <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
+              {(error.message?.includes('token') || error.message?.includes('re-authenticate')) ? (
+                <>
+                  <p className="text-sm text-muted-foreground">Your GitHub token has expired. Sign out and sign in again to reconnect.</p>
+                  <Button variant="outline" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign out and reconnect
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+              )}
             </div>
           )}
 
@@ -974,9 +997,9 @@ export function Dashboard({ user }: DashboardProps) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="24">24</SelectItem>
+                        <SelectItem value="48">48</SelectItem>
+                        <SelectItem value="96">96</SelectItem>
                         <SelectItem value="all">All</SelectItem>
                       </SelectContent>
                     </Select>
@@ -987,13 +1010,22 @@ export function Dashboard({ user }: DashboardProps) {
               {/* Proactive Alerts - Updates on starred repos */}
               <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
 
-              {/* Empty State */}
+              {/* Empty State — no repos at all */}
               {repos.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <p className="text-muted-foreground">No starred repositories found</p>
-                  <p className="text-sm text-muted-foreground">
-                    Star some repositories on GitHub and they will appear here!
-                  </p>
+                <div className="flex flex-col items-center justify-center py-32 gap-6">
+                  <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
+                    <Star className="h-9 w-9 text-muted-foreground/50" />
+                  </div>
+                  <div className="text-center space-y-1.5">
+                    <p className="font-medium text-foreground">No starred repositories yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      Star repositories on GitHub, then sync to see them here.
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={() => handleRefresh("empty-state-sync")}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync now
+                  </Button>
                 </div>
               )}
 
