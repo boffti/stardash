@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
-import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
 import {
@@ -26,11 +25,21 @@ import {
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
+import { RepoDetailPanel } from "@/components/repo-detail-panel"
+import { ReadmeViewer } from "@/components/readme-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import type { RepoIntel, UserMetadata } from "@/lib/types"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { useStarredRepos } from "@/lib/use-starred-repos"
+import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
+import type { RepoIntel, StarredRepo, UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface IntelDashboardProps {
@@ -197,16 +206,20 @@ function EmptyState() {
         </p>
       </div>
       <Button asChild variant="outline" size="sm" className="gap-2">
-        <Link href="/dashboard">
+        <a href="/dashboard">
           <Zap className="h-3.5 w-3.5" />
           Go to Dashboard
-        </Link>
+        </a>
       </Button>
     </div>
   )
 }
 
-function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
+function IntelCard({ intel, index, onOpenRepo }: {
+  intel: RepoIntel
+  index: number
+  onOpenRepo: (repoFullName: string) => void
+}) {
   const [owner, repo] = intel.repoFullName.split("/")
   const verdict = verdictConfig[intel.maintenanceVerdict] ?? {
     label: intel.maintenanceVerdict,
@@ -228,6 +241,7 @@ function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
     ? prMerge >= 60 ? "text-emerald-600 dark:text-emerald-400" : prMerge >= 30 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
     : undefined
 
+  const painPoints = intel.topPainPoints ?? []
   const animDelay = `${index * 60}ms`
 
   return (
@@ -246,15 +260,16 @@ function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <Link
-                    href={`/dashboard?repo=${encodeURIComponent(intel.repoFullName)}`}
+                  <button
+                    type="button"
+                    onClick={() => onOpenRepo(intel.repoFullName)}
                     className="group/link inline-flex min-h-6 max-w-full items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     <span className="min-w-0 truncate font-mono text-sm font-medium text-foreground transition-colors group-hover/link:text-primary">
                       <span className="text-muted-foreground">{owner}/</span>{repo}
                     </span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/0 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary/70" />
-                  </Link>
+                  </button>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground/70">
                     <span className={cn("font-medium", p.labelClass)}>{p.label}</span>
                     <span aria-hidden="true">/</span>
@@ -280,19 +295,6 @@ function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
                 {intel.summary}
               </p>
 
-              {intel.topPainPoints && intel.topPainPoints.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {intel.topPainPoints.slice(0, 2).map((pt, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex max-w-full items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-400 sm:max-w-[280px]"
-                    >
-                      <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
-                      <span className="truncate">{pt}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -318,6 +320,34 @@ function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
             <span>Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}</span>
           </div>
         </div>
+
+        {painPoints.length > 0 && (
+          <Accordion type="single" collapsible className="mt-3 rounded-lg border border-border/60 bg-muted/10">
+            <AccordionItem value="pain-points" className="border-b-0">
+              <AccordionTrigger className="min-h-11 px-3 py-2 text-xs hover:no-underline">
+                <span className="flex min-w-0 items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="font-medium text-foreground">Review notes</span>
+                  <Badge variant="secondary" className="h-5 rounded-md px-1.5 text-[10px]">
+                    {painPoints.length}
+                  </Badge>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-3 pb-3">
+                <div className="flex flex-col gap-2">
+                  {painPoints.map((point, i) => (
+                    <div key={i} className="flex gap-2 rounded-md border border-border/50 bg-background/60 px-3 py-2">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{point}</p>
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
       </CardContent>
     </Card>
   )
@@ -354,6 +384,11 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>("all")
   const [search, setSearch] = useState("")
+  const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false)
+  const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
+
+  const { data: starredData } = useStarredRepos(user?.id)
 
   const { data: metadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
@@ -366,6 +401,59 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
     fetcher,
     { revalidateOnFocus: false }
   )
+
+  const repos = useMemo(() => {
+    const rawRepos = starredData?.repos ?? []
+
+    return rawRepos.map((repo) => {
+      const dbMeta = metadata?.repoMeta[repo.id]
+      if (!dbMeta) return repo
+
+      const dbTags = (metadata?.tags ?? []).filter((tag) => dbMeta.tagIds.includes(tag.id))
+      return {
+        ...repo,
+        status: dbMeta.status ?? repo.status,
+        isPinned: dbMeta.isPinned,
+        notes: dbMeta.notes ?? repo.notes,
+        tags: dbTags,
+        collections: dbMeta.collectionIds,
+      }
+    })
+  }, [starredData?.repos, metadata])
+
+  const repoByFullName = useMemo(() => {
+    return new Map(repos.map((repo) => [repo.fullName, repo]))
+  }, [repos])
+
+  const uncategorizedCount = useMemo(() => {
+    return repos.filter((repo) => repo.tags.length === 0 && repo.collections.length === 0).length
+  }, [repos])
+
+  const handleOpenRepo = (repoFullName: string) => {
+    const repo = repoByFullName.get(repoFullName)
+    if (!repo) return
+
+    if (user?.id) {
+      trackRecentlyViewedRepo(user.id, repo, "intel")
+    }
+
+    setSelectedRepo(repo)
+    setDetailPanelOpen(true)
+  }
+
+  const handleCloseDetail = () => {
+    setDetailPanelOpen(false)
+    setTimeout(() => setSelectedRepo(null), 200)
+  }
+
+  const handleViewReadme = () => {
+    setDetailPanelOpen(false)
+    setReadmeViewerOpen(true)
+  }
+
+  const handleCloseReadme = () => {
+    setReadmeViewerOpen(false)
+  }
 
   // Merge server data with any locally-cached intel (handles cases where DB upsert failed)
   const allIntel = useMemo(() => {
@@ -436,8 +524,8 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
         onSelectCollection={() => {}}
         onSelectTag={() => {}}
         onShowUncategorized={() => {}}
-        totalStars={0}
-        uncategorizedCount={0}
+        totalStars={repos.length}
+        uncategorizedCount={uncategorizedCount}
         userId={user?.id}
         onAICategorize={() => {}}
         onCreateCollection={async () => {}}
@@ -594,13 +682,35 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
                   Showing {filtered.length} of {allIntel.length} analyzed {allIntel.length === 1 ? "repo" : "repos"}
                 </p>
                 {filtered.map((intel, idx) => (
-                  <IntelCard key={intel.id} intel={intel} index={idx} />
+                  <IntelCard key={intel.id} intel={intel} index={idx} onOpenRepo={handleOpenRepo} />
                 ))}
               </div>
             )}
           </div>
         </div>
       </SidebarInset>
+
+      <RepoDetailPanel
+        repo={selectedRepo}
+        open={detailPanelOpen}
+        onClose={handleCloseDetail}
+        onViewReadme={handleViewReadme}
+        collections={metadata?.collections ?? []}
+        tags={metadata?.tags ?? []}
+        onStatusChange={() => {}}
+        onTagToggle={() => {}}
+        onTagCreate={() => {}}
+        onCollectionToggle={() => {}}
+        onCollectionCreate={() => {}}
+        onNotesChange={() => {}}
+        onPinToggle={() => {}}
+      />
+
+      <ReadmeViewer
+        repo={selectedRepo}
+        open={readmeViewerOpen}
+        onClose={handleCloseReadme}
+      />
     </SidebarProvider>
   )
 }
