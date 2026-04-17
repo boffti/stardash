@@ -521,6 +521,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           isRefreshing={isRefreshing}
           searchLabel="Search opportunities..."
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          hideNavActions
           actions={
             <Button
               variant="outline"

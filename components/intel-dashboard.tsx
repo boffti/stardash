@@ -906,6 +906,7 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
           mobileControls={mobileFilterControls}
           user={user}
           lastSynced={null}
+          hideNavActions
         />
 
         {/* Animation keyframes */}

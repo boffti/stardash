@@ -160,6 +160,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           user={user}
           onRefresh={() => handleRefresh("trending-navbar-refresh")}
           isRefreshing={isRefreshing}
+          hideNavActions
         />
 
         <main className="flex-1 p-6">
