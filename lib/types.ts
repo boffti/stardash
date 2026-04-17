@@ -84,6 +84,22 @@ export type MaintenanceVerdict =
   | 'stale'
   | 'abandoned'
 
+export type MaintenanceSignalStrength = 'strong' | 'ok' | 'weak' | 'bad' | 'unknown'
+
+export interface RepoMaintenanceAssessment {
+  verdict: MaintenanceVerdict
+  confidence: number
+  score: number
+  reasons: string[]
+  signals: {
+    commitRecency: MaintenanceSignalStrength
+    commitVelocity: MaintenanceSignalStrength
+    issueResponsiveness: MaintenanceSignalStrength
+    prActivity: MaintenanceSignalStrength
+    releaseRecency: MaintenanceSignalStrength
+  }
+}
+
 export type CommunitySentiment = 'positive' | 'mixed' | 'frustrated'
 
 export type AdoptionReadiness =
@@ -94,13 +110,19 @@ export type AdoptionReadiness =
 
 export interface RepoIntelMetrics {
   issueCloseRate: number          // 0–1
-  avgIssueResponseDays: number | null
+  avgIssueResponseDays: number | null // Deprecated name: median days from issue creation to close.
+  medianIssueCloseDays?: number | null
   staleIssueCount: number
   prMergeRate: number             // 0–1
   avgPrMergeDays: number | null
-  activeContributors90d: number
+  activeContributors90d: number   // Deprecated proxy kept for cached insight compatibility.
+  topContributorCount?: number
+  commits30d?: number
+  commits90d?: number
+  activeCommitAuthors90d?: number
   daysSinceLastCommit: number | null
   daysSinceLastRelease: number | null
+  maintenanceAssessment?: RepoMaintenanceAssessment
   hasCommunityFiles: {
     contributingGuide: boolean
     codeOfConduct: boolean

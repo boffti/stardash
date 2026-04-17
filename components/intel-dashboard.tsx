@@ -218,7 +218,7 @@ function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
 
   const issueClose = intel.metrics?.issueCloseRate != null ? Math.round(intel.metrics.issueCloseRate * 100) : null
   const prMerge = intel.metrics?.prMergeRate != null ? Math.round(intel.metrics.prMergeRate * 100) : null
-  const contributors = intel.metrics?.activeContributors90d ?? null
+  const contributors = intel.metrics?.activeCommitAuthors90d ?? intel.metrics?.activeContributors90d ?? null
   const daysSince = intel.metrics?.daysSinceLastCommit ?? null
   const p = healthPalette(intel.healthScore)
   const issueTone = issueClose !== null
@@ -306,7 +306,7 @@ function IntelCard({ intel, index }: { intel: RepoIntel; index: number }) {
               <IntelMetric icon={GitPullRequest} label="Pull requests" value={`${prMerge}%`} detail="merged" toneClass={prTone} />
             )}
             {contributors !== null && (
-              <IntelMetric icon={Users} label="Contributors" value={String(contributors)} detail="90d active" />
+              <IntelMetric icon={Users} label="Authors" value={String(contributors)} detail="90d commits" />
             )}
             {daysSince !== null && (
               <IntelMetric icon={Clock} label="Last commit" value={daysSince === 0 ? "Today" : `${daysSince}d`} detail={daysSince === 0 ? undefined : "ago"} />

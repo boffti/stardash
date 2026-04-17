@@ -239,7 +239,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
 
   const apiUrl = localCached
     ? null  // skip fetch — serve from local cache
-    : `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}`
+    : `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}${refreshKey > 0 ? '&refresh=true' : ''}`
 
   const { data, error, isLoading } = useSWR<{ intel: RepoIntel; cached: boolean }>(
     apiUrl,
@@ -307,6 +307,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const sentimentCfg = SENTIMENT_CONFIG[intel.communitySentiment]
   const adoptionCfg  = ADOPTION_CONFIG[intel.adoptionReadiness]
   const { metrics }  = intel
+  const assessment = metrics.maintenanceAssessment
 
   const rateColor = (r: number) =>
     r >= 0.7 ? 'bg-emerald-500' : r >= 0.4 ? 'bg-yellow-500' : 'bg-red-500'
@@ -363,16 +364,22 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
             fillColor={rateColor(metrics.prMergeRate)}
           />
           <SignalBar
-            label="Contributors (90d)"
-            value={String(metrics.activeContributors90d)}
+            label="Commit Authors (90d)"
+            value={String(metrics.activeCommitAuthors90d ?? metrics.activeContributors90d)}
           />
+          {metrics.commits90d !== undefined && (
+            <SignalBar
+              label="Commits (90d)"
+              value={String(metrics.commits90d)}
+            />
+          )}
           <SignalBar
             label="Last Commit"
             value={days(metrics.daysSinceLastCommit)}
           />
           {metrics.avgIssueResponseDays !== null && (
             <SignalBar
-              label="Avg Issue Response"
+              label="Issue Close Time"
               value={`${Math.round(metrics.avgIssueResponseDays)}d`}
             />
           )}
@@ -396,6 +403,28 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           )}
         </div>
       </div>
+
+      {assessment && (
+        <div>
+          <SectionLabel>Maintenance Rationale</SectionLabel>
+          <div className="rounded-lg border border-border bg-muted/15 px-3 py-2.5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                Confidence {Math.round(assessment.confidence * 100)}%
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">{assessment.score}/100</p>
+            </div>
+            <ul className="flex flex-col gap-1.5">
+              {assessment.reasons.slice(0, 4).map((reason, i) => (
+                <li key={i} className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+                  <span>{reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* ── Community health ────────────────────────────────────────────── */}
       <div>

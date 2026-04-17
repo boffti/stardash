@@ -48,6 +48,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const owner = searchParams.get('owner')
     const repo = searchParams.get('repo')
+    const refresh = searchParams.get('refresh') === 'true'
 
     if (!owner || !repo) {
       return NextResponse.json({ error: 'Missing owner or repo' }, { status: 400 })
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
       .eq('repo_full_name', repoFullName)
       .single()
 
-    if (cached) {
+    if (cached && !refresh) {
       const age = Date.now() - new Date(cached.analyzed_at).getTime()
       if (age < CACHE_TTL_MS) {
         return NextResponse.json({ intel: rowToIntel(cached as RepoInsightRow), cached: true })

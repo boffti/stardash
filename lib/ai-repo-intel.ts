@@ -7,6 +7,7 @@ import type {
   MaintenanceVerdict,
   CommunitySentiment,
   AdoptionReadiness,
+  RepoMaintenanceAssessment,
 } from './types'
 import type { IssueSample } from './repo-intel'
 
@@ -19,14 +20,6 @@ const RepoIntelSchema = z.object({
     .min(0)
     .max(100)
     .describe('Overall health score 0–100. 70+ = healthy, 40–69 = moderate, <40 = concerning'),
-  maintenanceVerdict: z
-    .enum(['actively-maintained', 'lightly-maintained', 'stale', 'abandoned'])
-    .describe(
-      'actively-maintained: regular commits + fast issue responses. ' +
-      'lightly-maintained: periodic activity. ' +
-      'stale: little activity in 6+ months. ' +
-      'abandoned: no meaningful activity in 12+ months'
-    ),
   communitySentiment: z
     .enum(['positive', 'mixed', 'frustrated'])
     .describe(
@@ -71,6 +64,7 @@ function formatMetricsForPrompt(
   metrics: RepoIntelMetrics,
   issueSamples: IssueSample[],
   contributorCount: number,
+  maintenanceAssessment: RepoMaintenanceAssessment,
 ): string {
   const pct = (v: number) => `${Math.round(v * 100)}%`
   const days = (v: number | null) => v === null ? 'unknown' : `${v} days`
@@ -83,13 +77,25 @@ function formatMetricsForPrompt(
 
 HEALTH METRICS
 - Issue close rate: ${pct(metrics.issueCloseRate)}
-- Avg issue response/close time: ${days(metrics.avgIssueResponseDays)}
+- Median issue close time: ${days(metrics.medianIssueCloseDays ?? metrics.avgIssueResponseDays)}
 - Stale open issues (no activity > 90 days): ${metrics.staleIssueCount}
 - PR merge rate: ${pct(metrics.prMergeRate)}
 - Avg PR merge time: ${days(metrics.avgPrMergeDays)}
-- Active contributors (top 25 fetched): ${metrics.activeContributors90d}
+- Top contributors fetched: ${metrics.topContributorCount ?? metrics.activeContributors90d}
+- Contributor count from GitHub sample: ${contributorCount}
+- Commits in last 30 days: ${metrics.commits30d ?? 'unknown'}
+- Commits in last 90 days: ${metrics.commits90d ?? 'unknown'}
+- Commit authors in last 90 days: ${metrics.activeCommitAuthors90d ?? 'unknown'}
 - Days since last commit: ${days(metrics.daysSinceLastCommit)}
 - Days since last release: ${days(metrics.daysSinceLastRelease)}
+
+DETERMINISTIC MAINTENANCE ASSESSMENT
+- Verdict: ${maintenanceAssessment.verdict}
+- Confidence: ${Math.round(maintenanceAssessment.confidence * 100)}%
+- Score: ${maintenanceAssessment.score}/100
+- Signals: commit recency ${maintenanceAssessment.signals.commitRecency}, commit velocity ${maintenanceAssessment.signals.commitVelocity}, issue responsiveness ${maintenanceAssessment.signals.issueResponsiveness}, PR activity ${maintenanceAssessment.signals.prActivity}, release recency ${maintenanceAssessment.signals.releaseRecency}
+- Reasons:
+${maintenanceAssessment.reasons.map(reason => `  - ${reason}`).join('\n')}
 
 COMMUNITY FILES
 - Contributing guide: ${metrics.hasCommunityFiles.contributingGuide ? 'yes' : 'no'}
@@ -108,8 +114,21 @@ export async function analyzeRepoIntel(
   apiKey: string,
 ): Promise<Omit<RepoIntel, 'id' | 'repoFullName' | 'analyzedAt'>> {
   const openrouter = createOpenRouter({ apiKey })
+  const maintenanceAssessment = metrics.maintenanceAssessment ?? {
+    verdict: 'lightly-maintained' as MaintenanceVerdict,
+    confidence: 0.35,
+    score: 45,
+    reasons: ['Maintenance assessment was unavailable for this cached record.'],
+    signals: {
+      commitRecency: 'unknown' as const,
+      commitVelocity: 'unknown' as const,
+      issueResponsiveness: 'unknown' as const,
+      prActivity: 'unknown' as const,
+      releaseRecency: 'unknown' as const,
+    },
+  }
 
-  const prompt = formatMetricsForPrompt(repoFullName, metrics, issueSamples, contributorCount)
+  const prompt = formatMetricsForPrompt(repoFullName, metrics, issueSamples, contributorCount, maintenanceAssessment)
 
   const { object } = await generateObject({
     model: openrouter(MODEL),
@@ -119,13 +138,13 @@ export async function analyzeRepoIntel(
       functionId: 'repo-intel-analysis',
       metadata: { repoFullName },
     },
-    system: `You are an expert open-source project analyst. Given structured health metrics and a sample of open issues for a GitHub repository, produce a concise, data-driven analysis. Be honest — if a project looks abandoned or unhealthy, say so clearly. Avoid generic statements.`,
+    system: `You are an expert open-source project analyst. Given structured health metrics, a deterministic maintenance assessment, and a sample of open issues for a GitHub repository, produce a concise, data-driven analysis. Use the deterministic maintenance verdict as fixed input; do not override it. Be honest — if a project looks abandoned or unhealthy, say so clearly. Avoid generic statements.`,
     prompt,
   })
 
   return {
     healthScore: object.healthScore,
-    maintenanceVerdict: object.maintenanceVerdict as MaintenanceVerdict,
+    maintenanceVerdict: maintenanceAssessment.verdict,
     communitySentiment: object.communitySentiment as CommunitySentiment,
     adoptionReadiness: object.adoptionReadiness as AdoptionReadiness,
     topPainPoints: object.topPainPoints,
