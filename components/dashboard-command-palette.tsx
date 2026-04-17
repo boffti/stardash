@@ -19,7 +19,6 @@ import type { Collection, StarredRepo, Tag as RepoTag } from "@/lib/types"
 import type { RepoHealthFilter } from "@/lib/repo-health"
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -35,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { useCommandPaletteShortcut } from "@/components/use-command-palette-shortcut"
 
 interface DashboardCommandPaletteProps {
   open: boolean
@@ -79,17 +79,12 @@ const sortLabels: Record<string, string> = {
   "name-asc": "Name A-Z",
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
-  return Boolean(
-    target.closest(
-      'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
-    )
-  )
-}
-
 function includesQuery(value: string | undefined | null, query: string) {
   return Boolean(value?.toLowerCase().includes(query))
+}
+
+function matchesPaletteQuery(label: string, query: string) {
+  return !query || label.toLowerCase().includes(query)
 }
 
 export function DashboardCommandPalette({
@@ -125,19 +120,7 @@ export function DashboardCommandPalette({
 }: DashboardCommandPaletteProps) {
   const [query, setQuery] = useState("")
   const [selectedValue, setSelectedValue] = useState("")
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        if (!open && isEditableTarget(event.target)) return
-        event.preventDefault()
-        onOpenChange(!open)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [open, onOpenChange])
+  useCommandPaletteShortcut(open, onOpenChange)
 
   useEffect(() => {
     if (!open) {
@@ -176,6 +159,100 @@ export function DashboardCommandPalette({
       .slice(0, RESULT_LIMIT)
   }, [filteredRepos, normalizedQuery, repos])
 
+  const quickActions = useMemo(() => ([
+    {
+      value: "refresh-stars",
+      label: "Refresh starred repositories",
+      searchText: "refresh starred repositories sync",
+      shortcut: "Sync",
+      icon: RefreshCw,
+      onSelect: () => onRefresh(),
+      iconClassName: isRefreshing ? "animate-spin" : "",
+    },
+    {
+      value: "auto-categorize",
+      label: "Auto-categorize with AI",
+      searchText: "auto categorize with ai sparkles",
+      shortcut: "AI",
+      icon: Sparkles,
+      onSelect: () => onCategorize(),
+      iconClassName: isCategorizing ? "animate-pulse" : "",
+    },
+    {
+      value: `view-${viewMode === "grid" ? "list" : "grid"}`,
+      label: `Switch to ${viewMode === "grid" ? "list" : "grid"} view`,
+      searchText: `switch to ${viewMode === "grid" ? "list" : "grid"} view`,
+      shortcut: viewMode === "grid" ? "List" : "Grid",
+      icon: viewMode === "grid" ? List : LayoutGrid,
+      onSelect: () => onViewModeChange(viewMode === "grid" ? "list" : "grid"),
+      iconClassName: "",
+    },
+    {
+      value: "clear-filters",
+      label: "Clear active filters",
+      searchText: "clear active filters reset",
+      shortcut: hasActiveFilters ? "Reset" : "Idle",
+      icon: SlidersHorizontal,
+      onSelect: onClearFilters,
+      iconClassName: "",
+      disabled: !hasActiveFilters,
+    },
+  ]), [
+    hasActiveFilters,
+    isCategorizing,
+    isRefreshing,
+    onCategorize,
+    onClearFilters,
+    onRefresh,
+    onViewModeChange,
+    viewMode,
+  ])
+
+  const visibleQuickActions = useMemo(() => {
+    return quickActions.filter((action) => matchesPaletteQuery(action.searchText, normalizedQuery))
+  }, [normalizedQuery, quickActions])
+
+  const visibleSortOptions = useMemo(() => {
+    return Object.entries(sortLabels)
+      .map(([value, label]) => ({ value, label }))
+      .filter((option) => matchesPaletteQuery(option.label, normalizedQuery))
+  }, [normalizedQuery])
+
+  const visibleLanguages = useMemo(() => {
+    const options = [
+      { value: null as string | null, label: "All languages", commandValue: "language-all" },
+      ...languages.map((language) => ({
+        value: language,
+        label: language,
+        commandValue: `language-${language}`,
+      })),
+    ]
+    return options.filter((option) => matchesPaletteQuery(option.label, normalizedQuery))
+  }, [languages, normalizedQuery])
+
+  const visibleCollections = useMemo(() => {
+    return collections.filter((collection) => (
+      matchesPaletteQuery(`${collection.name} ${collection.emoji ?? ""}`, normalizedQuery)
+    ))
+  }, [collections, normalizedQuery])
+
+  const visibleTags = useMemo(() => {
+    return tags
+      .filter((tag) => matchesPaletteQuery(tag.label, normalizedQuery))
+      .slice(0, 24)
+  }, [normalizedQuery, tags])
+
+  const visibleHealthOptions = useMemo(() => {
+    const healthOptions: Array<{ value: RepoHealthFilter | null; label: string; commandValue: string }> = [
+      { value: null, label: "All health states", commandValue: "health-all" },
+      { value: "archived", label: "Archived repositories", commandValue: "health-archived" },
+      { value: "dormant", label: "Dormant repositories", commandValue: "health-dormant" },
+    ]
+    return healthOptions.filter((option) => matchesPaletteQuery(option.label, normalizedQuery))
+  }, [normalizedQuery])
+
+  const visibleSpecialFilters = matchesPaletteQuery("show uncategorized repositories", normalizedQuery)
+
   const orderedItemMatches = useMemo(() => {
     const matches: Array<{ value: string; matchesQuery: boolean }> = []
 
@@ -186,97 +263,53 @@ export function DashboardCommandPalette({
       })
     }
 
-    matches.push(
-      {
-        value: "refresh-stars",
-        matchesQuery: "refresh starred repositories sync".includes(normalizedQuery),
-      },
-      {
-        value: "auto-categorize",
-        matchesQuery: "auto categorize with ai sparkles".includes(normalizedQuery),
-      },
-      {
-        value: `view-${viewMode === "grid" ? "list" : "grid"}`,
-        matchesQuery: `switch to ${viewMode === "grid" ? "list" : "grid"} view`.includes(normalizedQuery),
-      },
-      {
-        value: "clear-filters",
-        matchesQuery: hasActiveFilters && "clear active filters reset".includes(normalizedQuery),
-      }
-    )
-
-    Object.entries(sortLabels).forEach(([value, label]) => {
-      matches.push({
-        value: `sort-${value}`,
-        matchesQuery: label.toLowerCase().includes(normalizedQuery),
-      })
+    visibleQuickActions.forEach((action) => {
+      matches.push({ value: action.value, matchesQuery: true })
     })
 
-    matches.push({
-      value: "language-all",
-      matchesQuery: "all languages".includes(normalizedQuery),
+    visibleSortOptions.forEach((option) => {
+      matches.push({ value: `sort-${option.value}`, matchesQuery: true })
     })
 
-    languages.forEach((language) => {
-      matches.push({
-        value: `language-${language}`,
-        matchesQuery: language.toLowerCase().includes(normalizedQuery),
-      })
+    visibleLanguages.forEach((option) => {
+      matches.push({ value: option.commandValue, matchesQuery: true })
     })
 
-    collections.forEach((collection) => {
-      matches.push({
-        value: `collection-${collection.name}`,
-        matchesQuery: `${collection.name} ${collection.emoji ?? ""}`.toLowerCase().includes(normalizedQuery),
-      })
+    visibleCollections.forEach((collection) => {
+      matches.push({ value: `collection-${collection.name}`, matchesQuery: true })
     })
 
-    tags.slice(0, 24).forEach((tag) => {
-      matches.push({
-        value: `tag-${tag.label}`,
-        matchesQuery: tag.label.toLowerCase().includes(normalizedQuery),
-      })
+    visibleTags.forEach((tag) => {
+      matches.push({ value: `tag-${tag.label}`, matchesQuery: true })
     })
 
-    matches.push(
-      {
-        value: "health-all",
-        matchesQuery: "all health states".includes(normalizedQuery),
-      },
-      {
-        value: "health-archived",
-        matchesQuery: "archived repositories".includes(normalizedQuery),
-      },
-      {
-        value: "health-dormant",
-        matchesQuery: "dormant repositories".includes(normalizedQuery),
-      },
-      {
-        value: "uncategorized",
-        matchesQuery: "show uncategorized repositories".includes(normalizedQuery),
-      }
-    )
+    visibleHealthOptions.forEach((option) => {
+      matches.push({ value: option.commandValue, matchesQuery: true })
+    })
+
+    if (visibleSpecialFilters) {
+      matches.push({ value: "uncategorized", matchesQuery: true })
+    }
 
     visibleRepos.forEach((repo) => {
       matches.push({
         value: `repo-${repo.owner}-${repo.name}`,
-        matchesQuery: [
-          repo.owner,
-          repo.name,
-          repo.description,
-          repo.notes,
-          repo.language,
-          ...repo.tags.map((tag) => tag.label),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery),
+        matchesQuery: true,
       })
     })
 
     return matches
-  }, [collections, hasActiveFilters, languages, normalizedQuery, query, tags, viewMode, visibleRepos])
+  }, [
+    query,
+    visibleCollections,
+    visibleHealthOptions,
+    visibleLanguages,
+    visibleQuickActions,
+    visibleRepos,
+    visibleSortOptions,
+    visibleSpecialFilters,
+    visibleTags,
+  ])
 
   useEffect(() => {
     if (!open) return
@@ -375,79 +408,68 @@ export function DashboardCommandPalette({
               </CommandGroup>
             )}
 
-            <CommandGroup heading="Quick Actions">
-              <CommandItem value="refresh-stars" onSelect={() => runAndClose(onRefresh)} className="rounded-md">
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                <span className="flex-1">Refresh starred repositories</span>
-                <CommandShortcut>Sync</CommandShortcut>
-              </CommandItem>
-              <CommandItem value="auto-categorize" onSelect={() => runAndClose(onCategorize)} className="rounded-md">
-                <Sparkles className={`h-4 w-4 ${isCategorizing ? "animate-pulse" : ""}`} />
-                <span className="flex-1">Auto-categorize with AI</span>
-                <CommandShortcut>AI</CommandShortcut>
-              </CommandItem>
-              <CommandItem
-                value={`view-${viewMode === "grid" ? "list" : "grid"}`}
-                onSelect={() => runAndClose(() => onViewModeChange(viewMode === "grid" ? "list" : "grid"))}
-                className="rounded-md"
-              >
-                {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-                <span className="flex-1">Switch to {viewMode === "grid" ? "list" : "grid"} view</span>
-                <CommandShortcut>{viewMode === "grid" ? "List" : "Grid"}</CommandShortcut>
-              </CommandItem>
-              <CommandItem
-                value="clear-filters"
-                onSelect={() => runAndClose(onClearFilters)}
-                disabled={!hasActiveFilters}
-                className="rounded-md"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="flex-1">Clear active filters</span>
-                <CommandShortcut>{hasActiveFilters ? "Reset" : "Idle"}</CommandShortcut>
-              </CommandItem>
-            </CommandGroup>
+            {visibleQuickActions.length > 0 && (
+              <CommandGroup heading="Quick Actions">
+                {visibleQuickActions.map((action) => {
+                  const Icon = action.icon
+                  return (
+                    <CommandItem
+                      key={action.value}
+                      value={action.value}
+                      onSelect={() => runAndClose(action.onSelect)}
+                      disabled={action.disabled}
+                      className="rounded-md"
+                    >
+                      <Icon className={`h-4 w-4 ${action.iconClassName}`} />
+                      <span className="flex-1">{action.label}</span>
+                      <CommandShortcut>{action.shortcut}</CommandShortcut>
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            )}
 
-            <CommandSeparator />
+            {visibleQuickActions.length > 0 && visibleSortOptions.length > 0 && <CommandSeparator />}
 
-            <CommandGroup heading="Sort">
-              {Object.entries(sortLabels).map(([value, label]) => (
-                <CommandItem
-                  key={value}
-                  value={`sort-${value}`}
-                  onSelect={() => runAndClose(() => onSortChange(value))}
-                  className="rounded-md"
-                >
-                  <Check className={`h-4 w-4 ${sortBy === value ? "opacity-100" : "opacity-0"}`} />
-                  <span className="flex-1">{label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {visibleSortOptions.length > 0 && (
+              <CommandGroup heading="Sort">
+                {visibleSortOptions.map(({ value, label }) => (
+                  <CommandItem
+                    key={value}
+                    value={`sort-${value}`}
+                    onSelect={() => runAndClose(() => onSortChange(value))}
+                    className="rounded-md"
+                  >
+                    <Check className={`h-4 w-4 ${sortBy === value ? "opacity-100" : "opacity-0"}`} />
+                    <span className="flex-1">{label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
 
-            <CommandSeparator />
+            {visibleSortOptions.length > 0 && visibleLanguages.length > 0 && <CommandSeparator />}
 
-            <CommandGroup heading="Languages">
-              <CommandItem value="language-all" onSelect={() => selectLanguage(null)} className="rounded-md">
-                <Check className={`h-4 w-4 ${languageFilter === null ? "opacity-100" : "opacity-0"}`} />
-                <span className="flex-1">All languages</span>
-              </CommandItem>
-              {languages.map((language) => (
-                <CommandItem
-                  key={language}
-                  value={`language-${language}`}
-                  onSelect={() => selectLanguage(language)}
-                  className="rounded-md"
-                >
-                  <Check className={`h-4 w-4 ${languageFilter === language ? "opacity-100" : "opacity-0"}`} />
-                  <span className="flex-1">{language}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {visibleLanguages.length > 0 && (
+              <CommandGroup heading="Languages">
+                {visibleLanguages.map((option) => (
+                  <CommandItem
+                    key={option.commandValue}
+                    value={option.commandValue}
+                    onSelect={() => selectLanguage(option.value)}
+                    className="rounded-md"
+                  >
+                    <Check className={`h-4 w-4 ${languageFilter === option.value ? "opacity-100" : "opacity-0"}`} />
+                    <span className="flex-1">{option.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
 
-            {collections.length > 0 && (
+            {visibleCollections.length > 0 && (
               <>
                 <CommandSeparator />
                 <CommandGroup heading="Collections">
-                  {collections.map((collection) => (
+                  {visibleCollections.map((collection) => (
                     <CommandItem
                       key={collection.id}
                       value={`collection-${collection.name}`}
@@ -465,11 +487,11 @@ export function DashboardCommandPalette({
               </>
             )}
 
-            {tags.length > 0 && (
+            {visibleTags.length > 0 && (
               <>
                 <CommandSeparator />
                 <CommandGroup heading="Tags">
-                  {tags.slice(0, 24).map((tag) => (
+                  {visibleTags.map((tag) => (
                     <CommandItem
                       key={tag.id}
                       value={`tag-${tag.label}`}
@@ -485,77 +507,87 @@ export function DashboardCommandPalette({
               </>
             )}
 
-            <CommandSeparator />
+            {visibleHealthOptions.length > 0 && (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading="Health">
+                  {visibleHealthOptions.map((option) => (
+                    <CommandItem
+                      key={option.commandValue}
+                      value={option.commandValue}
+                      onSelect={() => selectHealthFilter(option.value)}
+                      className="rounded-md"
+                    >
+                      <Check className={`h-4 w-4 ${healthFilter === option.value ? "opacity-100" : "opacity-0"}`} />
+                      <span className="flex-1">{option.label}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
 
-            <CommandGroup heading="Health">
-              <CommandItem value="health-all" onSelect={() => selectHealthFilter(null)} className="rounded-md">
-                <Check className={`h-4 w-4 ${healthFilter === null ? "opacity-100" : "opacity-0"}`} />
-                <span className="flex-1">All health states</span>
-              </CommandItem>
-              <CommandItem value="health-archived" onSelect={() => selectHealthFilter("archived")} className="rounded-md">
-                <Check className={`h-4 w-4 ${healthFilter === "archived" ? "opacity-100" : "opacity-0"}`} />
-                <span className="flex-1">Archived repositories</span>
-              </CommandItem>
-              <CommandItem value="health-dormant" onSelect={() => selectHealthFilter("dormant")} className="rounded-md">
-                <Check className={`h-4 w-4 ${healthFilter === "dormant" ? "opacity-100" : "opacity-0"}`} />
-                <span className="flex-1">Dormant repositories</span>
-              </CommandItem>
-            </CommandGroup>
+            {visibleSpecialFilters && (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading="Special Filters">
+                  <CommandItem
+                    value="uncategorized"
+                    onSelect={toggleUncategorized}
+                    className="rounded-md"
+                  >
+                    <Hash className="h-4 w-4" />
+                    <span className="flex-1">Show uncategorized repositories</span>
+                    {showUncategorized && <Check className="h-4 w-4" />}
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
 
-            <CommandSeparator />
+            {visibleRepos.length > 0 && (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading={normalizedQuery ? "Matching Repositories" : "Repositories"}>
+                  {visibleRepos.map((repo) => (
+                    <CommandItem
+                      key={repo.id}
+                      value={`repo-${repo.owner}-${repo.name}`}
+                      onSelect={() => runAndClose(() => onRepoOpen(repo))}
+                      className="items-start rounded-md py-3"
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate font-medium">
+                            {repo.owner}/{repo.name}
+                          </span>
+                          {repo.isPinned && (
+                            <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                              Pinned
+                            </span>
+                          )}
+                        </div>
+                        {repo.description && (
+                          <span className="line-clamp-2 text-xs text-muted-foreground">
+                            {repo.description}
+                          </span>
+                        )}
+                      </div>
+                      <CommandShortcut>{repo.language ?? "Repo"}</CommandShortcut>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
 
-            <CommandGroup heading="Special Filters">
-              <CommandItem
-                value="uncategorized"
-                onSelect={toggleUncategorized}
-                className="rounded-md"
-              >
-                <Hash className="h-4 w-4" />
-                <span className="flex-1">Show uncategorized repositories</span>
-                {showUncategorized && <Check className="h-4 w-4" />}
-              </CommandItem>
-            </CommandGroup>
-
-            <CommandSeparator />
-
-            <CommandGroup heading={normalizedQuery ? "Matching Repositories" : "Repositories"}>
-              {visibleRepos.map((repo) => (
-                <CommandItem
-                  key={repo.id}
-                  value={`repo-${repo.owner}-${repo.name}`}
-                  onSelect={() => runAndClose(() => onRepoOpen(repo))}
-                  className="items-start rounded-md py-3"
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium">
-                        {repo.owner}/{repo.name}
-                      </span>
-                      {repo.isPinned && (
-                        <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                          Pinned
-                        </span>
-                      )}
-                    </div>
-                    {repo.description && (
-                      <span className="line-clamp-2 text-xs text-muted-foreground">
-                        {repo.description}
-                      </span>
-                    )}
-                  </div>
-                  <CommandShortcut>{repo.language ?? "Repo"}</CommandShortcut>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-
-            <CommandEmpty className="py-10">
-              <div className="space-y-2 text-center">
-                <p className="font-medium">No results for "{query.trim()}"</p>
-                <p className="text-xs text-muted-foreground">
-                  Try a repo name, a language, or a dashboard action.
-                </p>
+            {orderedItemMatches.length === 0 && (
+              <div className="py-10">
+                <div className="space-y-2 text-center">
+                  <p className="font-medium">No results for "{query.trim()}"</p>
+                  <p className="text-xs text-muted-foreground">
+                    Try a repo name, a language, or a dashboard action.
+                  </p>
+                </div>
               </div>
-            </CommandEmpty>
+            )}
           </CommandList>
         </Command>
       </DialogContent>

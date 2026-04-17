@@ -6,7 +6,6 @@ import { RefreshCw } from "lucide-react"
 import type { StarredRepo } from "@/lib/types"
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -22,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { useCommandPaletteShortcut } from "@/components/use-command-palette-shortcut"
 
 interface RepoCommandPaletteAction {
   value: string
@@ -46,17 +46,19 @@ interface RepoCommandPaletteProps {
 
 const RESULT_LIMIT = 24
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
-  return Boolean(
-    target.closest(
-      'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
-    )
-  )
-}
-
-function includesQuery(value: string | undefined | null, query: string) {
-  return Boolean(value?.toLowerCase().includes(query))
+function repoSearchText(repo: StarredRepo) {
+  return [
+    repo.owner,
+    repo.name,
+    repo.fullName,
+    repo.description,
+    repo.notes,
+    repo.language,
+    ...repo.tags.map((tag) => tag.label),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
 }
 
 export function RepoCommandPalette({
@@ -73,19 +75,7 @@ export function RepoCommandPalette({
 }: RepoCommandPaletteProps) {
   const [query, setQuery] = useState("")
   const [selectedValue, setSelectedValue] = useState("")
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        if (!open && isEditableTarget(event.target)) return
-        event.preventDefault()
-        onOpenChange(!open)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [open, onOpenChange])
+  useCommandPaletteShortcut(open, onOpenChange)
 
   useEffect(() => {
     if (!open) {
@@ -95,53 +85,51 @@ export function RepoCommandPalette({
   }, [open])
 
   const normalizedQuery = query.trim().toLowerCase()
+
+  const visibleActions = useMemo(() => {
+    if (!normalizedQuery) return actions
+    return actions.filter((action) => (
+      `${action.label} ${action.shortcut ?? ""}`.toLowerCase().includes(normalizedQuery)
+    ))
+  }, [actions, normalizedQuery])
+
   const visibleRepos = useMemo(() => {
     const matched = normalizedQuery
-      ? repos.filter((repo) => {
-          return (
-            includesQuery(repo.name, normalizedQuery) ||
-            includesQuery(repo.owner, normalizedQuery) ||
-            includesQuery(repo.description, normalizedQuery) ||
-            includesQuery(repo.notes, normalizedQuery) ||
-            includesQuery(repo.language, normalizedQuery) ||
-            repo.tags.some((tag) => includesQuery(tag.label, normalizedQuery))
-          )
-        })
+      ? repos.filter((repo) => repoSearchText(repo).includes(normalizedQuery))
       : repos
 
-    return matched.slice(0, RESULT_LIMIT)
+    return [...matched]
+      .sort((a, b) => {
+        if (!normalizedQuery) return 0
+        const aName = `${a.owner}/${a.name}`.toLowerCase()
+        const bName = `${b.owner}/${b.name}`.toLowerCase()
+        const aStarts = aName.startsWith(normalizedQuery) ? 0 : 1
+        const bStarts = bName.startsWith(normalizedQuery) ? 0 : 1
+        if (aStarts !== bStarts) return aStarts - bStarts
+        return aName.localeCompare(bName)
+      })
+      .slice(0, RESULT_LIMIT)
   }, [normalizedQuery, repos])
 
   const orderedItemMatches = useMemo(() => {
     const matches: Array<{ value: string; matchesQuery: boolean }> = []
 
-    actions.forEach((action) => {
+    visibleActions.forEach((action) => {
       matches.push({
         value: action.value,
-        matchesQuery: `${action.label} ${action.shortcut ?? ""}`.toLowerCase().includes(normalizedQuery),
+        matchesQuery: true,
       })
     })
 
     visibleRepos.forEach((repo) => {
       matches.push({
         value: `repo-${repo.owner}-${repo.name}`,
-        matchesQuery: [
-          repo.owner,
-          repo.name,
-          repo.description,
-          repo.notes,
-          repo.language,
-          ...repo.tags.map((tag) => tag.label),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery),
+        matchesQuery: true,
       })
     })
 
     return matches
-  }, [actions, normalizedQuery, visibleRepos])
+  }, [visibleActions, visibleRepos])
 
   useEffect(() => {
     if (!open) return
@@ -156,6 +144,8 @@ export function RepoCommandPalette({
     action()
     onOpenChange(false)
   }
+
+  const hasVisibleResults = visibleActions.length > 0 || visibleRepos.length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -186,10 +176,10 @@ export function RepoCommandPalette({
           />
 
           <CommandList className="max-h-[min(72vh,680px)] px-2 py-2">
-            {actions.length > 0 && (
+            {visibleActions.length > 0 && (
               <>
                 <CommandGroup heading="Quick Actions">
-                  {actions.map((action) => {
+                  {visibleActions.map((action) => {
                     const Icon = action.icon ?? RefreshCw
                     return (
                       <CommandItem
@@ -209,39 +199,43 @@ export function RepoCommandPalette({
               </>
             )}
 
-            <CommandGroup heading={normalizedQuery ? "Matching Repositories" : "Repositories"}>
-              {visibleRepos.map((repo) => (
-                <CommandItem
-                  key={repo.id}
-                  value={`repo-${repo.owner}-${repo.name}`}
-                  onSelect={() => runAndClose(() => onRepoOpen(repo))}
-                  className="items-start rounded-md py-3"
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium">
-                        {repo.owner}/{repo.name}
-                      </span>
+            {visibleRepos.length > 0 && (
+              <CommandGroup heading={normalizedQuery ? "Matching Repositories" : "Repositories"}>
+                {visibleRepos.map((repo) => (
+                  <CommandItem
+                    key={repo.id}
+                    value={`repo-${repo.owner}-${repo.name}`}
+                    onSelect={() => runAndClose(() => onRepoOpen(repo))}
+                    className="items-start rounded-md py-3"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium">
+                          {repo.owner}/{repo.name}
+                        </span>
+                      </div>
+                      {repo.description && (
+                        <span className="line-clamp-2 text-xs text-muted-foreground">
+                          {repo.description}
+                        </span>
+                      )}
                     </div>
-                    {repo.description && (
-                      <span className="line-clamp-2 text-xs text-muted-foreground">
-                        {repo.description}
-                      </span>
-                    )}
-                  </div>
-                  <CommandShortcut>{repo.language ?? "Repo"}</CommandShortcut>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+                    <CommandShortcut>{repo.language ?? "Repo"}</CommandShortcut>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
 
-            <CommandEmpty className="py-10">
-              <div className="space-y-2 text-center">
-                <p className="font-medium">No results for "{query.trim()}"</p>
-                <p className="text-xs text-muted-foreground">
-                  {emptyHint}
-                </p>
+            {!hasVisibleResults && (
+              <div className="py-10">
+                <div className="space-y-2 text-center">
+                  <p className="font-medium">No results for "{query.trim()}"</p>
+                  <p className="text-xs text-muted-foreground">
+                    {emptyHint}
+                  </p>
+                </div>
               </div>
-            </CommandEmpty>
+            )}
           </CommandList>
         </Command>
       </DialogContent>

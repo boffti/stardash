@@ -1,14 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
 import {
   Brain,
-  ArrowUpDown,
-  ArrowDown,
-  ArrowUp,
   Clock,
   Activity,
   Users,
@@ -17,6 +14,9 @@ import {
   ChevronRight,
   Sparkles,
   Search,
+  Check,
+  SlidersHorizontal,
+  ArrowRight,
   TrendingUp,
   TrendingDown,
   Zap,
@@ -30,7 +30,32 @@ import { ReadmeViewer } from "@/components/readme-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from "@/components/ui/command"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { useCommandPaletteShortcut } from "@/components/use-command-palette-shortcut"
 import {
   Accordion,
   AccordionContent,
@@ -379,11 +404,265 @@ const fetcher = (url: string) =>
     return r.json()
   })
 
+const sortLabels: Record<SortField, string> = {
+  health_score: "Health score",
+  analyzed_at: "Recently analyzed",
+  name: "Name A-Z",
+}
+
+function includesQuery(value: string | undefined | null, query: string) {
+  return Boolean(value?.toLowerCase().includes(query))
+}
+
+function IntelCommandPalette({
+  open,
+  onOpenChange,
+  intel,
+  filteredIntel,
+  search,
+  verdictFilter,
+  sortField,
+  sortDir,
+  verdictOptions,
+  onSearchChange,
+  onVerdictFilterChange,
+  onSortChange,
+  onOpenRepo,
+  onClearFilters,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  intel: RepoIntel[]
+  filteredIntel: RepoIntel[]
+  search: string
+  verdictFilter: VerdictFilter
+  sortField: SortField
+  sortDir: SortDir
+  verdictOptions: { value: VerdictFilter; label: string; dotClass: string }[]
+  onSearchChange: (query: string) => void
+  onVerdictFilterChange: (filter: VerdictFilter) => void
+  onSortChange: (field: SortField) => void
+  onOpenRepo: (repoFullName: string) => void
+  onClearFilters: () => void
+}) {
+  const [query, setQuery] = useState("")
+  const [selectedValue, setSelectedValue] = useState("")
+  useCommandPaletteShortcut(open, onOpenChange)
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("")
+      setSelectedValue("")
+    }
+  }, [open])
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const hasActiveFilters = Boolean(search || verdictFilter !== "all")
+
+  const visibleIntel = useMemo(() => {
+    const baseIntel = normalizedQuery ? intel : filteredIntel
+    const matched = normalizedQuery
+      ? intel.filter((item) => (
+          includesQuery(item.repoFullName, normalizedQuery) ||
+          includesQuery(item.summary, normalizedQuery) ||
+          includesQuery(item.recommendation, normalizedQuery) ||
+          includesQuery(item.maintenanceVerdict, normalizedQuery) ||
+          includesQuery(item.adoptionReadiness, normalizedQuery) ||
+          item.topPainPoints?.some((point) => includesQuery(point, normalizedQuery))
+        ))
+      : baseIntel
+
+    return matched.slice(0, 20)
+  }, [filteredIntel, intel, normalizedQuery])
+
+  const orderedItemMatches = useMemo(() => {
+    const matches: Array<{ value: string; matchesQuery: boolean }> = []
+
+    if (query.trim()) {
+      matches.push({ value: `search-${query}`, matchesQuery: true })
+    }
+
+    matches.push({
+      value: "clear-filters",
+      matchesQuery: hasActiveFilters && "clear active filters reset".includes(normalizedQuery),
+    })
+
+    verdictOptions.forEach((option) => {
+      matches.push({
+        value: `verdict-${option.value}`,
+        matchesQuery: option.label.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    Object.entries(sortLabels).forEach(([value, label]) => {
+      matches.push({
+        value: `sort-${value}`,
+        matchesQuery: label.toLowerCase().includes(normalizedQuery),
+      })
+    })
+
+    visibleIntel.forEach((item) => {
+      matches.push({
+        value: `repo-${item.repoFullName}`,
+        matchesQuery: [
+          item.repoFullName,
+          item.summary,
+          item.recommendation,
+          item.maintenanceVerdict,
+          item.adoptionReadiness,
+          ...(item.topPainPoints ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      })
+    })
+
+    return matches
+  }, [hasActiveFilters, normalizedQuery, query, verdictOptions, visibleIntel])
+
+  useEffect(() => {
+    if (!open) return
+    const nextSelection =
+      orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
+    setSelectedValue(nextSelection)
+  }, [open, orderedItemMatches])
+
+  const runAndClose = (action: () => void) => {
+    action()
+    onOpenChange(false)
+  }
+
+  const applySearch = () => {
+    if (!query.trim()) return
+    runAndClose(() => onSearchChange(query.trim()))
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl overflow-hidden p-0" showCloseButton={false}>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Search Repo Intel</DialogTitle>
+          <DialogDescription>
+            Search analyzed repositories, change Intel filters, and switch sort order.
+          </DialogDescription>
+        </DialogHeader>
+        <Command
+          shouldFilter={false}
+          value={selectedValue}
+          onValueChange={setSelectedValue}
+          className="rounded-none bg-popover text-popover-foreground [&_[data-slot=command-input-wrapper]]:h-14 [&_[data-slot=command-input-wrapper]]:border-b [&_[data-slot=command-input-wrapper]]:border-border/70 [&_[data-slot=command-input-wrapper]]:px-4 [&_[data-slot=command-input-wrapper]_svg]:h-4 [&_[data-slot=command-input-wrapper]_svg]:w-4 [&_[data-slot=command-input]]:h-14 [&_[data-slot=command-input]]:text-sm"
+        >
+          <div className="border-b border-border/70 bg-secondary/20">
+            <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs text-muted-foreground">
+              <span className="truncate">Search Intel reports, filters, and sort options</span>
+              <KbdGroup className="hidden shrink-0 sm:flex">
+                <Kbd>Esc</Kbd>
+                <Kbd>Enter</Kbd>
+              </KbdGroup>
+            </div>
+          </div>
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Search intel, jump to a repo, or change filters..."
+          />
+
+          <CommandList className="max-h-[min(72vh,640px)] px-2 py-2">
+            <CommandEmpty>No Intel results found.</CommandEmpty>
+
+            {query.trim() && (
+              <CommandGroup heading="Search">
+                <CommandItem value={`search-${query}`} onSelect={applySearch} className="rounded-md">
+                  <Search className="h-4 w-4" />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate">Filter Intel for "{query.trim()}"</span>
+                    <span className="text-xs text-muted-foreground">Updates the Repo Intel list</span>
+                  </div>
+                  <CommandShortcut>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </CommandShortcut>
+                </CommandItem>
+              </CommandGroup>
+            )}
+
+            <CommandGroup heading="Repositories">
+              {visibleIntel.map((item) => (
+                <CommandItem
+                  key={item.id}
+                  value={`repo-${item.repoFullName}`}
+                  onSelect={() => runAndClose(() => onOpenRepo(item.repoFullName))}
+                  className="rounded-md"
+                >
+                  <Brain className="h-4 w-4" />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-mono text-sm">{item.repoFullName}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {item.healthScore} health / {verdictConfig[item.maintenanceVerdict]?.label ?? item.maintenanceVerdict}
+                    </span>
+                  </div>
+                  <CommandShortcut>Open</CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+
+            <CommandSeparator />
+
+            <CommandGroup heading="Filters">
+              {verdictOptions.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={`verdict-${option.value}`}
+                  onSelect={() => runAndClose(() => onVerdictFilterChange(option.value))}
+                  className="rounded-md"
+                >
+                  <Check className={cn("h-4 w-4", verdictFilter === option.value ? "opacity-100" : "opacity-0")} />
+                  <span className={cn("h-1.5 w-1.5 rounded-full", option.dotClass)} />
+                  <span className="flex-1">{option.label}</span>
+                </CommandItem>
+              ))}
+              <CommandItem
+                value="clear-filters"
+                onSelect={() => runAndClose(onClearFilters)}
+                disabled={!hasActiveFilters}
+                className="rounded-md"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="flex-1">Clear Intel filters</span>
+                <CommandShortcut>{hasActiveFilters ? "Reset" : "Idle"}</CommandShortcut>
+              </CommandItem>
+            </CommandGroup>
+
+            <CommandSeparator />
+
+            <CommandGroup heading="Sort">
+              {(Object.keys(sortLabels) as SortField[]).map((field) => (
+                <CommandItem
+                  key={field}
+                  value={`sort-${field}`}
+                  onSelect={() => runAndClose(() => onSortChange(field))}
+                  className="rounded-md"
+                >
+                  <Check className={cn("h-4 w-4", sortField === field ? "opacity-100" : "opacity-0")} />
+                  <span className="flex-1">{sortLabels[field]}</span>
+                  <CommandShortcut>{sortField === field ? sortDir.toUpperCase() : ""}</CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function IntelDashboard({ user }: IntelDashboardProps) {
   const [sortField, setSortField] = useState<SortField>("health_score")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>("all")
   const [search, setSearch] = useState("")
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
@@ -504,6 +783,11 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
     }
   }
 
+  const clearIntelFilters = () => {
+    setSearch("")
+    setVerdictFilter("all")
+  }
+
   // Verdict filter pill options
   const verdictOptions: { value: VerdictFilter; label: string; dotClass: string }[] = [
     { value: "all", label: "All", dotClass: "bg-muted-foreground" },
@@ -512,6 +796,88 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
     { value: "stale", label: "Stale", dotClass: "bg-orange-500" },
     { value: "abandoned", label: "Abandoned", dotClass: "bg-rose-500" },
   ]
+
+  const searchLabel = search ? `Intel: ${search}` : "Search Intel reports and filters"
+  const desktopControlClassName =
+    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+  const mobileControlClassName =
+    "h-10 w-full rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+
+  const filterControls = allIntel.length > 0 ? (
+    <>
+      <Select value={verdictFilter} onValueChange={(value) => setVerdictFilter(value as VerdictFilter)}>
+        <SelectTrigger className={`w-36 lg:w-44 ${desktopControlClassName}`}>
+          <SelectValue placeholder="Verdict" />
+        </SelectTrigger>
+        <SelectContent>
+          {verdictOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={`${sortField}:${sortDir}`}
+        onValueChange={(value) => {
+          const [field, direction] = value.split(":") as [SortField, SortDir]
+          setSortField(field)
+          setSortDir(direction)
+        }}
+      >
+        <SelectTrigger className={`w-36 lg:w-44 ${desktopControlClassName}`}>
+          <SelectValue placeholder="Sort" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="health_score:desc">Health score high</SelectItem>
+          <SelectItem value="health_score:asc">Health score low</SelectItem>
+          <SelectItem value="analyzed_at:desc">Recently analyzed</SelectItem>
+          <SelectItem value="analyzed_at:asc">Oldest analyzed</SelectItem>
+          <SelectItem value="name:asc">Name A-Z</SelectItem>
+          <SelectItem value="name:desc">Name Z-A</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  ) : null
+
+  const mobileFilterControls = allIntel.length > 0 ? (
+    <>
+      <Select value={verdictFilter} onValueChange={(value) => setVerdictFilter(value as VerdictFilter)}>
+        <SelectTrigger className={mobileControlClassName}>
+          <SelectValue placeholder="Verdict" />
+        </SelectTrigger>
+        <SelectContent>
+          {verdictOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={`${sortField}:${sortDir}`}
+        onValueChange={(value) => {
+          const [field, direction] = value.split(":") as [SortField, SortDir]
+          setSortField(field)
+          setSortDir(direction)
+        }}
+      >
+        <SelectTrigger className={mobileControlClassName}>
+          <SelectValue placeholder="Sort" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="health_score:desc">Health score high</SelectItem>
+          <SelectItem value="health_score:asc">Health score low</SelectItem>
+          <SelectItem value="analyzed_at:desc">Recently analyzed</SelectItem>
+          <SelectItem value="analyzed_at:asc">Oldest analyzed</SelectItem>
+          <SelectItem value="name:asc">Name A-Z</SelectItem>
+          <SelectItem value="name:desc">Name Z-A</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  ) : null
 
   return (
     <SidebarProvider>
@@ -532,7 +898,15 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
         onCreateTag={async () => {}}
       />
       <SidebarInset>
-        <AppPageHeader user={user} lastSynced={null} />
+        <AppPageHeader
+          searchLabel={searchLabel}
+          searchShortcutLabel="⌘"
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          desktopControls={filterControls}
+          mobileControls={mobileFilterControls}
+          user={user}
+          lastSynced={null}
+        />
 
         {/* Animation keyframes */}
         <style>{`
@@ -588,65 +962,6 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
             </div>
           </div>
 
-          {/* ── Controls bar ── */}
-          {!isLoading && allIntel.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 border-b border-border/50 bg-muted/10 px-6 py-3">
-              {/* Search */}
-              <div className="relative min-w-44 flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-                <Input
-                  placeholder="Search repos…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="h-8 border-border/60 pl-8 text-sm focus-visible:ring-1"
-                />
-              </div>
-
-              {/* Sort buttons */}
-              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background p-0.5">
-                {(["health_score", "analyzed_at", "name"] as SortField[]).map(f => {
-                  const labels: Record<SortField, string> = { health_score: "Health", analyzed_at: "Recent", name: "Name" }
-                  const active = sortField === f
-                  const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown
-                  return (
-                    <button
-                      key={f}
-                      onClick={() => toggleSort(f)}
-                      className={cn(
-                        "flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium transition-colors",
-                        active
-                          ? "bg-foreground/8 text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {labels[f]}
-                      <Icon className="h-3 w-3" />
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Verdict pills */}
-              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background p-0.5">
-                {verdictOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setVerdictFilter(opt.value)}
-                    className={cn(
-                      "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                      verdictFilter === opt.value
-                        ? "bg-foreground/8 text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", opt.dotClass)} />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ── Content ── */}
           <div className="flex flex-1 flex-col gap-3 p-6">
             {isLoading ? (
@@ -689,6 +1004,23 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
           </div>
         </div>
       </SidebarInset>
+
+      <IntelCommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        intel={allIntel}
+        filteredIntel={filtered}
+        search={search}
+        verdictFilter={verdictFilter}
+        sortField={sortField}
+        sortDir={sortDir}
+        verdictOptions={verdictOptions}
+        onSearchChange={setSearch}
+        onVerdictFilterChange={setVerdictFilter}
+        onSortChange={toggleSort}
+        onOpenRepo={handleOpenRepo}
+        onClearFilters={clearIntelFilters}
+      />
 
       <RepoDetailPanel
         repo={selectedRepo}
