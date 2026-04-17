@@ -7,7 +7,7 @@ import {
   CheckCircle2, Activity, Clock, XCircle,
   Heart, Minus,
   ShieldCheck, TrendingUp, FlaskConical,
-  GitPullRequest, Users, GitCommit, FileCode2, BookOpen, Shield,
+  FileCode2, BookOpen, Shield,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -23,31 +23,31 @@ interface RepoIntelTabProps {
 
 const VERDICT_CONFIG: Record<MaintenanceVerdict, {
   label: string; short: string; icon: React.ElementType;
-  className: string; dotColor: string;
+  className: string; dotColor: string; softClassName: string;
 }> = {
-  'actively-maintained': { label: 'Actively Maintained', short: 'Active', icon: CheckCircle2, className: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30', dotColor: 'bg-green-600 dark:bg-green-400' },
-  'lightly-maintained': { label: 'Lightly Maintained', short: 'Light', icon: Activity, className: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30', dotColor: 'bg-yellow-600 dark:bg-yellow-400' },
-  'stale': { label: 'Stale', short: 'Stale', icon: Clock, className: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30', dotColor: 'bg-orange-600 dark:bg-orange-400' },
-  'abandoned': { label: 'Abandoned', short: 'Dead', icon: XCircle, className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30', dotColor: 'bg-red-600 dark:bg-red-400' },
+  'actively-maintained': { label: 'Actively Maintained', short: 'Active', icon: CheckCircle2, className: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30', dotColor: 'bg-green-600 dark:bg-green-400', softClassName: 'bg-green-500/10 text-green-700 dark:text-green-300' },
+  'lightly-maintained': { label: 'Lightly Maintained', short: 'Light', icon: Activity, className: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30', dotColor: 'bg-yellow-600 dark:bg-yellow-400', softClassName: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300' },
+  'stale': { label: 'Stale', short: 'Stale', icon: Clock, className: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30', dotColor: 'bg-orange-600 dark:bg-orange-400', softClassName: 'bg-orange-500/10 text-orange-700 dark:text-orange-300' },
+  'abandoned': { label: 'Abandoned', short: 'Dead', icon: XCircle, className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30', dotColor: 'bg-red-600 dark:bg-red-400', softClassName: 'bg-red-500/10 text-red-700 dark:text-red-300' },
 }
 
 const SENTIMENT_CONFIG: Record<CommunitySentiment, {
   label: string; short: string; icon: React.ElementType;
-  className: string; dotColor: string;
+  className: string; dotColor: string; softClassName: string;
 }> = {
-  'positive': { label: 'Positive', short: 'Positive', icon: Heart, className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', dotColor: 'bg-emerald-600 dark:bg-emerald-400' },
-  'mixed': { label: 'Mixed', short: 'Mixed', icon: Minus, className: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30', dotColor: 'bg-zinc-500 dark:bg-zinc-400' },
-  'frustrated': { label: 'Frustrated', short: 'Frustrated', icon: AlertTriangle, className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30', dotColor: 'bg-red-600 dark:bg-red-400' },
+  'positive': { label: 'Positive', short: 'Positive', icon: Heart, className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', dotColor: 'bg-emerald-600 dark:bg-emerald-400', softClassName: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+  'mixed': { label: 'Mixed', short: 'Mixed', icon: Minus, className: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30', dotColor: 'bg-zinc-500 dark:bg-zinc-400', softClassName: 'bg-zinc-500/10 text-zinc-700 dark:text-zinc-300' },
+  'frustrated': { label: 'Frustrated', short: 'Frustrated', icon: AlertTriangle, className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30', dotColor: 'bg-red-600 dark:bg-red-400', softClassName: 'bg-red-500/10 text-red-700 dark:text-red-300' },
 }
 
 const ADOPTION_CONFIG: Record<AdoptionReadiness, {
   label: string; short: string; icon: React.ElementType;
-  className: string; dotColor: string;
+  className: string; dotColor: string; softClassName: string;
 }> = {
-  'production-ready': { label: 'Production Ready', short: 'Prod Ready', icon: ShieldCheck, className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30', dotColor: 'bg-blue-600 dark:bg-blue-400' },
-  'maturing': { label: 'Maturing', short: 'Maturing', icon: TrendingUp, className: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/30', dotColor: 'bg-violet-600 dark:bg-violet-400' },
-  'experimental': { label: 'Experimental', short: 'Experimental', icon: FlaskConical, className: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30', dotColor: 'bg-orange-600 dark:bg-orange-400' },
-  'deprecated': { label: 'Deprecated', short: 'Deprecated', icon: XCircle, className: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30', dotColor: 'bg-zinc-500 dark:bg-zinc-400' },
+  'production-ready': { label: 'Production Ready', short: 'Prod Ready', icon: ShieldCheck, className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30', dotColor: 'bg-blue-600 dark:bg-blue-400', softClassName: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
+  'maturing': { label: 'Maturing', short: 'Maturing', icon: TrendingUp, className: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/30', dotColor: 'bg-violet-600 dark:bg-violet-400', softClassName: 'bg-violet-500/10 text-violet-700 dark:text-violet-300' },
+  'experimental': { label: 'Experimental', short: 'Experimental', icon: FlaskConical, className: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30', dotColor: 'bg-orange-600 dark:bg-orange-400', softClassName: 'bg-orange-500/10 text-orange-700 dark:text-orange-300' },
+  'deprecated': { label: 'Deprecated', short: 'Deprecated', icon: XCircle, className: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30', dotColor: 'bg-zinc-500 dark:bg-zinc-400', softClassName: 'bg-zinc-500/10 text-zinc-700 dark:text-zinc-300' },
 }
 
 // ─── Health score ring (animated count-up + glow) ─────────────────────────────
@@ -56,6 +56,12 @@ function HealthScoreRing({ score }: { score: number }) {
   const [display, setDisplay] = useState(0)
 
   useEffect(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReducedMotion) {
+      setDisplay(score)
+      return
+    }
+
     const start = performance.now()
     const duration = 900
     const raf = (now: number) => {
@@ -79,7 +85,7 @@ function HealthScoreRing({ score }: { score: number }) {
 
   return (
     <div className="flex items-center gap-4">
-      <div className="relative flex items-center justify-center" style={{ width: 88, height: 88 }}>
+      <div className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center">
         <div className="absolute inset-3 rounded-full blur-lg" style={{ background: glowColor }} />
         <svg className="absolute inset-0 -rotate-90" width="88" height="88">
           <circle cx="44" cy="44" r={radius} fill="none" stroke="currentColor" strokeWidth="5" className="text-border" />
@@ -100,10 +106,10 @@ function HealthScoreRing({ score }: { score: number }) {
           <span className="text-[9px] text-muted-foreground/80 mt-0.5 tracking-wider">/ 100</span>
         </div>
       </div>
-      <div className="flex flex-col gap-0.5">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Health Score</p>
-        <p className={cn("text-base font-semibold leading-tight", textColor)}>{label}</p>
-        <p className="text-[11px] text-muted-foreground/60 mt-0.5">AI-powered analysis</p>
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Health Score</p>
+        <p className={cn("text-lg font-semibold leading-tight", textColor)}>{label}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">AI synthesis of maintenance, community, and release signals.</p>
       </div>
     </div>
   )
@@ -111,18 +117,22 @@ function HealthScoreRing({ score }: { score: number }) {
 
 // ─── Status cell (3-column classification strip) ──────────────────────────────
 
-function StatusCell({ category, value, className, dotColor }: {
+function StatusCell({ category, value, className, dotColor, icon: Icon }: {
   category: string
   value: string
   className: string
   dotColor: string
+  icon: React.ElementType
 }) {
   return (
-    <div className={cn("flex-1 rounded-lg border px-2.5 py-2 min-w-0", className)}>
-      <p className="text-[9px] uppercase tracking-widest opacity-60 mb-1 leading-none">{category}</p>
-      <div className="flex items-center gap-1.5">
-        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotColor)} />
-        <p className="text-[11px] font-medium leading-tight truncate">{value}</p>
+    <div className={cn("min-w-0 rounded-lg border px-3 py-2.5 transition-colors", className)}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.16em] opacity-70">{category}</p>
+        <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden="true" />
+      </div>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
+        <p className="min-w-0 text-xs font-semibold leading-snug">{value}</p>
       </div>
     </div>
   )
@@ -137,11 +147,11 @@ function SignalBar({ label, value, fill, fillColor }: {
   fillColor?: string
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 leading-none mb-1.5">{label}</p>
-      <p className="text-sm font-semibold font-mono tabular-nums leading-none mb-2">{value}</p>
+    <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
+      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground leading-none">{label}</p>
+      <p className="mb-2 text-base font-semibold font-mono tabular-nums leading-none text-foreground">{value}</p>
       {fill !== undefined && (
-        <div className="h-[3px] rounded-full bg-border overflow-hidden">
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
           <div
             className={cn("h-full rounded-full", fillColor ?? "bg-primary")}
             style={{ width: `${Math.round(fill * 100)}%`, transition: 'width 0.8s ease-out' }}
@@ -157,7 +167,7 @@ function SignalBar({ label, value, fill, fillColor }: {
 function HealthPill({ label, icon: Icon, present }: { label: string; icon: React.ElementType; present: boolean }) {
   return (
     <div className={cn(
-      "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[10px] font-medium border",
+      "flex min-h-9 items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium border",
       present
         ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/25"
         : "bg-muted/30 text-muted-foreground/60 border-border"
@@ -172,8 +182,8 @@ function HealthPill({ label, icon: Icon, present }: { label: string; icon: React
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 mb-2">
-      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/60 shrink-0">{children}</p>
+    <div className="mb-2.5 flex items-center gap-2">
+      <p className="shrink-0 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{children}</p>
       <div className="flex-1 h-px bg-border/50" />
     </div>
   )
@@ -260,15 +270,15 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3 py-2 animate-pulse">
-        <div className="h-24 rounded-xl bg-muted/30" />
-        <div className="flex gap-2">
-          <div className="flex-1 h-12 rounded-lg bg-muted/20" />
-          <div className="flex-1 h-12 rounded-lg bg-muted/20" />
-          <div className="flex-1 h-12 rounded-lg bg-muted/20" />
+      <div className="flex flex-col gap-4 py-2 animate-pulse">
+        <div className="h-32 rounded-xl bg-muted/30" />
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
+          <div className="h-20 rounded-lg bg-muted/20" />
+          <div className="h-20 rounded-lg bg-muted/20" />
+          <div className="h-20 rounded-lg bg-muted/20" />
         </div>
-        <div className="h-16 rounded-xl bg-muted/20" />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="h-20 rounded-xl bg-muted/20" />
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 rounded-lg bg-muted/20" />
           ))}
@@ -294,7 +304,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
             {error?.message ?? 'Something went wrong. Please try again.'}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="min-h-10 gap-2">
           <RefreshCw className="h-3.5 w-3.5" />
           Try Again
         </Button>
@@ -306,6 +316,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const verdictCfg  = VERDICT_CONFIG[intel.maintenanceVerdict]
   const sentimentCfg = SENTIMENT_CONFIG[intel.communitySentiment]
   const adoptionCfg  = ADOPTION_CONFIG[intel.adoptionReadiness]
+  const AdoptionIcon = adoptionCfg.icon
   const { metrics }  = intel
   const assessment = metrics.maintenanceAssessment
 
@@ -313,44 +324,51 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
     r >= 0.7 ? 'bg-emerald-500' : r >= 0.4 ? 'bg-yellow-500' : 'bg-red-500'
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-4">
 
       {/* ── Score hero ──────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-gradient-to-br from-muted/40 to-muted/10 px-4 py-3.5">
-        <HealthScoreRing score={intel.healthScore} />
+      <div className="overflow-hidden rounded-xl border border-border/80 bg-background shadow-sm shadow-black/5">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+          <HealthScoreRing score={intel.healthScore} />
+          <div className={cn("inline-flex w-fit items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold", adoptionCfg.softClassName)}>
+            <AdoptionIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            {adoptionCfg.label}
+          </div>
+        </div>
+        <div className="border-t border-border/60 bg-muted/20 px-4 py-3">
+          <p className="text-sm leading-relaxed text-muted-foreground">{intel.summary}</p>
+        </div>
       </div>
 
       {/* ── Classification strip ────────────────────────────────────────── */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
         <StatusCell
           category="Maintenance"
           value={verdictCfg.label}
           className={verdictCfg.className}
           dotColor={verdictCfg.dotColor}
+          icon={verdictCfg.icon}
         />
         <StatusCell
           category="Community"
           value={sentimentCfg.label}
           className={sentimentCfg.className}
           dotColor={sentimentCfg.dotColor}
+          icon={sentimentCfg.icon}
         />
         <StatusCell
           category="Adoption"
           value={adoptionCfg.label}
           className={adoptionCfg.className}
           dotColor={adoptionCfg.dotColor}
+          icon={adoptionCfg.icon}
         />
-      </div>
-
-      {/* ── AI Summary ──────────────────────────────────────────────────── */}
-      <div className="border-l-2 border-muted-foreground/20 pl-3.5 py-0.5">
-        <p className="text-xs leading-relaxed text-muted-foreground">{intel.summary}</p>
       </div>
 
       {/* ── Key signals ─────────────────────────────────────────────────── */}
       <div>
         <SectionLabel>Key Signals</SectionLabel>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
           <SignalBar
             label="Issue Close Rate"
             value={pct(metrics.issueCloseRate)}
@@ -407,17 +425,21 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       {assessment && (
         <div>
           <SectionLabel>Maintenance Rationale</SectionLabel>
-          <div className="rounded-lg border border-border bg-muted/15 px-3 py-2.5">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">
-                Confidence {Math.round(assessment.confidence * 100)}%
-              </p>
-              <p className="font-mono text-xs text-muted-foreground">{assessment.score}/100</p>
+          <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
+            <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
+              <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">Maintenance Score</p>
+                <p className="mt-1 font-mono text-base font-semibold tabular-nums text-foreground">{assessment.score}/100</p>
+              </div>
+              <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">Scoring Confidence</p>
+                <p className="mt-1 font-mono text-base font-semibold tabular-nums text-foreground">{Math.round(assessment.confidence * 100)}%</p>
+              </div>
             </div>
             <ul className="flex flex-col gap-1.5">
               {assessment.reasons.slice(0, 4).map((reason, i) => (
-                <li key={i} className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+                <li key={i} className="flex gap-2.5 text-xs leading-relaxed text-muted-foreground">
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden="true" />
                   <span>{reason}</span>
                 </li>
               ))}
@@ -442,11 +464,11 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           <SectionLabel>Known Pain Points</SectionLabel>
           <ul className="flex flex-col gap-2">
             {intel.topPainPoints.map((point, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <span className="mt-0.5 flex-none h-4 w-4 rounded bg-orange-500/15 border border-orange-500/25 flex items-center justify-center text-[9px] font-bold font-mono text-orange-700 dark:text-orange-400 leading-none">
+              <li key={i} className="flex items-start gap-2.5 rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2.5">
+                <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border border-orange-500/25 bg-orange-500/15 font-mono text-[10px] font-bold leading-none text-orange-700 dark:text-orange-400">
                   {i + 1}
                 </span>
-                <p className="text-xs text-muted-foreground leading-relaxed">{point}</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">{point}</p>
               </li>
             ))}
           </ul>
@@ -454,23 +476,24 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       )}
 
       {/* ── Recommendation ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-blue-500/25 bg-gradient-to-br from-blue-500/8 to-transparent px-4 py-3 flex gap-3">
-        <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+      <div className="flex gap-3 rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 py-3 dark:bg-blue-500/8">
+        <Zap className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
         <div>
-          <p className="text-[9px] uppercase tracking-widest text-blue-700 dark:text-blue-400 opacity-70 mb-1">Recommendation</p>
-          <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">{intel.recommendation}</p>
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-blue-700/80 dark:text-blue-400/80">Recommendation</p>
+          <p className="text-sm leading-relaxed text-blue-900 dark:text-blue-100">{intel.recommendation}</p>
         </div>
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground/60 pt-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs text-muted-foreground">
         <span>
           {data?.cached === false ? 'Fresh · ' : 'Cached · '}
           Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
         </span>
         <button
           onClick={handleRefresh}
-          className="flex items-center gap-1 hover:text-muted-foreground/70 transition-colors"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          type="button"
         >
           <RefreshCw className="h-3 w-3" />
           Refresh

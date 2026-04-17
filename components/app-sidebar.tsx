@@ -13,7 +13,7 @@ import {
   Search,
   Sparkles,
   Settings,
-  Brain,
+  Radar,
 } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
 import Link from "next/link"
@@ -242,7 +242,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isIntelRoute}>
                   <Link href="/intel">
-                    <Brain className="h-4 w-4" />
+                    <Radar className="h-4 w-4" />
                     <span>Intel</span>
                   </Link>
                 </SidebarMenuButton>
