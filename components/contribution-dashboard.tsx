@@ -85,7 +85,7 @@ type SelectableType = ContributionType | "all"
 type SelectableDifficulty = ContributionDifficulty | "all"
 
 const CONTRIBUTION_CACHE_TTL_MS = 60 * 60 * 1000
-const CONTRIBUTION_CACHE_PREFIX = "stardash-contribution-opportunities"
+const CONTRIBUTION_CACHE_PREFIX = "stardash-contribution-opportunities-v2"
 const ISSUE_DISCOVERY_REPO_LIMIT = 120
 const ISSUE_SCAN_REPO_LIMIT = 40
 

@@ -78,6 +78,8 @@ const BUG_LABELS = ['bug', 'fix', 'defect']
 const FEATURE_LABELS = ['enhancement', 'feature', 'request']
 const FRONTEND_HINTS = ['ui', 'ux', 'css', 'frontend', 'react', 'next', 'component']
 const BACKEND_HINTS = ['api', 'server', 'database', 'backend', 'auth', 'postgres']
+const VAGUE_HINTS = ['needs discussion', 'needs design', 'proposal', 'investigate', 'research', 'tracking']
+const SMALL_SCOPE_HINTS = ['typo', 'readme', 'docs', 'example', 'copy', 'label', 'lint', 'test', 'snapshot']
 
 function normalize(value: string) {
   return value.toLowerCase().trim()
@@ -144,9 +146,10 @@ function scoreIssue(
   contributionTypes: ContributionType[],
 ) {
   const labels = issue.labels.map((label) => normalize(label.name))
+  const text = normalize(`${issue.title} ${issue.body ?? ''} ${labels.join(' ')}`)
   const bodyLength = issue.body?.trim().length ?? 0
   const updatedDaysAgo = (Date.now() - new Date(issue.updated_at).getTime()) / (1000 * 60 * 60 * 24)
-  let score = 45
+  let score = 38
   const fitReasons: string[] = []
   const qualitySignals: string[] = []
   const risks: string[] = []
@@ -172,28 +175,77 @@ function scoreIssue(
     fitReasons.push(`Fits ${difficulty} difficulty`)
   }
 
-  if (bodyLength >= 180) {
+  if (difficulty === 'beginner') {
+    score += 8
+  } else if (difficulty === 'advanced') {
+    score -= 8
+  }
+
+  if (bodyLength >= 900) {
+    score += 13
+    qualitySignals.push('Issue has substantial context')
+  } else if (bodyLength >= 360) {
     score += 10
     qualitySignals.push('Issue has enough context to start investigating')
+  } else if (bodyLength >= 180) {
+    score += 6
+    qualitySignals.push('Issue has basic context')
   } else {
     score -= 8
     risks.push('Issue description is short')
   }
 
-  if (updatedDaysAgo <= 30) {
-    score += 8
+  if (updatedDaysAgo <= 3) {
+    score += 12
+    qualitySignals.push('Very recently active')
+  } else if (updatedDaysAgo <= 14) {
+    score += 9
     qualitySignals.push('Recently active')
+  } else if (updatedDaysAgo <= 45) {
+    score += 5
+    qualitySignals.push('Active in the last month')
+  } else if (updatedDaysAgo <= 120) {
+    score += 1
   } else if (updatedDaysAgo > 180) {
     score -= 16
     risks.push('May be stale')
   }
 
-  if (issue.comments >= 1 && issue.comments <= 8) {
-    score += 6
+  if (issue.comments === 0) {
+    score += 2
+    qualitySignals.push('No discussion to untangle yet')
+  } else if (issue.comments <= 3) {
+    score += 8
     qualitySignals.push('Some discussion without too much noise')
-  } else if (issue.comments > 18) {
+  } else if (issue.comments <= 8) {
+    score += 5
+    qualitySignals.push('Moderate discussion')
+  } else if (issue.comments <= 18) {
+    score -= 2
+  } else {
     score -= 8
     risks.push('Long discussion thread may indicate ambiguity')
+  }
+
+  if (SMALL_SCOPE_HINTS.some((hint) => text.includes(hint))) {
+    score += 6
+    qualitySignals.push('Looks like a smaller scoped contribution')
+  }
+
+  if (VAGUE_HINTS.some((hint) => text.includes(hint))) {
+    score -= 6
+    risks.push('May need clarification before coding')
+  }
+
+  if (repo.isPinned) {
+    score += 4
+    fitReasons.push('Comes from a pinned repo')
+  }
+
+  if (repo.stargazersCount >= 10000) {
+    score += 3
+  } else if (repo.stargazersCount < 100) {
+    score -= 3
   }
 
   if (repo.archived) {
