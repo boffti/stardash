@@ -8,6 +8,7 @@ import {
   Clock,
   TrendingUp,
   AlertTriangle,
+  GitPullRequestArrow,
   Plus,
   ChevronDown,
   Search,
@@ -170,6 +171,7 @@ export function AppSidebar({
   const isRecentlyViewedRoute = pathname === "/recently-viewed"
   const isTrendingRoute = pathname === "/trending"
   const isIntelRoute = pathname === "/intel"
+  const isContributeRoute = pathname === "/contribute"
   const isSettingsRoute = pathname === "/settings"
   const recentEntries = useRecentlyViewed(userId)
   const resolvedRecentCount = useMemo(
@@ -244,6 +246,14 @@ export function AppSidebar({
                   <Link href="/intel">
                     <Radar className="h-4 w-4" />
                     <span>Intel</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isContributeRoute}>
+                  <Link href="/contribute">
+                    <GitPullRequestArrow className="h-4 w-4" />
+                    <span>Contribute</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

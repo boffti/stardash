@@ -1,0 +1,82 @@
+import { NextResponse } from 'next/server'
+import { after } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { generateObject } from 'ai'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { langfuseSpanProcessor } from '@/instrumentation'
+import type { ContributionOpportunity } from '@/lib/contribution-opportunities'
+
+export const maxDuration = 45
+
+const ContributionBriefSchema = z.object({
+  summary: z.string().describe('A concise plain-English explanation of the issue.'),
+  whyItFits: z.array(z.string()).min(2).max(4),
+  firstSteps: z.array(z.string()).min(3).max(5),
+  likelyFiles: z.array(z.string()).min(1).max(5),
+  questionsToAsk: z.array(z.string()).min(1).max(3),
+  codingAssistantPrompt: z.string().describe('A ready-to-use prompt for a coding assistant.'),
+})
+
+interface RequestBody {
+  opportunity?: ContributionOpportunity
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'AI service not configured' }, { status: 503 })
+    }
+
+    const { opportunity } = (await request.json()) as RequestBody
+    if (!opportunity) {
+      return NextResponse.json({ error: 'Missing opportunity' }, { status: 400 })
+    }
+
+    const openrouter = createOpenRouter({ apiKey })
+    const { object } = await generateObject({
+      model: openrouter('google/gemini-2.0-flash-001'),
+      schema: ContributionBriefSchema,
+      experimental_telemetry: { isEnabled: true, functionId: 'contribution-brief' },
+      system: `You help developers evaluate open-source issues before they start work.
+Be practical and careful. Do not claim you inspected the repository code. Base your answer only on the issue metadata, repository metadata, labels, and description preview.
+Use concise language. When uncertain, frame suggestions as likely starting points or questions.`,
+      prompt: JSON.stringify({
+        repo: {
+          fullName: opportunity.repoFullName,
+          description: opportunity.repoDescription,
+          language: opportunity.repoLanguage,
+          topics: opportunity.repoTopics,
+        },
+        issue: {
+          number: opportunity.issueNumber,
+          title: opportunity.title,
+          bodyPreview: opportunity.bodyPreview,
+          labels: opportunity.labels,
+          difficulty: opportunity.difficulty,
+          contributionTypes: opportunity.contributionTypes,
+          risks: opportunity.risks,
+        },
+      }),
+    })
+
+    after(async () => {
+      await langfuseSpanProcessor?.forceFlush()
+    })
+
+    return NextResponse.json({ brief: object })
+  } catch (error) {
+    Sentry.captureException(error)
+    console.error('[contribution-brief] error:', error)
+    return NextResponse.json({ error: 'Failed to generate contribution brief' }, { status: 500 })
+  }
+}

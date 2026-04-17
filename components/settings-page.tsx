@@ -488,6 +488,7 @@ export function SettingsPage({ user }: SettingsPageProps) {
           <AppPageHeader
             lastSynced={null}
             user={user}
+            hideNavActions
             actions={
               <>
                 <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">

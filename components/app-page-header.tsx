@@ -38,6 +38,8 @@ interface AppPageHeaderProps {
   isCategorizing?: boolean
   onRefresh?: () => void | Promise<unknown>
   isRefreshing?: boolean
+  /** Hides the Categorize and Sync ghost buttons. Use on pages that don't need them. */
+  hideNavActions?: boolean
 }
 
 export function AppPageHeader({
@@ -53,6 +55,7 @@ export function AppPageHeader({
   isCategorizing = false,
   onRefresh,
   isRefreshing = false,
+  hideNavActions = false,
 }: AppPageHeaderProps) {
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false)
   const [localRefreshing, setLocalRefreshing] = useState(false)
@@ -127,28 +130,32 @@ export function AppPageHeader({
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {actions}
-          <button
-            type="button"
-            onClick={onCategorize}
-            disabled={Boolean(isCategorizing) || !onCategorize}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-            title={isCategorizing ? "Analyzing…" : "Auto-categorize with AI"}
-          >
-            <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
-            <span suppressHydrationWarning className="hidden sm:inline">
-              {isCategorizing ? "Analyzing…" : "Categorize"}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={handleRefreshClick}
-            aria-disabled={spinning || !onRefresh}
-            className={`flex items-center gap-1.5 text-xs transition-colors ${spinning ? "text-blue-400 cursor-default" : !onRefresh ? "text-muted-foreground opacity-50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
-            title={spinning ? "Syncing…" : (lastSynced ?? "Sync")}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">{spinning ? "Syncing…" : "Sync"}</span>
-          </button>
+          {!hideNavActions && (
+            <>
+              <button
+                type="button"
+                onClick={onCategorize}
+                disabled={Boolean(isCategorizing) || !onCategorize}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                title={isCategorizing ? "Analyzing…" : "Auto-categorize with AI"}
+              >
+                <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
+                <span suppressHydrationWarning className="hidden sm:inline">
+                  {isCategorizing ? "Analyzing…" : "Categorize"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRefreshClick}
+                aria-disabled={spinning || !onRefresh}
+                className={`flex items-center gap-1.5 text-xs transition-colors ${spinning ? "text-blue-400 cursor-default" : !onRefresh ? "text-muted-foreground opacity-50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
+                title={spinning ? "Syncing…" : (lastSynced ?? "Sync")}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{spinning ? "Syncing…" : "Sync"}</span>
+              </button>
+            </>
+          )}
           <UserMenu user={user} lastSynced={lastSynced} />
         </div>
       </header>
