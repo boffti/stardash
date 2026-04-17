@@ -78,6 +78,50 @@ export interface StarredRepo {
   } | null
 }
 
+export type MaintenanceVerdict =
+  | 'actively-maintained'
+  | 'lightly-maintained'
+  | 'stale'
+  | 'abandoned'
+
+export type CommunitySentiment = 'positive' | 'mixed' | 'frustrated'
+
+export type AdoptionReadiness =
+  | 'production-ready'
+  | 'maturing'
+  | 'experimental'
+  | 'deprecated'
+
+export interface RepoIntelMetrics {
+  issueCloseRate: number          // 0–1
+  avgIssueResponseDays: number | null
+  staleIssueCount: number
+  prMergeRate: number             // 0–1
+  avgPrMergeDays: number | null
+  activeContributors90d: number
+  daysSinceLastCommit: number | null
+  daysSinceLastRelease: number | null
+  hasCommunityFiles: {
+    contributingGuide: boolean
+    codeOfConduct: boolean
+    ci: boolean
+  }
+}
+
+export interface RepoIntel {
+  id: string
+  repoFullName: string
+  analyzedAt: string
+  healthScore: number
+  maintenanceVerdict: MaintenanceVerdict
+  communitySentiment: CommunitySentiment
+  adoptionReadiness: AdoptionReadiness
+  topPainPoints: string[]
+  summary: string
+  recommendation: string
+  metrics: RepoIntelMetrics
+}
+
 export const STATUS_LABELS: Record<Exclude<RepoStatus, null>, { label: string; color: string }> = {
   'want-to-try': { label: 'Want to Try', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
   'currently-using': { label: 'Currently Using', color: 'bg-green-500/20 text-green-400 border-green-500/30' },

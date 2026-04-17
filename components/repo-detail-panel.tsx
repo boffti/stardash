@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover"
+import { RepoIntelTab } from "@/components/repo-intel-tab"
 import { StarredRepo, STATUS_LABELS, RepoStatus, Collection, Tag } from "@/lib/types"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -61,6 +62,7 @@ export function RepoDetailPanel({
 }: RepoDetailPanelProps) {
   const [notes, setNotes] = useState(repo?.notes || "")
   const [copied, setCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'intel'>('overview')
   const [tagInput, setTagInput] = useState("")
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false)
   const [collectionPopoverOpen, setCollectionPopoverOpen] = useState(false)
@@ -78,6 +80,7 @@ export function RepoDetailPanel({
   // Sync notes when repo changes
   useEffect(() => {
     setNotes(repo?.notes || "")
+    setActiveTab('overview')
   }, [repo?.id, repo?.notes])
 
   useEffect(() => {
@@ -260,6 +263,39 @@ export function RepoDetailPanel({
                 <Pin className={cn("h-4 w-4", repo.isPinned && "fill-accent text-accent")} />
               </Button>
             </div>
+
+            {/* Tab bar */}
+            <div className="mt-5 flex gap-1 p-1 rounded-lg bg-muted/40 border border-border/50">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={cn(
+                  "flex-1 text-xs font-medium py-1.5 rounded-md transition-all",
+                  activeTab === 'overview'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('intel')}
+                className={cn(
+                  "flex-1 text-xs font-medium py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5",
+                  activeTab === 'intel'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>⚡</span>
+                Intel
+              </button>
+            </div>
+
+            {activeTab === 'intel' ? (
+              <div className="mt-5">
+                <RepoIntelTab owner={repo.owner} name={repo.name} />
+              </div>
+            ) : (<>
 
             {/* Stats */}
             <div className="mt-6 grid grid-cols-3 gap-4">
@@ -596,6 +632,7 @@ export function RepoDetailPanel({
                 </Button>
               </div>
             </div>
+            </>)}
           </div>
         </div>
       </SheetContent>
