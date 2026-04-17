@@ -19,6 +19,7 @@ export interface CategorizationResult {
   repoTags: Record<string, Tag[]>
   repoCollections: Record<string, string[]>
   generatedAt: string
+  categorizedRepoCount?: number
 }
 
 export type RepoStatus =

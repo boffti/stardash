@@ -20,6 +20,8 @@ const AI_CATEGORIZATION_COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 interface UserRepoRow {
   id: string
+  starred_at: string | null
+  created_at: string
   repos: {
     github_repo_id: number
   } | {
@@ -30,6 +32,19 @@ interface UserRepoRow {
 interface ProfileCategorizationRow {
   id: string
   last_ai_categorization_at: string | null
+}
+
+interface ExistingTagRow {
+  id: string
+  label: string
+  color: string
+}
+
+interface ExistingCollectionRow {
+  id: string
+  name: string
+  emoji: string | null
+  color: string | null
 }
 
 interface CategorizationSlotReservation {
@@ -166,6 +181,26 @@ async function upsertAssignments(
   }
 }
 
+function rowTimestampMs(row: UserRepoRow): number | null {
+  const starredAtMs = row.starred_at ? new Date(row.starred_at).getTime() : NaN
+  if (Number.isFinite(starredAtMs)) return starredAtMs
+
+  const createdAtMs = new Date(row.created_at).getTime()
+  return Number.isFinite(createdAtMs) ? createdAtMs : null
+}
+
+function repoWasStarredAfterLastCategorization(
+  row: UserRepoRow,
+  previousLastCategorizedAt: string | null
+) {
+  if (!previousLastCategorizedAt) return true
+
+  const repoTimestampMs = rowTimestampMs(row)
+  if (repoTimestampMs === null) return false
+
+  return repoTimestampMs > new Date(previousLastCategorizedAt).getTime()
+}
+
 export async function POST(request: Request) {
   let slotReservation: CategorizationSlotReservation | null = null
   let userIdForRelease: string | null = null
@@ -198,26 +233,96 @@ export async function POST(request: Request) {
       )
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: 'AI not configured on server' }, { status: 500 })
-    }
+    const [
+      userRepoResult,
+      existingTagsResult,
+      existingCollectionsResult,
+    ] = await Promise.all([
+      adminSupabase
+        .from('user_starred_repos')
+        .select('id, starred_at, created_at, repos!inner(github_repo_id)')
+        .eq('user_id', user.id),
+      supabase
+        .from('tags')
+        .select('id, label, color')
+        .eq('user_id', user.id),
+      supabase
+        .from('collections')
+        .select('id, name, emoji, color')
+        .eq('user_id', user.id),
+    ])
 
-    const result = await categorizeRepos(repos, apiKey)
-    const { data: userRepoRows, error: userRepoError } = await adminSupabase
-      .from('user_starred_repos')
-      .select('id, repos!inner(github_repo_id)')
-      .eq('user_id', user.id)
-
-    if (userRepoError) {
-      throw userRepoError
+    if (userRepoResult.error || existingTagsResult.error || existingCollectionsResult.error) {
+      throw userRepoResult.error || existingTagsResult.error || existingCollectionsResult.error
     }
 
     const repoIdMap = new Map<number, string>()
-    for (const row of (userRepoRows ?? []) as UserRepoRow[]) {
+    const reposToCategorizeIdSet = new Set<number>()
+    for (const row of (userRepoResult.data ?? []) as UserRepoRow[]) {
       const repo = Array.isArray(row.repos) ? row.repos[0] : row.repos
       repoIdMap.set(repo.github_repo_id, row.id)
+      if (repoWasStarredAfterLastCategorization(row, slotReservation.previousLastCategorizedAt)) {
+        reposToCategorizeIdSet.add(repo.github_repo_id)
+      }
     }
+
+    const reposToCategorize = repos.filter((repo: { id: string }) => (
+      reposToCategorizeIdSet.has(Number(repo.id))
+    ))
+
+    const existingTags = ((existingTagsResult.data ?? []) as ExistingTagRow[]).map((tag) => ({
+      id: tag.id,
+      label: tag.label,
+      color: tag.color,
+    }))
+    const existingCollections = ((existingCollectionsResult.data ?? []) as ExistingCollectionRow[]).map((collection) => ({
+      id: collection.id,
+      name: collection.name,
+      emoji: collection.emoji || '',
+      color: collection.color || '#64748b',
+      repoCount: 0,
+    }))
+
+    if (reposToCategorize.length === 0) {
+      if (slotReservation.claimedAt) {
+        await releaseCategorizationSlot(
+          adminSupabase,
+          user.id,
+          slotReservation.claimedAt,
+          slotReservation.previousLastCategorizedAt
+        )
+        slotReservation = null
+      }
+
+      return NextResponse.json({
+        collections: existingCollections,
+        allTags: existingTags,
+        repoTags: {},
+        repoCollections: {},
+        generatedAt: new Date().toISOString(),
+        categorizedRepoCount: 0,
+      })
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) {
+      if (slotReservation.claimedAt) {
+        await releaseCategorizationSlot(
+          adminSupabase,
+          user.id,
+          slotReservation.claimedAt,
+          slotReservation.previousLastCategorizedAt
+        )
+        slotReservation = null
+      }
+      return NextResponse.json({ error: 'AI not configured on server' }, { status: 500 })
+    }
+
+    const result = await categorizeRepos(reposToCategorize, apiKey, {
+      existingTaxonomy: slotReservation.previousLastCategorizedAt
+        ? { collections: existingCollections, tags: existingTags }
+        : undefined,
+    })
 
     const persistedTags = await ensureTags(supabase, user.id, result.allTags)
     const persistedCollections = await ensureCollections(supabase, user.id, result.collections)
@@ -304,6 +409,7 @@ export async function POST(request: Request) {
       repoTags: persistedRepoTags,
       repoCollections: persistedRepoCollections,
       generatedAt: result.generatedAt,
+      categorizedRepoCount: reposToCategorize.length,
     }
 
     after(async () => { await langfuseSpanProcessor?.forceFlush() })
