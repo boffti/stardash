@@ -387,4 +387,87 @@ Also note that `pnpm build` does not enforce TypeScript correctness because buil
 - Some migration history reflects an older schema shape that is no longer the primary runtime model
 - The dashboard fetches repo lists from GitHub on sync rather than serving them primarily from Supabase
 - AI categorization is intentionally capped and rate-limited to control cost and abuse
-- This is a private repository, so this README intentionally does not include open-source contribution guidance
+
+---
+
+## 🐳 Self-Hosting
+
+You can run StarDash on your own infrastructure. The app is a standard Next.js server; the database is hosted on [Supabase](https://supabase.com) (free tier is sufficient for personal use).
+
+### Prerequisites
+
+| Service | Purpose | Free tier? |
+|---------|---------|-----------|
+| [Supabase](https://supabase.com) | Auth + Postgres database | ✅ Yes |
+| [GitHub OAuth App](https://github.com/settings/developers) | User sign-in | ✅ Free |
+| [OpenRouter](https://openrouter.ai) | AI categorization (optional) | Pay-per-use |
+| [Docker + Docker Compose](https://docs.docker.com/get-docker/) | Container runtime | ✅ Free |
+
+### Step 1 — Create a Supabase project
+
+1. Go to [supabase.com](https://supabase.com) and create a new project.
+2. In **SQL Editor**, run the migration files in order from [`docker/migrations/`](./docker/migrations/) (see the [README](./docker/migrations/README.md) there for details).
+3. In **Auth → Providers**, enable **GitHub** and paste in your GitHub OAuth App credentials.
+
+### Step 2 — Create a GitHub OAuth App
+
+1. Go to **GitHub → Settings → Developer Settings → OAuth Apps → New OAuth App**.
+2. Set **Homepage URL** to `http://localhost:3000` (or your domain).
+3. Set **Authorization callback URL** to `https://<YOUR_SUPABASE_PROJECT>.supabase.co/auth/v1/callback`.
+4. Copy the **Client ID** and **Client Secret** into Supabase's GitHub provider settings.
+
+### Step 3 — Configure environment variables
+
+```bash
+cp env.example .env.local
+```
+
+Edit `.env.local` with your values:
+
+```bash
+# From your Supabase project → Settings → API
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Keep this secret — server-only
+
+# Optional: AI categorization (users can also supply their own key in Settings)
+OPENROUTER_API_KEY=sk-or-...
+
+# Required: secure random string for the cron endpoint
+CRON_SECRET=$(openssl rand -hex 32)
+```
+
+Sentry and Langfuse are optional — leave those keys blank to disable observability.
+
+### Step 4 — Run with Docker Compose
+
+```bash
+docker compose up -d
+```
+
+The app will be available at **http://localhost:3000**.
+
+The `cron` service (powered by [Ofelia](https://github.com/mcuadros/ofelia)) will call the star-snapshot endpoint once per day at 02:00 UTC. No Vercel account needed.
+
+### Updating
+
+```bash
+git pull
+docker compose build --no-cache
+docker compose up -d
+```
+
+### Running without Docker
+
+```bash
+pnpm install
+pnpm build
+pnpm start
+```
+
+Then set up your own cron job or system timer to hit `/api/cron/star-snapshots` daily with the `Authorization: Bearer <CRON_SECRET>` header.
+
+## 📄 License
+
+[MIT](./LICENSE)
+
