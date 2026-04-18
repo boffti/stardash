@@ -888,7 +888,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
 
               <div className="flex flex-col gap-2">
                 <h3 className="font-medium">Coding assistant prompt</h3>
-                <pre className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
+                <pre className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 text-xs leading-5 text-muted-foreground pt-0">
                   {brief.codingAssistantPrompt}
                 </pre>
               </div>
