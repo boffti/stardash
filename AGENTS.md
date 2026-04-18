@@ -40,11 +40,11 @@ Use **`auggie` MCP** (`mcp__auggie__codebase-retrieval`) as the primary search t
 
 ### Database & Auth
 
-Supabase project: **`your-supabase-project`** (ref: `SUPABASE_PROJECT_REF`). Use **Supabase MCP** for all DB/auth interactions — schema inspection, migrations, auth config. Never guess at schema shape.
+Use **Supabase MCP** for all DB/auth interactions — schema inspection, migrations, auth config. Never guess at schema shape.
 
 ### Deployment
 
-Vercel project: **`stardash`**. Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime logs, and config.
+Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime logs, and config.
 
 ### Observability
 
@@ -151,8 +151,8 @@ OPENROUTER_API_KEY
 CRON_SECRET                     # Bearer token for /api/cron/* routes
 
 NEXT_PUBLIC_SENTRY_DSN
-SENTRY_ORG                      # your-sentry-org
-SENTRY_PROJECT                  # stardash
+SENTRY_ORG
+SENTRY_PROJECT
 SENTRY_AUTH_TOKEN
 
 LANGFUSE_SECRET_KEY

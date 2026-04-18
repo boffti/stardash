@@ -1,105 +1,39 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { cookies } from 'next/headers'
 
 export interface TokenResult {
   token: string | null
   error?: 'expired' | 'not_found' | 'server'
 }
 
+export const GH_TOKEN_COOKIE = 'gh_token'
+export const GH_TOKEN_MAX_AGE = 60 * 60 * 8 // 8 hours
+
+/**
+ * Reads the GitHub OAuth token from the httpOnly session cookie.
+ * The cookie is set at OAuth callback and expires after 8 hours.
+ */
+export async function getValidGitHubToken(): Promise<TokenResult> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(GH_TOKEN_COOKIE)?.value
+    if (!token) {
+      return { token: null, error: 'not_found' }
+    }
+    return { token }
+  } catch {
+    return { token: null, error: 'server' }
+  }
+}
+
+/**
+ * Returns the server-side GitHub PAT for use in cron/admin contexts
+ * where no user session cookie is available.
+ * Requires GITHUB_PAT environment variable to be set.
+ */
 export async function getAnyValidGitHubToken(): Promise<TokenResult> {
-  const supabase = createAdminClient()
-
-  try {
-    const nowIso = new Date().toISOString()
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('provider_token, token_expires_at, last_token_refresh_at')
-      .not('provider_token', 'is', null)
-      .or(`token_expires_at.is.null,token_expires_at.gte.${nowIso}`)
-      .order('last_token_refresh_at', { ascending: false, nullsFirst: false })
-      .limit(1)
-
-    if (error || !profiles || profiles.length === 0) {
-      return { token: null, error: 'not_found' }
-    }
-
-    return { token: profiles[0].provider_token }
-  } catch {
-    return { token: null, error: 'server' }
+  const pat = process.env.GITHUB_PAT
+  if (!pat) {
+    return { token: null, error: 'not_found' }
   }
-}
-
-export async function getValidGitHubToken(userId: string): Promise<TokenResult> {
-  const supabase = createAdminClient()
-  
-  try {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('provider_token, token_expires_at')
-      .eq('id', userId)
-      .single()
-    
-    if (error || !profile) {
-      return { token: null, error: 'not_found' }
-    }
-    
-    if (!profile.provider_token) {
-      return { token: null, error: 'not_found' }
-    }
-    
-    const expiresAt = profile.token_expires_at ? new Date(profile.token_expires_at) : null
-    const now = new Date()
-    
-    if (expiresAt && expiresAt < now) {
-      return { token: null, error: 'expired' }
-    }
-    
-    return { token: profile.provider_token }
-  } catch {
-    return { token: null, error: 'server' }
-  }
-}
-
-export async function updateGitHubToken(
-  userId: string, 
-  token: string
-): Promise<void> {
-  const supabase = createAdminClient()
-  
-  const expiresAt = new Date()
-  expiresAt.setHours(expiresAt.getHours() + 8)
-  
-  await supabase
-    .from('profiles')
-    .update({
-      provider_token: token,
-      token_expires_at: expiresAt.toISOString(),
-      last_token_refresh_at: new Date().toISOString(),
-    })
-    .eq('id', userId)
-}
-
-export async function clearGitHubToken(userId: string): Promise<void> {
-  const supabase = createAdminClient()
-  
-  await supabase
-    .from('profiles')
-    .update({
-      provider_token: null,
-      token_expires_at: null,
-      last_token_refresh_at: null,
-    })
-    .eq('id', userId)
-}
-
-export function isTokenExpiringSoon(
-  expiresAt: string | null, 
-  thresholdMinutes: number = 30
-): boolean {
-  if (!expiresAt) return false
-  
-  const expiry = new Date(expiresAt)
-  const threshold = new Date()
-  threshold.setMinutes(threshold.getMinutes() + thresholdMinutes)
-  
-  return expiry < threshold
+  return { token: pat }
 }

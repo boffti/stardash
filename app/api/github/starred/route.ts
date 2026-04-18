@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const tokenResult = await getValidGitHubToken(user.id)
+    const tokenResult = await getValidGitHubToken()
     
     if (tokenResult.error === 'expired') {
       return NextResponse.json(

@@ -1,8 +1,10 @@
 'use server'
 
 import { cache } from 'react'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { GH_TOKEN_COOKIE } from '@/lib/tokens'
 
 export const getUser = cache(async () => {
   const supabase = await createClient()
@@ -57,6 +59,8 @@ export async function getUserProfile() {
 export async function signOut() {
   const supabase = await createClient()
   await supabase.auth.signOut()
+  const cookieStore = await cookies()
+  cookieStore.delete(GH_TOKEN_COOKIE)
   redirect('/')
 }
 

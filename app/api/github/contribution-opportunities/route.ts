@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ opportunities: [], scannedRepos: 0 })
     }
 
-    const { token, error: tokenError } = await getValidGitHubToken(user.id)
+    const { token, error: tokenError } = await getValidGitHubToken()
     if (tokenError || !token) {
       return NextResponse.json(
         { error: tokenError === 'expired' ? 'GitHub token expired. Please sign in again.' : 'GitHub token not found.' },
