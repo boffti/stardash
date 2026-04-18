@@ -73,8 +73,8 @@ Use concise language. When uncertain, frame suggestions as likely starting point
         },
         issue: {
           number: opportunity.issueNumber,
-          title: opportunity.title,
-          bodyPreview: opportunity.bodyPreview,
+          title: String(opportunity.title ?? '').slice(0, 200),
+          bodyPreview: String(opportunity.bodyPreview ?? '').slice(0, 2000),
           labels: opportunity.labels,
           difficulty: opportunity.difficulty,
           contributionTypes: opportunity.contributionTypes,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getValidGitHubToken } from '@/lib/tokens'
 import {
   fetchRepoContributionIssues,
@@ -11,6 +12,8 @@ import {
 import type { StarredRepo } from '@/lib/types'
 
 export const maxDuration = 60
+
+const SCAN_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes between scans per user
 
 interface RequestBody {
   repos?: StarredRepo[]
@@ -26,6 +29,31 @@ export async function POST(request: Request) {
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Per-user rate limit: max one contribution scan per 5 minutes
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+      .from('profiles')
+      .select('last_contribution_scan_at')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.last_contribution_scan_at) {
+      const msSinceLast = Date.now() - new Date(profile.last_contribution_scan_at).getTime()
+      if (msSinceLast < SCAN_COOLDOWN_MS) {
+        const retryAfter = Math.ceil((SCAN_COOLDOWN_MS - msSinceLast) / 1000)
+        return NextResponse.json(
+          { error: 'Please wait before scanning for contribution opportunities again.', retryAfterSeconds: retryAfter },
+          { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+        )
+      }
+    }
+
+    // Record scan start time before the expensive GitHub API calls
+    await adminSupabase
+      .from('profiles')
+      .update({ last_contribution_scan_at: new Date().toISOString() })
+      .eq('id', user.id)
 
     const body = (await request.json()) as RequestBody
     const repos = body.repos ?? []

@@ -5,6 +5,8 @@ import { upsertStarredRepos } from '@/lib/user-metadata'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
+const SYNC_COOLDOWN_MS = 60 * 1000 // 60 seconds
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const syncLog = {
@@ -20,6 +22,25 @@ export async function GET(request: Request) {
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Enforce per-user sync cooldown to prevent repeated expensive full-syncs
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+      .from('profiles')
+      .select('last_github_sync_at')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.last_github_sync_at) {
+      const msSinceLastSync = Date.now() - new Date(profile.last_github_sync_at).getTime()
+      if (msSinceLastSync < SYNC_COOLDOWN_MS) {
+        const retryAfter = Math.ceil((SYNC_COOLDOWN_MS - msSinceLastSync) / 1000)
+        return NextResponse.json(
+          { error: 'Sync cooldown active. Please wait before syncing again.', retryAfterSeconds: retryAfter },
+          { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+        )
+      }
     }
 
     const tokenResult = await getValidGitHubToken(user.id)
@@ -47,7 +68,6 @@ export async function GET(request: Request) {
     console.info('[github-star-sync:start]', scopedSyncLog)
 
     const repos = await fetchAllStarredRepos(tokenResult.token)
-    const adminSupabase = createAdminClient()
     await upsertStarredRepos(adminSupabase, repos, user.id)
 
     supabase

@@ -6,6 +6,12 @@ const TAG_PALETTE = [
   '#06b6d4', '#ef4444', '#84cc16', '#f97316', '#6366f1',
 ]
 
+const MAX_NOTES_LENGTH = 5000
+const MAX_TAG_LABEL_LENGTH = 50
+const MAX_COLLECTION_NAME_LENGTH = 50
+const MAX_TAGS_PER_USER = 200
+const MAX_COLLECTIONS_PER_USER = 50
+
 const STARRED_REPOS_UPSERT_BATCH_SIZE = 500
 
 interface RepoRecord {
@@ -196,6 +202,9 @@ export async function updateRepoNotes(
   dbId: string,
   notes: string
 ): Promise<void> {
+  if (notes.length > MAX_NOTES_LENGTH) {
+    throw new Error(`Notes must be ${MAX_NOTES_LENGTH} characters or fewer`)
+  }
   const { error } = await supabase
     .from('user_starred_repos')
     .update({ notes })
@@ -221,9 +230,22 @@ export async function createTag(
   label: string,
   color: string
 ): Promise<Tag> {
+  const normalized = normalizeTagLabel(label)
+  if (normalized.length > MAX_TAG_LABEL_LENGTH) {
+    throw new Error(`Tag label must be ${MAX_TAG_LABEL_LENGTH} characters or fewer`)
+  }
+
+  const { count } = await supabase
+    .from('tags')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  if ((count ?? 0) >= MAX_TAGS_PER_USER) {
+    throw new Error(`You can have at most ${MAX_TAGS_PER_USER} tags`)
+  }
+
   const { data, error } = await supabase
     .from('tags')
-    .insert({ user_id: userId, label: normalizeTagLabel(label), color })
+    .insert({ user_id: userId, label: normalized, color })
     .select()
     .single()
   if (error) throw error
@@ -236,9 +258,13 @@ export async function updateTag(
   label: string,
   color: string
 ): Promise<Tag> {
+  const normalized = normalizeTagLabel(label)
+  if (normalized.length > MAX_TAG_LABEL_LENGTH) {
+    throw new Error(`Tag label must be ${MAX_TAG_LABEL_LENGTH} characters or fewer`)
+  }
   const { data, error } = await supabase
     .from('tags')
-    .update({ label: normalizeTagLabel(label), color })
+    .update({ label: normalized, color })
     .eq('id', tagId)
     .select()
     .single()
@@ -256,7 +282,7 @@ export async function ensureTags(
     new Map(
       tags
         .map((tag) => ({
-          label: normalizeTagLabel(tag.label),
+          label: normalizeTagLabel(tag.label).slice(0, MAX_TAG_LABEL_LENGTH),
           color: tag.color,
         }))
         .filter((tag) => tag.label)
@@ -280,13 +306,23 @@ export async function ensureTags(
 
   let insertedTags: Tag[] = []
   if (missingTags.length > 0) {
-    const { data, error } = await supabase
+    // Enforce per-user tag count cap
+    const { count: currentCount } = await supabase
       .from('tags')
-      .insert(missingTags.map((tag) => ({ user_id: userId, label: tag.label, color: tag.color })))
-      .select('id, label, color')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    const availableSlots = MAX_TAGS_PER_USER - (currentCount ?? 0)
+    const tagsToInsert = missingTags.slice(0, Math.max(availableSlots, 0))
 
-    if (error) throw error
-    insertedTags = (data ?? []).map((tag) => ({ id: tag.id, label: tag.label, color: tag.color }))
+    if (tagsToInsert.length > 0) {
+      const { data, error } = await supabase
+        .from('tags')
+        .insert(tagsToInsert.map((tag) => ({ user_id: userId, label: tag.label, color: tag.color })))
+        .select('id, label, color')
+
+      if (error) throw error
+      insertedTags = (data ?? []).map((tag) => ({ id: tag.id, label: tag.label, color: tag.color }))
+    }
   }
 
   const allTags = [
@@ -344,9 +380,22 @@ export async function createCollection(
   emoji: string,
   color: string
 ): Promise<Collection> {
+  const normalized = normalizeCollectionName(name)
+  if (normalized.length > MAX_COLLECTION_NAME_LENGTH) {
+    throw new Error(`Collection name must be ${MAX_COLLECTION_NAME_LENGTH} characters or fewer`)
+  }
+
+  const { count } = await supabase
+    .from('collections')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  if ((count ?? 0) >= MAX_COLLECTIONS_PER_USER) {
+    throw new Error(`You can have at most ${MAX_COLLECTIONS_PER_USER} collections`)
+  }
+
   const { data, error } = await supabase
     .from('collections')
-    .insert({ user_id: userId, name: normalizeCollectionName(name), emoji, color })
+    .insert({ user_id: userId, name: normalized, emoji, color })
     .select()
     .single()
   if (error) throw error
@@ -360,9 +409,13 @@ export async function updateCollection(
   emoji: string,
   color: string
 ): Promise<Collection> {
+  const normalized = normalizeCollectionName(name)
+  if (normalized.length > MAX_COLLECTION_NAME_LENGTH) {
+    throw new Error(`Collection name must be ${MAX_COLLECTION_NAME_LENGTH} characters or fewer`)
+  }
   const { data, error } = await supabase
     .from('collections')
-    .update({ name: normalizeCollectionName(name), emoji, color })
+    .update({ name: normalized, emoji, color })
     .eq('id', collectionId)
     .select()
     .single()
@@ -380,7 +433,7 @@ export async function ensureCollections(
     new Map(
       collections
         .map((collection) => ({
-          name: normalizeCollectionName(collection.name),
+          name: normalizeCollectionName(collection.name).slice(0, MAX_COLLECTION_NAME_LENGTH),
           emoji: collection.emoji,
           color: collection.color,
         }))
@@ -405,26 +458,36 @@ export async function ensureCollections(
 
   let insertedCollections: Collection[] = []
   if (missingCollections.length > 0) {
-    const { data, error } = await supabase
+    // Enforce per-user collection count cap
+    const { count: currentCount } = await supabase
       .from('collections')
-      .insert(
-        missingCollections.map((collection) => ({
-          user_id: userId,
-          name: collection.name,
-          emoji: collection.emoji,
-          color: collection.color,
-        }))
-      )
-      .select('id, name, emoji, color')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    const availableSlots = MAX_COLLECTIONS_PER_USER - (currentCount ?? 0)
+    const collectionsToInsert = missingCollections.slice(0, Math.max(availableSlots, 0))
 
-    if (error) throw error
-    insertedCollections = (data ?? []).map((collection) => ({
-      id: collection.id,
-      name: collection.name,
-      emoji: collection.emoji || '',
-      color: collection.color,
-      repoCount: 0,
-    }))
+    if (collectionsToInsert.length > 0) {
+      const { data, error } = await supabase
+        .from('collections')
+        .insert(
+          collectionsToInsert.map((collection) => ({
+            user_id: userId,
+            name: collection.name,
+            emoji: collection.emoji,
+            color: collection.color,
+          }))
+        )
+        .select('id, name, emoji, color')
+
+      if (error) throw error
+      insertedCollections = (data ?? []).map((collection) => ({
+        id: collection.id,
+        name: collection.name,
+        emoji: collection.emoji || '',
+        color: collection.color,
+        repoCount: 0,
+      }))
+    }
   }
 
   const allCollections = [

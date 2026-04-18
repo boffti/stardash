@@ -239,6 +239,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No repos provided' }, { status: 400 })
     }
 
+    if (repos.length > 5000) {
+      return NextResponse.json({ error: 'Too many repos — maximum 5000' }, { status: 400 })
+    }
+
     const [
       userRepoResult,
       existingTagsResult,
