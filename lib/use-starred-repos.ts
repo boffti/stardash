@@ -123,7 +123,7 @@ export function useStarredRepos(userId?: string) {
         triggerKind: "time-based",
         triggerSource: cached ? "background-cooldown-expired" : "initial-load-no-cache",
         triggerContext: "use-starred-repos",
-      })
+      }).catch(() => {})
     }
   }, [userId])
 

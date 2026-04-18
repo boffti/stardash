@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
+import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
 import {
@@ -21,7 +22,10 @@ import {
   TrendingDown,
   Zap,
   AlertTriangle,
+  LogIn,
 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
@@ -658,6 +662,7 @@ function IntelCommandPalette({
 }
 
 export function IntelDashboard({ user }: IntelDashboardProps) {
+  const router = useRouter()
   const [sortField, setSortField] = useState<SortField>("health_score")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>("all")
@@ -733,6 +738,19 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
   const handleCloseReadme = () => {
     setReadmeViewerOpen(false)
   }
+
+  const handleReconnect = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
+  const isTokenExpired = Boolean(
+    error?.message?.includes('token') ||
+    error?.message?.includes('expired') ||
+    error?.message?.includes('re-authenticate')
+  )
 
   // Merge server data with any locally-cached intel (handles cases where DB upsert failed)
   const allIntel = useMemo(() => {
@@ -965,6 +983,9 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
 
           {/* ── Content ── */}
           <div className="flex flex-1 flex-col gap-3 p-6">
+            {/* Token expiry banner — always at top when expired */}
+            {isTokenExpired && <TokenExpiredBanner onReconnect={handleReconnect} />}
+
             {isLoading ? (
               <div className="flex flex-col gap-3">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -976,9 +997,36 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
                 ))}
               </div>
             ) : error ? (
-              <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                Failed to load intel. Please refresh and try again.
+              <div className="flex flex-col gap-3">
+                {isTokenExpired ? (
+                  allIntel.length === 0 ? (
+                    <EmptyState />
+                  ) : filtered.length === 0 ? (
+                    <div className="py-16 text-center">
+                      <p className="text-sm text-muted-foreground">No repos match your current filters.</p>
+                      <button
+                        onClick={() => { setSearch(""); setVerdictFilter("all") }}
+                        className="mt-2 text-xs text-primary hover:underline"
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Showing {filtered.length} of {allIntel.length} analyzed {allIntel.length === 1 ? "repo" : "repos"}
+                      </p>
+                      {filtered.map((intel, idx) => (
+                        <IntelCard key={intel.id} intel={intel} index={idx} onOpenRepo={handleOpenRepo} />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    Failed to load intel. Please refresh and try again.
+                  </div>
+                )}
               </div>
             ) : allIntel.length === 0 ? (
               <EmptyState />

@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import useSWR from "swr"
+import { useRouter } from "next/navigation"
 import { useAIKey } from "@/lib/use-ai-key"
+import { createClient } from "@/lib/supabase/client"
+import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
@@ -18,6 +21,7 @@ import {
   FileText,
   GitPullRequestArrow,
   Loader2,
+  LogIn,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -221,7 +225,7 @@ function OpportunitySkeleton() {
   )
 }
 
-function EmptyOpportunities({ onRefresh }: { onRefresh: () => void }) {
+function EmptyOpportunities({ onRefresh, disabled }: { onRefresh: () => void; disabled?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20">
@@ -233,7 +237,7 @@ function EmptyOpportunities({ onRefresh }: { onRefresh: () => void }) {
           Try broadening the filters or syncing your starred repos first. The MVP scans active starred repos with open issues.
         </p>
       </div>
-      <Button variant="outline" onClick={onRefresh}>
+      <Button variant="outline" onClick={onRefresh} disabled={disabled}>
         <RefreshCw data-icon="inline-start" />
         Scan again
       </Button>
@@ -372,6 +376,7 @@ function OpportunityCard({
 }
 
 export function ContributionDashboard({ user }: ContributionDashboardProps) {
+  const router = useRouter()
   const { data, error, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
@@ -522,6 +527,20 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     })
   }
 
+  const handleReconnect = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
+  const isTokenExpired = Boolean(
+    error?.message?.includes('token') ||
+    error?.message?.includes('expired') ||
+    error?.message?.includes('re-authenticate') ||
+    data?.error
+  )
+
   const handleBrief = async (opportunity: ContributionOpportunity) => {
     setSelectedOpportunity(opportunity)
     setBriefError(null)
@@ -625,21 +644,35 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         <AppPageHeader
           lastSynced={lastSynced}
           user={user}
-          onRefresh={handleRefreshRepos}
+          onRefresh={isTokenExpired ? undefined : handleRefreshRepos}
           isRefreshing={isRefreshing}
           searchLabel="Search opportunities..."
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           hideNavActions
           actions={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadOpportunities({ force: true })}
-              disabled={isLoadingOpportunities || repos.length === 0}
-            >
-              {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
-              <span className="hidden sm:inline">Scan issues</span>
-            </Button>
+            isTokenExpired ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button variant="outline" size="sm" disabled>
+                      <RefreshCw data-icon="inline-start" />
+                      <span className="hidden sm:inline">Scan issues</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Reconnect GitHub to scan issues</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadOpportunities({ force: true })}
+                disabled={isLoadingOpportunities || repos.length === 0}
+              >
+                {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+                <span className="hidden sm:inline">Scan issues</span>
+              </Button>
+            )
           }
         />
 
@@ -733,15 +766,36 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           {error && !data && (
             <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
               <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">Failed to load starred repositories</p>
-              <Button variant="outline" onClick={handleRefreshRepos}>Try again</Button>
+              <p className="text-destructive">
+                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
+              </p>
+              {isTokenExpired ? (
+                <Button variant="outline" onClick={handleReconnect}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Reconnect GitHub
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={handleRefreshRepos}>Try again</Button>
+              )}
             </div>
           )}
 
+          {isTokenExpired && !opportunityError && data && <TokenExpiredBanner onReconnect={handleReconnect} />}
+
           {opportunityError && (
-            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {opportunityError}
-            </div>
+            (() => {
+              const isOpportunityTokenError = opportunityError.toLowerCase().includes('token') ||
+                opportunityError.toLowerCase().includes('expired') ||
+                opportunityError.toLowerCase().includes('sign in') ||
+                opportunityError.toLowerCase().includes('unauthorized')
+              return isOpportunityTokenError
+                ? <TokenExpiredBanner onReconnect={handleReconnect} />
+                : (
+                  <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {opportunityError}
+                  </div>
+                )
+            })()
           )}
 
           {isLoadingOpportunities && opportunities.length === 0 && (
@@ -755,7 +809,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           )}
 
           {!isLoadingOpportunities && data && filteredOpportunities.length === 0 && opportunities.length === 0 && (
-            <EmptyOpportunities onRefresh={() => loadOpportunities({ force: true })} />
+            <EmptyOpportunities onRefresh={() => loadOpportunities({ force: true })} disabled={isTokenExpired} />
           )}
 
           {filteredOpportunities.length > 0 && (

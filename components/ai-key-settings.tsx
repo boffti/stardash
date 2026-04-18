@@ -56,7 +56,7 @@ export function AIKeySettings() {
         </p>
       </div>
 
-      {config && (
+      {config ? (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
           <KeyRound className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span className="text-muted-foreground">{PROVIDER_LABELS[config.provider]}:</span>
@@ -70,48 +70,48 @@ export function AIKeySettings() {
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
-      )}
-
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Provider</Label>
-          <Select value={provider} onValueChange={(v) => setProvider(v as AIProvider)}>
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="openrouter">OpenRouter</SelectItem>
-              <SelectItem value="openai">OpenAI</SelectItem>
-              <SelectItem value="anthropic">Anthropic</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">API Key</Label>
-          <div className="flex gap-2">
-            <Input
-              type={showKey ? 'text' : 'password'}
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder={PROVIDER_PLACEHOLDERS[provider]}
-              className="h-8 text-sm font-mono"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2 text-xs shrink-0"
-              onClick={() => setShowKey(!showKey)}
-            >
-              {showKey ? 'Hide' : 'Show'}
-            </Button>
+      ) : (
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Provider</Label>
+            <Select value={provider} onValueChange={(v) => setProvider(v as AIProvider)}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openrouter">OpenRouter</SelectItem>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="anthropic">Anthropic</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
 
-        <Button size="sm" className="h-8 text-xs" onClick={handleSave}>
-          Save key
-        </Button>
-      </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">API Key</Label>
+            <div className="flex gap-2">
+              <Input
+                type={showKey ? 'text' : 'password'}
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder={PROVIDER_PLACEHOLDERS[provider]}
+                className="h-8 text-sm font-mono"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs shrink-0"
+                onClick={() => setShowKey(!showKey)}
+              >
+                {showKey ? 'Hide' : 'Show'}
+              </Button>
+            </div>
+          </div>
+
+          <Button size="sm" className="h-8 text-xs" onClick={handleSave}>
+            Save key
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
