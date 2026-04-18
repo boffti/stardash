@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     }
 
     // Get GitHub token
-    const { token, error: tokenError } = await getValidGitHubToken(user.id)
+    const { token, error: tokenError } = await getValidGitHubToken()
     if (tokenError || !token) {
       return NextResponse.json(
         { error: tokenError === 'expired' ? 'GitHub token expired. Please sign out and sign in again.' : 'GitHub token not found.' },

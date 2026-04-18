@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const tokenResult = await getValidGitHubToken(user.id)
+    const tokenResult = await getValidGitHubToken()
     
     if (tokenResult.error === 'expired') {
       return NextResponse.json(

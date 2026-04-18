@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tokenResult = await getValidGitHubToken(user.id)
+    const tokenResult = await getValidGitHubToken()
 
     if (tokenResult.error === 'expired') {
       return NextResponse.json({ error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' }, { status: 401 })
