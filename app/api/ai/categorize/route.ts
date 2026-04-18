@@ -4,7 +4,7 @@ import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { categorizeRepos } from '@/lib/ai-categorize'
-import { getAIModel, type AIModelConfig } from '@/lib/ai-provider'
+import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import {
   ensureCollections,
@@ -311,6 +311,7 @@ export async function POST(request: Request) {
     }
 
     const result = await categorizeRepos(reposToCategorize, modelConfig.model, {
+      providerOptions: getProviderOptions(modelConfig.provider),
       existingTaxonomy: slotReservation?.previousLastCategorizedAt
         ? { collections: existingCollections, tags: existingTags }
         : undefined,

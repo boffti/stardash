@@ -110,6 +110,7 @@ export async function analyzeRepoIntel(
   issueSamples: IssueSample[],
   contributorCount: number,
   model: LanguageModel,
+  providerOptions: Record<string, Record<string, string>> = {},
 ): Promise<Omit<RepoIntel, 'id' | 'repoFullName' | 'analyzedAt'>> {
   const maintenanceAssessment = metrics.maintenanceAssessment ?? {
     verdict: 'lightly-maintained' as MaintenanceVerdict,
@@ -130,6 +131,7 @@ export async function analyzeRepoIntel(
   const { object } = await generateObject({
     model,
     schema: RepoIntelSchema,
+    providerOptions,
     experimental_telemetry: {
       isEnabled: true,
       functionId: 'repo-intel-analysis',

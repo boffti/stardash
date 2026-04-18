@@ -17,6 +17,15 @@ export interface AIModelConfig {
   isUserKey: boolean
 }
 
+export function getProviderOptions(provider: AIProvider): Record<string, Record<string, string>> {
+  if (provider === 'anthropic') {
+    // Anthropic's native outputFormat rejects minItems>1 and maxItems.
+    // jsonTool mode uses tool-calling instead, which has no such restrictions.
+    return { anthropic: { structuredOutputMode: 'jsonTool' } }
+  }
+  return {}
+}
+
 export function getAIModel(request: Request): AIModelConfig {
   const headerKey = request.headers.get('x-ai-key')
   const headerProvider = (request.headers.get('x-ai-provider') ?? 'openrouter') as AIProvider

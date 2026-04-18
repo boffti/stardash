@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import type { ContributionOpportunity } from '@/lib/contribution-opportunities'
-import { getAIModel, type AIModelConfig } from '@/lib/ai-provider'
+import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
 import { checkAndIncrementWeeklyLimit } from '@/lib/ai-weekly-limit'
 
 export const maxDuration = 45
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     const { object } = await generateObject({
       model: modelConfig.model,
       schema: ContributionBriefSchema,
+      providerOptions: getProviderOptions(modelConfig.provider),
       experimental_telemetry: { isEnabled: true, functionId: 'contribution-brief' },
       system: `You help developers evaluate open-source issues before they start work.
 Be practical and careful. Do not claim you inspected the repository code. Base your answer only on the issue metadata, repository metadata, labels, and description preview.

@@ -45,6 +45,7 @@ const RepoBatchSchema = z.object({
 const BATCH_SIZE = 100
 
 interface CategorizeReposOptions {
+  providerOptions?: Record<string, Record<string, string>>
   existingTaxonomy?: {
     collections: Collection[]
     tags: Tag[]
@@ -58,7 +59,7 @@ export async function categorizeRepos(
 ): Promise<CategorizationResult> {
   const reposToAnalyze = repos.slice(0, 500)
   const repoIdSet = new Set(reposToAnalyze.map(r => r.id))
-  const existingTaxonomy = options.existingTaxonomy
+  const { existingTaxonomy, providerOptions = {} } = options
   const shouldUseExistingTaxonomy = Boolean(
     existingTaxonomy?.collections.length && existingTaxonomy.tags.length
   )
@@ -85,6 +86,7 @@ export async function categorizeRepos(
     const { object: taxonomyObj } = await generateObject({
       model,
       schema: TaxonomySchema,
+      providerOptions,
       experimental_telemetry: { isEnabled: true, functionId: "categorize-taxonomy" },
       system: `You are an expert at organizing GitHub repositories.
 Given a list of starred repos, produce:
@@ -131,6 +133,7 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
     const { object: batchObj } = await generateObject({
       model,
       schema: RepoBatchSchema,
+      providerOptions,
       experimental_telemetry: { isEnabled: true, functionId: "categorize-batch" },
       system: `You classify GitHub repos into collections and assign tags from a fixed vocabulary.
 

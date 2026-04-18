@@ -7,7 +7,7 @@ import { getValidGitHubToken } from '@/lib/tokens'
 import { fetchRepoIntelData } from '@/lib/repo-intel'
 import { analyzeRepoIntel } from '@/lib/ai-repo-intel'
 import { langfuseSpanProcessor } from '@/instrumentation'
-import { getAIModel, type AIModelConfig } from '@/lib/ai-provider'
+import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
 import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from '@/lib/ai-weekly-limit'
 import type { RepoIntel } from '@/lib/types'
 
@@ -129,6 +129,7 @@ export async function GET(request: Request) {
       rawData.issueSamples,
       rawData.contributorCount,
       modelConfig.model,
+      getProviderOptions(modelConfig.provider),
     )
 
     // Upsert to global cache
