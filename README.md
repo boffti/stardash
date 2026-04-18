@@ -1,55 +1,111 @@
-# StarDash
+<div align="center">
 
-_Private repository for a Next.js dashboard that turns GitHub stars into a searchable, organized, AI-assisted workspace._
+<h1>StarDash</h1>
+
+<p>Turn your GitHub stars into a searchable, organized, AI-assisted workspace.</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="stardash_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="stardash_light.png">
+  <img alt="StarDash Dashboard" src="stardash_dark.png" width="100%">
+</picture>
+
+`<br/><br/>`
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38bdf8?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
+
+[![GitHub stars](https://img.shields.io/github/stars/boffti/stardash?style=social)](https://github.com/boffti/stardash/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/boffti/stardash?style=social)](https://github.com/boffti/stardash/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/boffti/stardash)](https://github.com/boffti/stardash/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+
+[**stardash.dev**](https://stardash.vercel.app) · [**Self-Host**](#-self-hosting) · [**Report a Bug**](https://github.com/boffti/stardash/issues/new?labels=bug) · [**Request a Feature**](https://github.com/boffti/stardash/issues/new?labels=enhancement)
+
+</div>
 
 ---
 
 ## 📋 Overview
 
-StarDash is a personal dashboard for developers who use GitHub stars as a discovery and bookmarking system, then need a better way to work with that backlog.
+StarDash is an open-source personal dashboard for developers who use GitHub stars as a discovery and bookmarking system. It turns your stars into a searchable, organized, AI-assisted workspace — with deep repo intelligence, contribution discovery, and proactive health alerts built in.
 
-After signing in with GitHub through Supabase OAuth, a user can:
+Sign in with GitHub, sync your stars once, and get a full workspace across five views:
 
-- Sync their starred repositories from GitHub
-- Search, filter, sort, and page through large star collections
-- Add notes, status labels, tags, collections, and pinned repos
-- Read repository READMEs without leaving the app
-- Unstar repositories from inside the dashboard
-- Generate AI-assisted tags and collections for uncategorized repos
-- Browse a separate trending view based on recent starring behavior
-- See lightweight repo health signals such as trend status and major releases
+| View | What it does |
+|---|---|
+| **Dashboard** | Browse, search, filter, and annotate all your starred repos |
+| **Repo Intel** | AI-generated health report for any starred repo |
+| **Contribute** | Find and prioritize real open issues you could work on |
+| **Trending** | Discover repos gaining momentum in your starred collection |
+| **Recently Viewed** | Jump back to repos you've been exploring |
 
-The app is built with Next.js App Router, Supabase Auth + Postgres, shadcn/ui, Tailwind CSS v4, Sentry, and Langfuse.
+## ✨ Features
 
-## 🧭 What is implemented
+### Dashboard
+- Full starred-repo sync (up to 5,000 repos via paginated GitHub API)
+- 24-hour client-side cache for instant reloads and offline fallback
+- Grid and list layouts with adjustable page size
+- Search across name, owner, description, notes, tags, and collections
+- Sort by starred date, GitHub stars, last updated, or name
+- Filter by language, tag, collection, status, or uncategorized state
+- Per-repo status tracking: `want-to-try` · `currently-using` · `tried-liked` · `tried-dropped` · `just-interesting` · `reference`
+- Freeform notes, pinned state, tags, and collections per repo
+- Repo detail drawer with inline README viewer — no tab switching
+- Command palette for quick actions and repo jump
+- Unstar directly from the dashboard
+- Proactive alerts for archived repos, trending signals, and major release drops
 
-### Product behavior
+### Repo Intel ✨ AI-powered
+- On-demand deep analysis of any starred repo powered by OpenRouter (Gemini 2.0 Flash)
+- **Health score** (0–100) with maintenance verdict, community sentiment, and adoption readiness
+- Key metrics: commit activity, contributor count, days since last commit/release, community files (CONTRIBUTING, CoC, CI)
+- Top pain points and AI-generated summary + recommendation
+- 7-day global cache — analyses are shared across users, keeping API costs low
+- **Hosted app:** generous weekly free quota included — add your own API key in Settings to remove all limits
+- **Self-hosted:** set your own key via env; no quota enforced
 
-- GitHub OAuth login via Supabase
-- Protected dashboard, trending, and settings routes
-- Full starred-repo sync from GitHub with pagination support
-- Client-side local cache of repo data for faster reloads and degraded-mode fallback
-- Per-user metadata persistence in Supabase for:
-  - status
-  - notes
-  - pinned state
-  - tags
-  - collections
-- AI categorization via OpenRouter using a two-phase taxonomy + batch classification flow
-- Daily star snapshot cron job for trend calculations
-- Observability wiring for Sentry and Langfuse
+### Contribution Dashboard ✨ AI-powered
+- Scans your starred repos for open GitHub issues you could realistically contribute to
+- Filters by **difficulty** (beginner / intermediate / advanced), **language**, and **contribution type** (bugfix, docs, tests, frontend, backend, infra, feature, maintenance)
+- Scores and ranks opportunities using fit reasons, quality signals, and risk factors
+- **Contribution Brief** — one-click AI analysis of a selected issue: plain-English summary, why it fits your profile, first steps, likely files to touch, questions to ask, and a ready-to-paste coding-assistant prompt
+- Per-user 5-minute scan cooldown to protect GitHub API rate limits
+- **Hosted app:** generous weekly free brief quota included — add your own API key in Settings to remove all limits
+- **Self-hosted:** no brief quota enforced when using your own key
 
-### Current storage model
+### Trending
+- Heuristic recommendation engine seeded from your most recent 25 starred repos
+- Surfaces top languages and topics from your recent activity
+- Three recommendation buckets: **Popular in Your Network**, **Heating Up**, **Hidden Gems**
 
-The app does not treat Supabase as the primary source of starred repositories for rendering the dashboard.
+### AI Categorization
+- Two-phase flow: Phase 1 generates 5–12 collections and 15–25 reusable tags from your full repo corpus; Phase 2 classifies repos in batches of 100
+- Analyzes up to 500 repos per run
+- **Hosted app:** 24-hour cooldown between runs — add your own API key in Settings to run on demand without waiting
+- **Self-hosted:** no cooldown enforced when using your own key
 
-- GitHub is still the source of truth for the live starred-repo list
-- The browser keeps a 24-hour local cache keyed by user ID
-- Supabase stores synchronized repo records plus user-specific metadata and historical snapshots
-- The UI overlays database metadata on top of the live GitHub repo payload
+### Bring Your Own Key (BYOK)
 
-That means the app already persists useful repo and user metadata, but the dashboard still refreshes from GitHub rather than reading the repo list directly from Postgres.
+All AI features support user-provided API keys, configured in **Settings → AI Provider**:
 
+| Provider | Default model | Key format |
+|---|---|---|
+| [OpenRouter](https://openrouter.ai/) | `google/gemini-2.0-flash-001` | `sk-or-...` |
+| [OpenAI](https://platform.openai.com/) | `gpt-4o-mini` | `sk-...` |
+| [Anthropic](https://console.anthropic.com/) | `claude-haiku` | `sk-ant-...` |
+
+When a user key is detected, all per-user rate limits are bypassed and the key is used exclusively for that session — the app's shared key is never touched.
+
+### Platform
+- GitHub OAuth login via Supabase Auth
+- Daily star snapshot cron (`0 2 * * *`) for trend calculations
+- Observability via Sentry (errors) and Langfuse (AI traces)
+- Self-hostable via Docker Compose (see [Self-Hosting](#-self-hosting))
 ## 🏗️ Architecture
 
 ```mermaid
@@ -95,79 +151,13 @@ flowchart LR
 7. The client fetches user metadata from Supabase and overlays it on the GitHub response.
 8. Optional AI categorization writes generated tags and collections back to Supabase.
 
-## ✨ Core features
-
-### Dashboard
-
-The main dashboard is the operational center of the app.
-
-- Grid and list layouts
-- Search across repo name, owner, description, notes, and tags
-- Sort by starred date, GitHub stars, update recency, or name
-- Filter by language, tag, collection, or uncategorized state
-- Pagination with adjustable page size
-- Repo detail drawer
-- README viewer
-- Command palette with quick actions and repo jump
-- Inline refresh behavior with cache-aware fallback
-
-### User metadata
-
-Each starred repository can accumulate user-owned metadata:
-
-- `status`: `want-to-try`, `currently-using`, `tried-liked`, `tried-dropped`, `just-interesting`, `reference`
-- freeform notes
-- pinned state
-- many-to-many tags
-- many-to-many collections
-
-Tags and collections are managed from the settings screen and persisted in Supabase.
-
-### AI categorization
-
-The AI flow is implemented in `app/api/ai/categorize/route.ts` and `lib/ai-categorize.ts`.
-
-- Uses OpenRouter through the AI SDK
-- Analyzes up to 500 repos
-- Phase 1 generates:
-  - 5 to 12 collections
-  - 15 to 25 reusable tags
-- Phase 2 classifies repos in batches of 100
-- Generated tags and collections are persisted into the user’s Supabase data model
-- Categorization is rate-limited to once every 24 hours per user
-- Langfuse telemetry is enabled for the AI calls
-
-### Trending view
-
-The trending page is a derived recommendation experience based on the user’s most recent 25 stars.
-
-It computes:
-
-- top languages
-- top topics
-- three recommendation buckets:
-  - Popular in Your Network
-  - Heating Up
-  - Hidden Gems
-
-This is currently heuristic, not model-driven.
-
-### Repo health signals
-
-`GET /api/github/health` combines Supabase snapshot data with GitHub release data to expose:
-
-- `isTrending`
-  - currently defined as a repo having at least 10 stars and doubling within 30 days based on daily snapshots
-- `latestRelease`
-  - only returned when a non-prerelease major release happened after the user starred the repo
-
 ### Daily star snapshots
 
-Vercel Cron calls `/api/cron/star-snapshots` on the schedule in `vercel.json`.
+A cron job calls `/api/cron/star-snapshots` daily at `0 2 * * *` (02:00 UTC) to record star counts in `repo_star_snapshots`, which powers the trending view.
 
-- schedule: `0 2 * * *`
-- purpose: store daily star counts in `repo_star_snapshots`
-- auth: optional `CRON_SECRET` bearer token
+- **Vercel:** configured in `vercel.json`
+- **Self-hosted:** managed by the Ofelia container in `docker-compose.yml`
+- Auth: `CRON_SECRET` bearer token (required)
 
 ## 🗂️ Project structure
 
@@ -265,17 +255,18 @@ Important implementation detail:
 
 ## 🖥️ Tech stack
 
-- Next.js 16 with App Router
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- shadcn/ui
-- Supabase Auth + Postgres
-- SWR
-- OpenRouter via `@openrouter/ai-sdk-provider`
-- Vercel Analytics
-- Sentry
-- Langfuse
+| Layer            | Technology                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Framework        | [Next.js 16](https://nextjs.org/) (App Router) + [React 19](https://react.dev/)                   |
+| Language         | [TypeScript 5.7](https://www.typescriptlang.org/)                                              |
+| Styling          | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)                 |
+| Database / Auth  | [Supabase](https://supabase.com/) (Postgres + GitHub OAuth)                                    |
+| Data fetching    | [SWR](https://swr.vercel.app/)                                                                 |
+| AI               | [Vercel AI SDK](https://sdk.vercel.ai/) + [OpenRouter](https://openrouter.ai/) (Gemini 2.0 Flash) |
+| Error tracking   | [Sentry](https://sentry.io/)                                                                   |
+| AI observability | [Langfuse](https://langfuse.com/)                                                              |
+| Animations       | [Framer Motion](https://www.framer.com/motion/)                                                |
+| Drag & Drop      | [dnd-kit](https://dndkit.com/)                                                                 |
 
 ## ⚙️ Local development
 
@@ -316,7 +307,7 @@ OPENROUTER_API_KEY=
 CRON_SECRET=
 ```
 
-### Required for Sentry
+### Optional for Sentry
 
 ```bash
 NEXT_PUBLIC_SENTRY_DSN=
@@ -325,7 +316,7 @@ SENTRY_PROJECT=
 SENTRY_AUTH_TOKEN=
 ```
 
-### Required for Langfuse
+### Optional for Langfuse
 
 ```bash
 LANGFUSE_SECRET_KEY=
@@ -341,13 +332,17 @@ LANGFUSE_BASE_URL=
 
 ## 🚀 Deployment
 
-The app is intended for Vercel deployment.
+### Deploy to Vercel (recommended)
 
-- `vercel.json` defines a daily cron for repo star snapshots
-- Sentry is wired through `withSentryConfig(...)` in `next.config.mjs`
-- `next.config.mjs` currently sets `typescript.ignoreBuildErrors = true`
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/boffti/stardash)
 
-That last point matters: production builds can succeed even if TypeScript errors exist.
+1. Click the button above and import the repo
+2. Add all required environment variables (see [Environment Variables](#-environment-variables))
+3. Vercel will run `pnpm build` and deploy — the cron job in `vercel.json` is picked up automatically
+
+### Deploy with Docker
+
+See the [Self-Hosting](#-self-hosting) section below for full Docker Compose instructions.
 
 ## 📈 Observability
 
@@ -369,25 +364,6 @@ Langfuse captures AI telemetry from the categorization pipeline.
 - `instrumentation.ts` registers a `LangfuseSpanProcessor`
 - long-running routes flush spans with `after(async () => langfuseSpanProcessor?.forceFlush())`
 
-## 🧪 Quality checks
-
-There is no formal test suite configured in this repository right now.
-
-Use:
-
-```bash
-pnpm lint
-```
-
-Also note that `pnpm build` does not enforce TypeScript correctness because build-time TS errors are explicitly ignored in `next.config.mjs`.
-
-## ⚠️ Known implementation notes
-
-- The repo started from a v0 scaffold, but the application logic is now custom
-- Some migration history reflects an older schema shape that is no longer the primary runtime model
-- The dashboard fetches repo lists from GitHub on sync rather than serving them primarily from Supabase
-- AI categorization is intentionally capped and rate-limited to control cost and abuse
-
 ---
 
 ## 🐳 Self-Hosting
@@ -396,12 +372,12 @@ You can run StarDash on your own infrastructure. The app is a standard Next.js s
 
 ### Prerequisites
 
-| Service | Purpose | Free tier? |
-|---------|---------|-----------|
-| [Supabase](https://supabase.com) | Auth + Postgres database | ✅ Yes |
-| [GitHub OAuth App](https://github.com/settings/developers) | User sign-in | ✅ Free |
-| [OpenRouter](https://openrouter.ai) | AI categorization (optional) | Pay-per-use |
-| [Docker + Docker Compose](https://docs.docker.com/get-docker/) | Container runtime | ✅ Free |
+| Service                                                     | Purpose                      | Free tier?  |
+| ----------------------------------------------------------- | ---------------------------- | ----------- |
+| [Supabase](https://supabase.com)                               | Auth + Postgres database     | ✅ Yes      |
+| [GitHub OAuth App](https://github.com/settings/developers)     | User sign-in                 | ✅ Free     |
+| [OpenRouter](https://openrouter.ai)                            | AI categorization (optional) | Pay-per-use |
+| [Docker + Docker Compose](https://docs.docker.com/get-docker/) | Container runtime            | ✅ Free     |
 
 ### Step 1 — Create a Supabase project
 
@@ -467,7 +443,25 @@ pnpm start
 
 Then set up your own cron job or system timer to hit `/api/cron/star-snapshots` daily with the `Authorization: Bearer <CRON_SECRET>` header.
 
+## 🗺️ Roadmap
+
+TBD
+
+Have an idea? [Open an issue](https://github.com/boffti/stardash/issues) or start a [discussion](https://github.com/boffti/stardash/discussions)!
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for guidelines.
+
+Quick start:
+
+1. Fork the repo and create your branch: `git checkout -b feat/my-feature`
+2. Make your changes and run `pnpm lint`
+3. Commit using [Conventional Commits](https://www.conventionalcommits.org/): `git commit -m 'feat: add my feature'`
+4. Push and open a Pull Request
+
+For larger changes, please open an issue first to discuss the approach.
+
 ## 📄 License
 
 [MIT](./LICENSE)
-
