@@ -15,8 +15,10 @@ import {
   ArrowUpRight,
   Bot,
   Bug,
+  Check,
   CheckCircle2,
   Code2,
+  Copy,
   ExternalLink,
   FileText,
   GitPullRequestArrow,
@@ -398,6 +400,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   const [selectedIssue, setSelectedIssue] = useState<ContributionOpportunity | null>(null)
   const [brief, setBrief] = useState<ContributionBrief | null>(null)
   const [briefError, setBriefError] = useState<string | null>(null)
+  const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
   const { getHeaders } = useAIKey()
   const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
@@ -887,8 +890,27 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <h3 className="font-medium">Coding assistant prompt</h3>
-                <pre className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 text-xs leading-5 text-muted-foreground pt-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Coding assistant prompt</h3>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          navigator.clipboard.writeText(brief.codingAssistantPrompt)
+                          setCopiedPrompt(true)
+                          setTimeout(() => setCopiedPrompt(false), 2000)
+                        }}
+                      >
+                        {copiedPrompt ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{copiedPrompt ? "Copied!" : "Copy prompt"}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <pre className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 pt-0 text-xs leading-5 text-muted-foreground">
                   {brief.codingAssistantPrompt}
                 </pre>
               </div>
