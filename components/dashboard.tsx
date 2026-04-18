@@ -41,6 +41,7 @@ import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Colle
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useStarredRepos } from "@/lib/use-starred-repos"
+import { useAIKey } from "@/lib/use-ai-key"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import { isDormantRepo, type RepoHealthFilter } from "@/lib/repo-health"
 import {
@@ -93,10 +94,12 @@ export function Dashboard({ user }: DashboardProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [categorization, setCategorization] = useState<CategorizationResult | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
+  const [categorizeLimit, setCategorizeLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
 
+  const { getHeaders } = useAIKey()
   const supabase = createClient()
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -476,9 +479,15 @@ export function Dashboard({ user }: DashboardProps) {
     try {
       const response = await fetch('/api/ai/categorize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ repos: rawRepos }),
       })
+      if (response.status === 429) {
+        const result = await response.json()
+        setCategorizeLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
+        toast.error(result.error ?? 'AI categorization limit reached')
+        return
+      }
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Failed to categorize')
       const categorizationResult = result as CategorizationResult
@@ -821,6 +830,7 @@ export function Dashboard({ user }: DashboardProps) {
           isRefreshing={isRefreshing || isLoading}
           onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
+          categorizeLimit={categorizeLimit}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
         <DashboardCommandPalette

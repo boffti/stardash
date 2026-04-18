@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { after } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import type { ContributionOpportunity } from '@/lib/contribution-opportunities'
+import { getAIModel, type AIModelConfig } from '@/lib/ai-provider'
+import { checkAndIncrementWeeklyLimit } from '@/lib/ai-weekly-limit'
 
 export const maxDuration = 45
 
@@ -32,8 +33,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY
-    if (!apiKey) {
+    let modelConfig: AIModelConfig
+    try {
+      modelConfig = getAIModel(request)
+    } catch {
       return NextResponse.json({ error: 'AI service not configured' }, { status: 503 })
     }
 
@@ -42,9 +45,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing opportunity' }, { status: 400 })
     }
 
-    const openrouter = createOpenRouter({ apiKey })
+    let limitResult: Awaited<ReturnType<typeof checkAndIncrementWeeklyLimit>> | undefined
+    if (!modelConfig.isUserKey) {
+      limitResult = await checkAndIncrementWeeklyLimit(user.id, 'brief')
+      if (!limitResult.allowed) {
+        return NextResponse.json(
+          { error: 'Weekly AI brief limit reached', remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
+          { status: 429 },
+        )
+      }
+    }
+
     const { object } = await generateObject({
-      model: openrouter('google/gemini-2.0-flash-001'),
+      model: modelConfig.model,
       schema: ContributionBriefSchema,
       experimental_telemetry: { isEnabled: true, functionId: 'contribution-brief' },
       system: `You help developers evaluate open-source issues before they start work.
@@ -73,7 +86,7 @@ Use concise language. When uncertain, frame suggestions as likely starting point
       await langfuseSpanProcessor?.forceFlush()
     })
 
-    return NextResponse.json({ brief: object })
+    return NextResponse.json({ brief: object, remaining: limitResult?.remaining ?? null })
   } catch (error) {
     Sentry.captureException(error)
     console.error('[contribution-brief] error:', error)

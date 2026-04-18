@@ -1,5 +1,5 @@
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { generateObject } from 'ai'
+import type { LanguageModel } from 'ai'
 import { z } from 'zod'
 import type { StarredRepo, Tag, Collection, CategorizationResult } from './types'
 
@@ -45,7 +45,6 @@ const RepoBatchSchema = z.object({
 const BATCH_SIZE = 100
 
 interface CategorizeReposOptions {
-  model?: string
   existingTaxonomy?: {
     collections: Collection[]
     tags: Tag[]
@@ -54,11 +53,9 @@ interface CategorizeReposOptions {
 
 export async function categorizeRepos(
   repos: StarredRepo[],
-  apiKey: string,
+  model: LanguageModel,
   options: CategorizeReposOptions = {}
 ): Promise<CategorizationResult> {
-  const model = options.model ?? 'google/gemini-2.0-flash-001'
-  const openrouter = createOpenRouter({ apiKey })
   const reposToAnalyze = repos.slice(0, 500)
   const repoIdSet = new Set(reposToAnalyze.map(r => r.id))
   const existingTaxonomy = options.existingTaxonomy
@@ -86,7 +83,7 @@ export async function categorizeRepos(
   } else {
     // Phase 1: generate collection taxonomy + shared tag vocabulary from all repo summaries
     const { object: taxonomyObj } = await generateObject({
-      model: openrouter(model),
+      model,
       schema: TaxonomySchema,
       experimental_telemetry: { isEnabled: true, functionId: "categorize-taxonomy" },
       system: `You are an expert at organizing GitHub repositories.
@@ -132,7 +129,7 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
     const batch = summaries.slice(i, i + BATCH_SIZE)
 
     const { object: batchObj } = await generateObject({
-      model: openrouter(model),
+      model,
       schema: RepoBatchSchema,
       experimental_telemetry: { isEnabled: true, functionId: "categorize-batch" },
       system: `You classify GitHub repos into collections and assign tags from a fixed vocabulary.

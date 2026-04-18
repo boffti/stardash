@@ -7,6 +7,8 @@ import { getValidGitHubToken } from '@/lib/tokens'
 import { fetchRepoIntelData } from '@/lib/repo-intel'
 import { analyzeRepoIntel } from '@/lib/ai-repo-intel'
 import { langfuseSpanProcessor } from '@/instrumentation'
+import { getAIModel, type AIModelConfig } from '@/lib/ai-provider'
+import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from '@/lib/ai-weekly-limit'
 import type { RepoIntel } from '@/lib/types'
 
 export const maxDuration = 60
@@ -72,6 +74,7 @@ export async function GET(request: Request) {
       .eq('repo_full_name', repoFullName)
       .single()
 
+    // Return fresh cached data without hitting rate limit
     if (cached && !refresh) {
       const age = Date.now() - new Date(cached.analyzed_at).getTime()
       if (age < CACHE_TTL_MS) {
@@ -88,10 +91,32 @@ export async function GET(request: Request) {
       )
     }
 
-    // Get OpenRouter API key
-    const apiKey = process.env.OPENROUTER_API_KEY
-    if (!apiKey) {
+    // Get AI model config
+    let modelConfig: AIModelConfig
+    try {
+      modelConfig = getAIModel(request)
+    } catch {
       return NextResponse.json({ error: 'AI service not configured' }, { status: 503 })
+    }
+
+    // Enforce per-user weekly limit only when using server key
+    let limitResult: WeeklyLimitResult | undefined
+    if (!modelConfig.isUserKey) {
+      limitResult = await checkAndIncrementWeeklyLimit(user.id, 'intel')
+      if (!limitResult.allowed) {
+        if (cached) {
+          return NextResponse.json({
+            intel: rowToIntel(cached as RepoInsightRow),
+            cached: true,
+            limitReached: true,
+            nextAllowedAt: limitResult.nextAllowedAt,
+          })
+        }
+        return NextResponse.json(
+          { error: 'Weekly AI limit reached. Try again next week.', remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
+          { status: 429 }
+        )
+      }
     }
 
     // Fetch GitHub data
@@ -103,7 +128,7 @@ export async function GET(request: Request) {
       rawData.metrics,
       rawData.issueSamples,
       rawData.contributorCount,
-      apiKey,
+      modelConfig.model,
     )
 
     // Upsert to global cache
@@ -136,14 +161,14 @@ export async function GET(request: Request) {
         analyzedAt: new Date().toISOString(),
         ...analysis,
       }
-      return NextResponse.json({ intel, cached: false })
+      return NextResponse.json({ intel, cached: false, remaining: limitResult?.remaining ?? null })
     }
 
     after(async () => {
       await langfuseSpanProcessor?.forceFlush()
     })
 
-    return NextResponse.json({ intel: rowToIntel(upserted as RepoInsightRow), cached: false })
+    return NextResponse.json({ intel: rowToIntel(upserted as RepoInsightRow), cached: false, remaining: limitResult?.remaining ?? null })
   } catch (err) {
     Sentry.captureException(err)
     console.error('[repo-intel] error:', err)

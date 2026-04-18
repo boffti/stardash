@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import useSWR from "swr"
+import { useAIKey } from "@/lib/use-ai-key"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
 import {
@@ -244,11 +246,15 @@ function OpportunityCard({
   onBrief,
   onViewIssue,
   isBriefLoading,
+  isBriefLimited,
+  briefTooltip,
 }: {
   opportunity: ContributionOpportunity
   onBrief: (opportunity: ContributionOpportunity) => void
   onViewIssue: (opportunity: ContributionOpportunity) => void
   isBriefLoading: boolean
+  isBriefLimited: boolean
+  briefTooltip: string
 }) {
   const langColor = languageColors[opportunity.repoLanguage ?? ""] ?? "#6b7280"
 
@@ -334,16 +340,23 @@ function OpportunityCard({
               <span>{opportunity.comments} comments</span>
             </div>
             <div className="flex gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onBrief(opportunity)}
-                disabled={isBriefLoading}
-                className="h-7 px-2.5 text-xs"
-              >
-                {isBriefLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
-                <span className="ml-1">Brief</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onBrief(opportunity)}
+                      disabled={isBriefLoading || isBriefLimited}
+                      className="h-7 px-2.5 text-xs"
+                    >
+                      {isBriefLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
+                      <span className="ml-1">Brief</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{briefTooltip}</TooltipContent>
+              </Tooltip>
               <Button asChild size="sm" className="h-7 px-2.5 text-xs">
                 <a href={opportunity.htmlUrl} target="_blank" rel="noreferrer">
                   Open
@@ -381,6 +394,8 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   const [brief, setBrief] = useState<ContributionBrief | null>(null)
   const [briefError, setBriefError] = useState<string | null>(null)
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
+  const { getHeaders } = useAIKey()
+  const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
 
   const repos = useMemo(() => {
     const rawRepos = data?.repos ?? []
@@ -523,13 +538,26 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     try {
       const response = await fetch("/api/ai/contribution-brief", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify({ opportunity }),
       })
+
+      if (response.status === 429) {
+        const result = await response.json()
+        setBriefLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
+        setBriefError(result.error ?? "Brief limit reached")
+        setBriefLoadingId(null)
+        return
+      }
+
       const result = await response.json()
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to generate contribution brief")
+      }
+
+      if (typeof result.remaining === "number") {
+        setBriefLimit({ remaining: result.remaining, nextAllowedAt: null })
       }
 
       const brief = result.brief as ContributionBrief
@@ -570,6 +598,13 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     setContributionType("all")
     setSearch("")
   }
+
+  const isBriefLimited = briefLimit.remaining === 0
+  const briefTooltip = isBriefLimited && briefLimit.nextAllowedAt
+    ? `Brief limit reached (10/week). Resets ${new Date(briefLimit.nextAllowedAt).toLocaleDateString()}`
+    : briefLimit.remaining !== null
+      ? `Generate AI brief (${briefLimit.remaining}/10 remaining this week)`
+      : "Generate AI brief"
 
   return (
     <SidebarProvider>
@@ -732,6 +767,8 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                     onBrief={handleBrief}
                     onViewIssue={setSelectedIssue}
                     isBriefLoading={briefLoadingId === opportunity.id}
+                    isBriefLimited={isBriefLimited}
+                    briefTooltip={briefTooltip}
                   />
                 </div>
               ))}
