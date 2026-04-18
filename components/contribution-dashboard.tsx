@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import type React from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import { useAIKey } from "@/lib/use-ai-key"
@@ -62,6 +61,10 @@ import type { UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ContributionCommandPalette } from "@/components/contribution-command-palette"
 import { IssueViewer } from "@/components/issue-viewer"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 
 interface ContributionDashboardProps {
   user: User | null
@@ -206,6 +209,33 @@ function writeCachedOpportunities(cacheKey: string | null, cache: CachedOpportun
   } catch {
     // Browser storage can be unavailable or full; the live result is still usable.
   }
+}
+
+function getCodeBlockProps(children: React.ReactNode) {
+  if (!React.isValidElement(children)) return null
+  const childProps = children.props as { className?: string; children?: React.ReactNode }
+  const match = /language-([\w-]+)/.exec(childProps.className || "")
+  if (!match) return null
+  return {
+    code: String(childProps.children ?? "").replace(/\n$/, ""),
+    language: match[1],
+  }
+}
+
+function InlineMd({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <span>{children}</span>,
+        code: ({ children }) => (
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">{children}</code>
+        ),
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  )
 }
 
 function OpportunitySkeleton() {
@@ -858,19 +888,31 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
 
           {brief && (
             <div className="flex flex-col gap-5 text-sm">
-              <p className="leading-6 text-muted-foreground">{brief.summary}</p>
+              <p className="leading-6 text-muted-foreground">
+                <InlineMd>{brief.summary}</InlineMd>
+              </p>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <h3 className="font-medium">Why it fits</h3>
                   <ul className="flex flex-col gap-1.5 text-muted-foreground">
-                    {brief.whyItFits.map((item) => <li key={item}>- {item}</li>)}
+                    {brief.whyItFits.map((item) => (
+                      <li key={item} className="flex items-start gap-1.5">
+                        <span className="mt-1 shrink-0 text-muted-foreground/50">–</span>
+                        <InlineMd>{item}</InlineMd>
+                      </li>
+                    ))}
                   </ul>
                 </div>
                 <div className="flex flex-col gap-2">
                   <h3 className="font-medium">Likely starting points</h3>
                   <ul className="flex flex-col gap-1.5 text-muted-foreground">
-                    {brief.likelyFiles.map((item) => <li key={item}>- {item}</li>)}
+                    {brief.likelyFiles.map((item) => (
+                      <li key={item} className="flex items-start gap-1.5">
+                        <span className="mt-1 shrink-0 text-muted-foreground/50">–</span>
+                        <InlineMd>{item}</InlineMd>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -878,14 +920,21 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
               <div className="flex flex-col gap-2">
                 <h3 className="font-medium">First steps</h3>
                 <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
-                  {brief.firstSteps.map((item) => <li key={item}>{item}</li>)}
+                  {brief.firstSteps.map((item) => (
+                    <li key={item}><InlineMd>{item}</InlineMd></li>
+                  ))}
                 </ol>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="font-medium">Questions to ask</h3>
                 <ul className="flex flex-col gap-1.5 text-muted-foreground">
-                  {brief.questionsToAsk.map((item) => <li key={item}>- {item}</li>)}
+                  {brief.questionsToAsk.map((item) => (
+                    <li key={item} className="flex items-start gap-1.5">
+                      <span className="mt-1 shrink-0 text-muted-foreground/50">–</span>
+                      <InlineMd>{item}</InlineMd>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
@@ -910,9 +959,51 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                     <TooltipContent>{copiedPrompt ? "Copied!" : "Copy prompt"}</TooltipContent>
                   </Tooltip>
                 </div>
-                <pre className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 pt-0 text-xs leading-5 text-muted-foreground">
-                  {brief.codingAssistantPrompt}
-                </pre>
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                  <article className="prose dark:prose-invert prose-sm max-w-full
+                    prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-1
+                    prose-headings:font-semibold prose-headings:text-foreground
+                    prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
+                    prose-code:rounded prose-code:text-xs prose-code:font-mono
+                    prose-code:before:content-none prose-code:after:content-none
+                    prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:my-2
+                    prose-li:text-muted-foreground prose-li:my-0.5
+                    prose-ul:my-1 prose-ol:my-1
+                    prose-strong:text-foreground
+                    prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        pre: ({ children }) => {
+                          const block = getCodeBlockProps(children)
+                          if (!block) return <pre>{children}</pre>
+                          return (
+                            <div className="not-prose my-2 overflow-x-auto rounded-lg border border-border">
+                              <SyntaxHighlighter
+                                language={block.language}
+                                style={oneDark}
+                                wrapLongLines
+                                customStyle={{
+                                  margin: 0,
+                                  padding: "0.75rem",
+                                  borderRadius: 0,
+                                  fontSize: "0.75rem",
+                                  whiteSpace: "pre-wrap",
+                                  overflowWrap: "anywhere",
+                                }}
+                                codeTagProps={{ style: { fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", wordBreak: "break-word" } }}
+                              >
+                                {block.code}
+                              </SyntaxHighlighter>
+                            </div>
+                          )
+                        },
+                      }}
+                    >
+                      {brief.codingAssistantPrompt}
+                    </ReactMarkdown>
+                  </article>
+                </div>
               </div>
 
               {selectedOpportunity && (
