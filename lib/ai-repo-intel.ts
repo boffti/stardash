@@ -1,5 +1,5 @@
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { generateObject } from 'ai'
+import type { LanguageModel } from 'ai'
 import { z } from 'zod'
 import type {
   RepoIntel,
@@ -10,8 +10,6 @@ import type {
   RepoMaintenanceAssessment,
 } from './types'
 import type { IssueSample } from './repo-intel'
-
-const MODEL = 'google/gemini-2.0-flash-001'
 
 const RepoIntelSchema = z.object({
   healthScore: z
@@ -111,9 +109,9 @@ export async function analyzeRepoIntel(
   metrics: RepoIntelMetrics,
   issueSamples: IssueSample[],
   contributorCount: number,
-  apiKey: string,
+  model: LanguageModel,
+  providerOptions: Record<string, Record<string, string>> = {},
 ): Promise<Omit<RepoIntel, 'id' | 'repoFullName' | 'analyzedAt'>> {
-  const openrouter = createOpenRouter({ apiKey })
   const maintenanceAssessment = metrics.maintenanceAssessment ?? {
     verdict: 'lightly-maintained' as MaintenanceVerdict,
     confidence: 0.35,
@@ -131,8 +129,9 @@ export async function analyzeRepoIntel(
   const prompt = formatMetricsForPrompt(repoFullName, metrics, issueSamples, contributorCount, maintenanceAssessment)
 
   const { object } = await generateObject({
-    model: openrouter(MODEL),
+    model,
     schema: RepoIntelSchema,
+    providerOptions,
     experimental_telemetry: {
       isEnabled: true,
       functionId: 'repo-intel-analysis',

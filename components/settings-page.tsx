@@ -37,6 +37,8 @@ import { CreateTagModal } from "@/components/create-tag-modal"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
+import { Separator } from "@/components/ui/separator"
+import { AIKeySettings } from "@/components/ai-key-settings"
 import { cn } from "@/lib/utils"
 
 interface SettingsPageProps {
@@ -503,6 +505,10 @@ export function SettingsPage({ user }: SettingsPageProps) {
 
           <main className="flex-1 p-6">
             <div className="flex w-full flex-col gap-6">
+              <section className="space-y-3">
+                <AIKeySettings />
+              </section>
+              <Separator />
               <section className="space-y-3">
                 <div className="space-y-2">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">Workspace Settings</p>

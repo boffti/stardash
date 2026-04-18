@@ -14,7 +14,7 @@ import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List, StarOff, LogOut, Star } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List, StarOff, LogOut, LogIn, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -40,7 +40,9 @@ import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
 import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Collection, Tag } from "@/lib/types"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { useStarredRepos } from "@/lib/use-starred-repos"
+import { useAIKey } from "@/lib/use-ai-key"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import { isDormantRepo, type RepoHealthFilter } from "@/lib/repo-health"
 import {
@@ -93,10 +95,12 @@ export function Dashboard({ user }: DashboardProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [categorization, setCategorization] = useState<CategorizationResult | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
+  const [categorizeLimit, setCategorizeLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
 
+  const { getHeaders } = useAIKey()
   const supabase = createClient()
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -470,15 +474,35 @@ export function Dashboard({ user }: DashboardProps) {
     router.refresh()
   }
 
+  const handleReconnect = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
+  const isTokenExpired = Boolean(
+    error?.message?.includes('token') ||
+    error?.message?.includes('expired') ||
+    error?.message?.includes('re-authenticate') ||
+    data?.error
+  )
+
   const handleCategorize = async () => {
     if (!rawRepos.length) return
     setIsCategorizing(true)
     try {
       const response = await fetch('/api/ai/categorize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ repos: rawRepos }),
       })
+      if (response.status === 429) {
+        const result = await response.json()
+        setCategorizeLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
+        toast.error(result.error ?? 'AI categorization limit reached')
+        return
+      }
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Failed to categorize')
       const categorizationResult = result as CategorizationResult
@@ -817,10 +841,11 @@ export function Dashboard({ user }: DashboardProps) {
           languages={languages}
           lastSynced={lastSynced}
           user={user}
-          onRefresh={() => handleRefresh("dashboard-navbar-refresh")}
+          onRefresh={isTokenExpired ? undefined : () => handleRefresh("dashboard-navbar-refresh")}
           isRefreshing={isRefreshing || isLoading}
           onCategorize={handleCategorize}
           isCategorizing={isCategorizing}
+          categorizeLimit={categorizeLimit}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
         <DashboardCommandPalette
@@ -855,6 +880,9 @@ export function Dashboard({ user }: DashboardProps) {
           onClearFilters={clearAllFilters}
         />
         <main className="flex-1 p-6">
+          {/* Token expiry banner — always at top when expired and cached data exists */}
+          {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
+
           {/* Loading State — initial sync, no cached data */}
           {isLoading && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-32 gap-6">
@@ -871,19 +899,18 @@ export function Dashboard({ user }: DashboardProps) {
             </div>
           )}
 
-          {/* Error State */}
-          {error && !hasRepoData && (
+          {/* Full-page error only when no cached data — token error shows reconnect CTA, others show retry */}
+          {(error || data?.error) && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">Failed to load starred repositories</p>
-              {(error.message?.includes('token') || error.message?.includes('re-authenticate')) ? (
-                <>
-                  <p className="text-sm text-muted-foreground">Your GitHub token has expired. Sign out and sign in again to reconnect.</p>
-                  <Button variant="outline" onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign out and reconnect
-                  </Button>
-                </>
+              <p className="text-destructive">
+                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
+              </p>
+              {isTokenExpired ? (
+                <Button variant="outline" onClick={handleReconnect}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Reconnect GitHub
+                </Button>
               ) : (
                 <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
                   <RefreshCw className="h-4 w-4 mr-2" />
@@ -893,19 +920,8 @@ export function Dashboard({ user }: DashboardProps) {
             </div>
           )}
 
-          {/* API Error (e.g., token issues) */}
-          {data?.error && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">{data.error}</p>
-              <p className="text-sm text-muted-foreground">
-                Your GitHub token may have expired. Please sign out and sign in again.
-              </p>
-            </div>
-          )}
-
-          {/* Content */}
-          {hasRepoData && !data?.error && (
+          {/* Content — shown even when token expired if cached data exists */}
+          {hasRepoData && (
             <>
               {/* Active Filters */}
               {hasActiveFilters && (
@@ -1026,7 +1042,7 @@ export function Dashboard({ user }: DashboardProps) {
                       Star repositories on GitHub, then sync to see them here.
                     </p>
                   </div>
-                  <Button variant="outline" onClick={() => handleRefresh("empty-state-sync")}>
+                  <Button variant="outline" onClick={() => handleRefresh("empty-state-sync")} disabled={isTokenExpired}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Sync now
                   </Button>

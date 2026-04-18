@@ -1,8 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import type React from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
+import { useRouter } from "next/navigation"
+import { useAIKey } from "@/lib/use-ai-key"
+import { createClient } from "@/lib/supabase/client"
+import { TokenExpiredBanner } from "@/components/token-expired-banner"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
 import {
@@ -10,12 +14,15 @@ import {
   ArrowUpRight,
   Bot,
   Bug,
+  Check,
   CheckCircle2,
   Code2,
+  Copy,
   ExternalLink,
   FileText,
   GitPullRequestArrow,
   Loader2,
+  LogIn,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -54,6 +61,10 @@ import type { UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ContributionCommandPalette } from "@/components/contribution-command-palette"
 import { IssueViewer } from "@/components/issue-viewer"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 
 interface ContributionDashboardProps {
   user: User | null
@@ -200,6 +211,33 @@ function writeCachedOpportunities(cacheKey: string | null, cache: CachedOpportun
   }
 }
 
+function getCodeBlockProps(children: React.ReactNode) {
+  if (!React.isValidElement(children)) return null
+  const childProps = children.props as { className?: string; children?: React.ReactNode }
+  const match = /language-([\w-]+)/.exec(childProps.className || "")
+  if (!match) return null
+  return {
+    code: String(childProps.children ?? "").replace(/\n$/, ""),
+    language: match[1],
+  }
+}
+
+function InlineMd({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <span>{children}</span>,
+        code: ({ children }) => (
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">{children}</code>
+        ),
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  )
+}
+
 function OpportunitySkeleton() {
   return (
     <Card className="border-border/60 bg-card">
@@ -219,7 +257,7 @@ function OpportunitySkeleton() {
   )
 }
 
-function EmptyOpportunities({ onRefresh }: { onRefresh: () => void }) {
+function EmptyOpportunities({ onRefresh, disabled }: { onRefresh: () => void; disabled?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20">
@@ -231,7 +269,7 @@ function EmptyOpportunities({ onRefresh }: { onRefresh: () => void }) {
           Try broadening the filters or syncing your starred repos first. The MVP scans active starred repos with open issues.
         </p>
       </div>
-      <Button variant="outline" onClick={onRefresh}>
+      <Button variant="outline" onClick={onRefresh} disabled={disabled}>
         <RefreshCw data-icon="inline-start" />
         Scan again
       </Button>
@@ -244,11 +282,15 @@ function OpportunityCard({
   onBrief,
   onViewIssue,
   isBriefLoading,
+  isBriefLimited,
+  briefTooltip,
 }: {
   opportunity: ContributionOpportunity
   onBrief: (opportunity: ContributionOpportunity) => void
   onViewIssue: (opportunity: ContributionOpportunity) => void
   isBriefLoading: boolean
+  isBriefLimited: boolean
+  briefTooltip: string
 }) {
   const langColor = languageColors[opportunity.repoLanguage ?? ""] ?? "#6b7280"
 
@@ -334,16 +376,23 @@ function OpportunityCard({
               <span>{opportunity.comments} comments</span>
             </div>
             <div className="flex gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onBrief(opportunity)}
-                disabled={isBriefLoading}
-                className="h-7 px-2.5 text-xs"
-              >
-                {isBriefLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
-                <span className="ml-1">Brief</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onBrief(opportunity)}
+                      disabled={isBriefLoading || isBriefLimited}
+                      className="h-7 px-2.5 text-xs"
+                    >
+                      {isBriefLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
+                      <span className="ml-1">Brief</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{briefTooltip}</TooltipContent>
+              </Tooltip>
               <Button asChild size="sm" className="h-7 px-2.5 text-xs">
                 <a href={opportunity.htmlUrl} target="_blank" rel="noreferrer">
                   Open
@@ -359,6 +408,7 @@ function OpportunityCard({
 }
 
 export function ContributionDashboard({ user }: ContributionDashboardProps) {
+  const router = useRouter()
   const { data, error, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
@@ -380,7 +430,10 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   const [selectedIssue, setSelectedIssue] = useState<ContributionOpportunity | null>(null)
   const [brief, setBrief] = useState<ContributionBrief | null>(null)
   const [briefError, setBriefError] = useState<string | null>(null)
+  const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
+  const { getHeaders } = useAIKey()
+  const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
 
   const repos = useMemo(() => {
     const rawRepos = data?.repos ?? []
@@ -507,6 +560,20 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     })
   }
 
+  const handleReconnect = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
+  const isTokenExpired = Boolean(
+    error?.message?.includes('token') ||
+    error?.message?.includes('expired') ||
+    error?.message?.includes('re-authenticate') ||
+    data?.error
+  )
+
   const handleBrief = async (opportunity: ContributionOpportunity) => {
     setSelectedOpportunity(opportunity)
     setBriefError(null)
@@ -523,13 +590,26 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     try {
       const response = await fetch("/api/ai/contribution-brief", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify({ opportunity }),
       })
+
+      if (response.status === 429) {
+        const result = await response.json()
+        setBriefLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
+        setBriefError(result.error ?? "Brief limit reached")
+        setBriefLoadingId(null)
+        return
+      }
+
       const result = await response.json()
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to generate contribution brief")
+      }
+
+      if (typeof result.remaining === "number") {
+        setBriefLimit({ remaining: result.remaining, nextAllowedAt: null })
       }
 
       const brief = result.brief as ContributionBrief
@@ -571,6 +651,13 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     setSearch("")
   }
 
+  const isBriefLimited = briefLimit.remaining === 0
+  const briefTooltip = isBriefLimited && briefLimit.nextAllowedAt
+    ? `Brief limit reached (10/week). Resets ${new Date(briefLimit.nextAllowedAt).toLocaleDateString()}`
+    : briefLimit.remaining !== null
+      ? `Generate AI brief (${briefLimit.remaining}/10 remaining this week)`
+      : "Generate AI brief"
+
   return (
     <SidebarProvider>
       <AppSidebar
@@ -590,21 +677,35 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         <AppPageHeader
           lastSynced={lastSynced}
           user={user}
-          onRefresh={handleRefreshRepos}
+          onRefresh={isTokenExpired ? undefined : handleRefreshRepos}
           isRefreshing={isRefreshing}
           searchLabel="Search opportunities..."
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           hideNavActions
           actions={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadOpportunities({ force: true })}
-              disabled={isLoadingOpportunities || repos.length === 0}
-            >
-              {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
-              <span className="hidden sm:inline">Scan issues</span>
-            </Button>
+            isTokenExpired ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button variant="outline" size="sm" disabled>
+                      <RefreshCw data-icon="inline-start" />
+                      <span className="hidden sm:inline">Scan issues</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Reconnect GitHub to scan issues</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadOpportunities({ force: true })}
+                disabled={isLoadingOpportunities || repos.length === 0}
+              >
+                {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+                <span className="hidden sm:inline">Scan issues</span>
+              </Button>
+            )
           }
         />
 
@@ -698,15 +799,36 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           {error && !data && (
             <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
               <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">Failed to load starred repositories</p>
-              <Button variant="outline" onClick={handleRefreshRepos}>Try again</Button>
+              <p className="text-destructive">
+                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
+              </p>
+              {isTokenExpired ? (
+                <Button variant="outline" onClick={handleReconnect}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Reconnect GitHub
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={handleRefreshRepos}>Try again</Button>
+              )}
             </div>
           )}
 
+          {isTokenExpired && !opportunityError && data && <TokenExpiredBanner onReconnect={handleReconnect} />}
+
           {opportunityError && (
-            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {opportunityError}
-            </div>
+            (() => {
+              const isOpportunityTokenError = opportunityError.toLowerCase().includes('token') ||
+                opportunityError.toLowerCase().includes('expired') ||
+                opportunityError.toLowerCase().includes('sign in') ||
+                opportunityError.toLowerCase().includes('unauthorized')
+              return isOpportunityTokenError
+                ? <TokenExpiredBanner onReconnect={handleReconnect} />
+                : (
+                  <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {opportunityError}
+                  </div>
+                )
+            })()
           )}
 
           {isLoadingOpportunities && opportunities.length === 0 && (
@@ -720,7 +842,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           )}
 
           {!isLoadingOpportunities && data && filteredOpportunities.length === 0 && opportunities.length === 0 && (
-            <EmptyOpportunities onRefresh={() => loadOpportunities({ force: true })} />
+            <EmptyOpportunities onRefresh={() => loadOpportunities({ force: true })} disabled={isTokenExpired} />
           )}
 
           {filteredOpportunities.length > 0 && (
@@ -732,6 +854,8 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                     onBrief={handleBrief}
                     onViewIssue={setSelectedIssue}
                     isBriefLoading={briefLoadingId === opportunity.id}
+                    isBriefLimited={isBriefLimited}
+                    briefTooltip={briefTooltip}
                   />
                 </div>
               ))}
@@ -764,19 +888,31 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
 
           {brief && (
             <div className="flex flex-col gap-5 text-sm">
-              <p className="leading-6 text-muted-foreground">{brief.summary}</p>
+              <p className="leading-6 text-muted-foreground">
+                <InlineMd>{brief.summary}</InlineMd>
+              </p>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <h3 className="font-medium">Why it fits</h3>
                   <ul className="flex flex-col gap-1.5 text-muted-foreground">
-                    {brief.whyItFits.map((item) => <li key={item}>- {item}</li>)}
+                    {brief.whyItFits.map((item) => (
+                      <li key={item} className="flex items-start gap-1.5">
+                        <span className="mt-1 shrink-0 text-muted-foreground/50">–</span>
+                        <InlineMd>{item}</InlineMd>
+                      </li>
+                    ))}
                   </ul>
                 </div>
                 <div className="flex flex-col gap-2">
                   <h3 className="font-medium">Likely starting points</h3>
                   <ul className="flex flex-col gap-1.5 text-muted-foreground">
-                    {brief.likelyFiles.map((item) => <li key={item}>- {item}</li>)}
+                    {brief.likelyFiles.map((item) => (
+                      <li key={item} className="flex items-start gap-1.5">
+                        <span className="mt-1 shrink-0 text-muted-foreground/50">–</span>
+                        <InlineMd>{item}</InlineMd>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -784,22 +920,90 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
               <div className="flex flex-col gap-2">
                 <h3 className="font-medium">First steps</h3>
                 <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
-                  {brief.firstSteps.map((item) => <li key={item}>{item}</li>)}
+                  {brief.firstSteps.map((item) => (
+                    <li key={item}><InlineMd>{item}</InlineMd></li>
+                  ))}
                 </ol>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="font-medium">Questions to ask</h3>
                 <ul className="flex flex-col gap-1.5 text-muted-foreground">
-                  {brief.questionsToAsk.map((item) => <li key={item}>- {item}</li>)}
+                  {brief.questionsToAsk.map((item) => (
+                    <li key={item} className="flex items-start gap-1.5">
+                      <span className="mt-1 shrink-0 text-muted-foreground/50">–</span>
+                      <InlineMd>{item}</InlineMd>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
               <div className="flex flex-col gap-2">
-                <h3 className="font-medium">Coding assistant prompt</h3>
-                <pre className="whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
-                  {brief.codingAssistantPrompt}
-                </pre>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Coding assistant prompt</h3>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          navigator.clipboard.writeText(brief.codingAssistantPrompt)
+                          setCopiedPrompt(true)
+                          setTimeout(() => setCopiedPrompt(false), 2000)
+                        }}
+                      >
+                        {copiedPrompt ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{copiedPrompt ? "Copied!" : "Copy prompt"}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                  <article className="prose dark:prose-invert prose-sm max-w-full
+                    prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-1
+                    prose-headings:font-semibold prose-headings:text-foreground
+                    prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
+                    prose-code:rounded prose-code:text-xs prose-code:font-mono
+                    prose-code:before:content-none prose-code:after:content-none
+                    prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:my-2
+                    prose-li:text-muted-foreground prose-li:my-0.5
+                    prose-ul:my-1 prose-ol:my-1
+                    prose-strong:text-foreground
+                    prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        pre: ({ children }) => {
+                          const block = getCodeBlockProps(children)
+                          if (!block) return <pre>{children}</pre>
+                          return (
+                            <div className="not-prose my-2 overflow-x-auto rounded-lg border border-border">
+                              <SyntaxHighlighter
+                                language={block.language}
+                                style={oneDark}
+                                wrapLongLines
+                                customStyle={{
+                                  margin: 0,
+                                  padding: "0.75rem",
+                                  borderRadius: 0,
+                                  fontSize: "0.75rem",
+                                  whiteSpace: "pre-wrap",
+                                  overflowWrap: "anywhere",
+                                }}
+                                codeTagProps={{ style: { fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", wordBreak: "break-word" } }}
+                              >
+                                {block.code}
+                              </SyntaxHighlighter>
+                            </div>
+                          )
+                        },
+                      }}
+                    >
+                      {brief.codingAssistantPrompt}
+                    </ReactMarkdown>
+                  </article>
+                </div>
               </div>
 
               {selectedOpportunity && (

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
+import { useRouter } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { TrendingSection } from "./trending-section"
@@ -9,8 +10,10 @@ import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { TrendingEmptyState } from "./trending-empty-state"
 import type { User } from "@supabase/supabase-js"
-import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { Loader2, AlertCircle, RefreshCw, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/client"
+import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { formatDistanceToNow } from "date-fns"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { analyzeTrending, TrendingAnalysis } from "@/lib/trending"
@@ -25,6 +28,7 @@ interface TrendingDashboardProps {
 }
 
 export function TrendingDashboard({ user }: TrendingDashboardProps) {
+  const router = useRouter()
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
@@ -96,6 +100,20 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
     })
   }
 
+  const handleReconnect = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
+  const isTokenExpired = Boolean(
+    error?.message?.includes('token') ||
+    error?.message?.includes('expired') ||
+    error?.message?.includes('re-authenticate') ||
+    data?.error
+  )
+
   const handleRepoClick = (repo: StarredRepo) => {
     if (user?.id) {
       trackRecentlyViewedRepo(user.id, repo, "trending")
@@ -158,12 +176,15 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           lastSynced={lastSynced}
           user={user}
-          onRefresh={() => handleRefresh("trending-navbar-refresh")}
+          onRefresh={isTokenExpired ? undefined : () => handleRefresh("trending-navbar-refresh")}
           isRefreshing={isRefreshing}
           hideNavActions
         />
 
         <main className="flex-1 p-6">
+          {/* Token expiry banner — always at top when expired and cached data exists */}
+          {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
+
           <section className="mb-8 space-y-4">
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Trending</h1>
@@ -215,60 +236,63 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
             </div>
           )}
 
-          {/* Error State */}
-          {error && !hasRepoData && (
+          {/* Full-page error only when no cached data */}
+          {(error || data?.error) && !hasRepoData && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">Failed to load starred repositories</p>
-              <Button variant="outline" onClick={() => handleRefresh("trending-inline-retry")}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
-            </div>
-          )}
-
-          {/* API Error */}
-          {data?.error && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">{data.error}</p>
-              <p className="text-sm text-muted-foreground">
-                Your GitHub token may have expired. Please sign out and sign in again.
+              <p className="text-destructive">
+                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
               </p>
-            </div>
-          )}
-
-          {/* Empty State - Not Enough Stars */}
-          {hasRepoData && !data?.error && data?.repos && data.repos.length < 25 && (
-            <TrendingEmptyState
-              currentCount={data.repos.length}
-              requiredCount={25}
-            />
-          )}
-
-          {/* Trending Sections */}
-          {hasRepoData && !data?.error && data?.repos && data.repos.length >= 25 && (
-            <div className="space-y-6">
-              {trendingAnalysis.categories.map((category) => (
-                <TrendingSection
-                  key={category.id}
-                  title={category.title}
-                  description={category.description}
-                  repos={category.repos}
-                  onRepoClick={handleRepoClick}
-                />
-              ))}
-
-              {/* Fallback if no categories have repos */}
-              {trendingAnalysis.categories.length === 0 && (
-                <div className="text-center py-20">
-                  <p className="text-muted-foreground">No trending recommendations found.</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Try starring more repositories to get personalized recommendations.
-                  </p>
-                </div>
+              {isTokenExpired ? (
+                <Button variant="outline" onClick={handleReconnect}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Reconnect GitHub
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => handleRefresh("trending-inline-retry")}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
               )}
             </div>
+          )}
+
+          {/* Content — shown even when token expired if cached data exists */}
+          {hasRepoData && (
+            <>
+              {/* Empty State - Not Enough Stars */}
+              {data?.repos && data.repos.length < 25 && (
+                <TrendingEmptyState
+                  currentCount={data.repos.length}
+                  requiredCount={25}
+                />
+              )}
+
+              {/* Trending Sections */}
+              {data?.repos && data.repos.length >= 25 && (
+                <div className="space-y-6">
+                  {trendingAnalysis.categories.map((category) => (
+                    <TrendingSection
+                      key={category.id}
+                      title={category.title}
+                      description={category.description}
+                      repos={category.repos}
+                      onRepoClick={handleRepoClick}
+                    />
+                  ))}
+
+                  {/* Fallback if no categories have repos */}
+                  {trendingAnalysis.categories.length === 0 && (
+                    <div className="text-center py-20">
+                      <p className="text-muted-foreground">No trending recommendations found.</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Try starring more repositories to get personalized recommendations.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </main>
       </SidebarInset>

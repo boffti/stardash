@@ -26,6 +26,7 @@ interface DashboardHeaderProps {
   isRefreshing?: boolean
   onCategorize?: () => void
   isCategorizing?: boolean
+  categorizeLimit?: { remaining: number | null; nextAllowedAt: string | null }
   onOpenCommandPalette?: () => void
 }
 
@@ -45,6 +46,7 @@ export function DashboardHeader({
   isRefreshing = false,
   onCategorize,
   isCategorizing = false,
+  categorizeLimit,
   onOpenCommandPalette,
 }: DashboardHeaderProps) {
   const searchLabel = searchQuery ? `Search: ${searchQuery}` : "Search repositories, tags, and actions"
@@ -161,6 +163,7 @@ export function DashboardHeader({
       user={user}
       onCategorize={onCategorize}
       isCategorizing={isCategorizing}
+      categorizeLimit={categorizeLimit}
       onRefresh={onRefresh}
       isRefreshing={isRefreshing}
     />

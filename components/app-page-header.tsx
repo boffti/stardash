@@ -8,6 +8,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const UserMenu = dynamic(
   () => import("@/components/user-menu").then((module) => module.UserMenu),
@@ -36,6 +37,7 @@ interface AppPageHeaderProps {
   user: User | null
   onCategorize?: () => void
   isCategorizing?: boolean
+  categorizeLimit?: { remaining: number | null; nextAllowedAt: string | null }
   onRefresh?: () => void | Promise<unknown>
   isRefreshing?: boolean
   /** Hides the Categorize and Sync ghost buttons. Use on pages that don't need them. */
@@ -53,6 +55,7 @@ export function AppPageHeader({
   user,
   onCategorize,
   isCategorizing = false,
+  categorizeLimit,
   onRefresh,
   isRefreshing = false,
   hideNavActions = false,
@@ -132,18 +135,34 @@ export function AppPageHeader({
           {actions}
           {!hideNavActions && (
             <>
-              <button
-                type="button"
-                onClick={onCategorize}
-                disabled={Boolean(isCategorizing) || !onCategorize}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                title={isCategorizing ? "Analyzing…" : "Auto-categorize with AI"}
-              >
-                <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
-                <span suppressHydrationWarning className="hidden sm:inline">
-                  {isCategorizing ? "Analyzing…" : "Categorize"}
-                </span>
-              </button>
+              {(() => {
+                const isCategorizeLimited = categorizeLimit?.remaining === 0
+                const categorizeTooltip = isCategorizing
+                  ? "Analyzing…"
+                  : isCategorizeLimited && categorizeLimit?.nextAllowedAt
+                  ? `Used this week. Resets ${new Date(categorizeLimit.nextAllowedAt).toLocaleDateString()}`
+                  : "AI categorize (1× per week)"
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <button
+                          type="button"
+                          onClick={onCategorize}
+                          disabled={Boolean(isCategorizing) || !onCategorize || isCategorizeLimited}
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
+                          <span suppressHydrationWarning className="hidden sm:inline">
+                            {isCategorizing ? "Analyzing…" : "Categorize"}
+                          </span>
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{categorizeTooltip}</TooltipContent>
+                  </Tooltip>
+                )
+              })()}
               <button
                 type="button"
                 onClick={handleRefreshClick}

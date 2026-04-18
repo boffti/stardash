@@ -4,6 +4,7 @@ import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { categorizeRepos } from '@/lib/ai-categorize'
+import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import {
   ensureCollections,
@@ -16,7 +17,7 @@ import type { CategorizationResult } from '@/lib/types'
 export const maxDuration = 120
 
 const ASSIGNMENT_BATCH_SIZE = 500
-const AI_CATEGORIZATION_COOLDOWN_MS = 24 * 60 * 60 * 1000
+const AI_CATEGORIZATION_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
 
 interface UserRepoRow {
   id: string
@@ -61,7 +62,7 @@ function formatCooldownMessage(nextAllowedAt: string) {
     timeZone: 'UTC',
   }).format(new Date(nextAllowedAt))
 
-  return `AI categorization is limited to once every 24 hours. Try again after ${nextAllowedLabel} UTC.`
+  return `AI categorization is limited to once per week. Try again after ${nextAllowedLabel} UTC.`
 }
 
 async function reserveCategorizationSlot(
@@ -204,6 +205,7 @@ function repoWasStarredAfterLastCategorization(
 export async function POST(request: Request) {
   let slotReservation: CategorizationSlotReservation | null = null
   let userIdForRelease: string | null = null
+  let modelConfig: AIModelConfig | null = null
 
   try {
     const supabase = await createClient()
@@ -214,23 +216,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    modelConfig = getAIModel(request)
+
+    if (!modelConfig.isUserKey) {
+      userIdForRelease = user.id
+      slotReservation = await reserveCategorizationSlot(adminSupabase, user.id)
+
+      if (!slotReservation.allowed) {
+        return NextResponse.json(
+          {
+            error: formatCooldownMessage(slotReservation.nextAllowedAt!),
+            nextAllowedAt: slotReservation.nextAllowedAt,
+          },
+          { status: 429 }
+        )
+      }
+    }
+
     const { repos } = await request.json()
 
     if (!repos?.length) {
       return NextResponse.json({ error: 'No repos provided' }, { status: 400 })
     }
 
-    userIdForRelease = user.id
-    slotReservation = await reserveCategorizationSlot(adminSupabase, user.id)
-
-    if (!slotReservation.allowed) {
-      return NextResponse.json(
-        {
-          error: formatCooldownMessage(slotReservation.nextAllowedAt!),
-          nextAllowedAt: slotReservation.nextAllowedAt,
-        },
-        { status: 429 }
-      )
+    if (repos.length > 5000) {
+      return NextResponse.json({ error: 'Too many repos — maximum 5000' }, { status: 400 })
     }
 
     const [
@@ -261,7 +271,7 @@ export async function POST(request: Request) {
     for (const row of (userRepoResult.data ?? []) as UserRepoRow[]) {
       const repo = Array.isArray(row.repos) ? row.repos[0] : row.repos
       repoIdMap.set(repo.github_repo_id, row.id)
-      if (repoWasStarredAfterLastCategorization(row, slotReservation.previousLastCategorizedAt)) {
+      if (repoWasStarredAfterLastCategorization(row, slotReservation?.previousLastCategorizedAt ?? null)) {
         reposToCategorizeIdSet.add(repo.github_repo_id)
       }
     }
@@ -284,7 +294,7 @@ export async function POST(request: Request) {
     }))
 
     if (reposToCategorize.length === 0) {
-      if (slotReservation.claimedAt) {
+      if (slotReservation?.claimedAt) {
         await releaseCategorizationSlot(
           adminSupabase,
           user.id,
@@ -304,22 +314,9 @@ export async function POST(request: Request) {
       })
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY
-    if (!apiKey) {
-      if (slotReservation.claimedAt) {
-        await releaseCategorizationSlot(
-          adminSupabase,
-          user.id,
-          slotReservation.claimedAt,
-          slotReservation.previousLastCategorizedAt
-        )
-        slotReservation = null
-      }
-      return NextResponse.json({ error: 'AI not configured on server' }, { status: 500 })
-    }
-
-    const result = await categorizeRepos(reposToCategorize, apiKey, {
-      existingTaxonomy: slotReservation.previousLastCategorizedAt
+    const result = await categorizeRepos(reposToCategorize, modelConfig.model, {
+      providerOptions: getProviderOptions(modelConfig.provider),
+      existingTaxonomy: slotReservation?.previousLastCategorizedAt
         ? { collections: existingCollections, tags: existingTags }
         : undefined,
     })

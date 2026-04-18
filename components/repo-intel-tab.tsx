@@ -10,7 +10,9 @@ import {
   FileCode2, BookOpen, Shield,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useAIKey } from "@/lib/use-ai-key"
 import { formatDistanceToNow } from "date-fns"
 import type { RepoIntel, MaintenanceVerdict, CommunitySentiment, AdoptionReadiness } from "@/lib/types"
 
@@ -189,17 +191,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── Fetcher ─────────────────────────────────────────────────────────────────
-
-async function fetchIntel(url: string): Promise<{ intel: RepoIntel; cached: boolean }> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? 'Failed to fetch repo intel')
-  }
-  return res.json()
-}
-
 // ─── localStorage cache (7-day TTL, mirrors server-side DB cache) ─────────────
 
 const LS_TTL = 7 * 24 * 60 * 60 * 1000
@@ -243,6 +234,8 @@ function days(v: number | null, fallback = 'N/A') {
 
 export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const [refreshKey, setRefreshKey] = useState(0)
+  const { getHeaders } = useAIKey()
+  const [intelLimit, setIntelLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
 
   // Use localStorage cache on initial load; bypass on manual refresh
   const localCached = refreshKey === 0 ? lsGet(owner, name) : null
@@ -250,6 +243,26 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const apiUrl = localCached
     ? null  // skip fetch — serve from local cache
     : `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}${refreshKey > 0 ? '&refresh=true' : ''}`
+
+  const fetchIntel = useCallback(async (url: string) => {
+    const res = await fetch(url, { headers: getHeaders() })
+    if (res.status === 429) {
+      const body = await res.json()
+      setIntelLimit({ remaining: 0, nextAllowedAt: body.nextAllowedAt ?? null })
+      throw new Error(body.error ?? 'Intel limit reached')
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error ?? 'Failed to fetch repo intel')
+    }
+    const data = await res.json()
+    if (data.limitReached) {
+      setIntelLimit({ remaining: 0, nextAllowedAt: data.nextAllowedAt ?? null })
+    } else if (typeof data.remaining === 'number') {
+      setIntelLimit({ remaining: data.remaining, nextAllowedAt: null })
+    }
+    return data
+  }, [getHeaders])
 
   const { data, error, isLoading } = useSWR<{ intel: RepoIntel; cached: boolean }>(
     apiUrl,
@@ -264,6 +277,13 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const handleRefresh = useCallback(() => {
     setRefreshKey(k => k + 1)
   }, [])
+
+  const isIntelLimited = intelLimit.remaining === 0
+  const intelTooltip = isIntelLimited && intelLimit.nextAllowedAt
+    ? `Refresh limit reached (10/week). Resets ${new Date(intelLimit.nextAllowedAt).toLocaleDateString()}`
+    : intelLimit.remaining !== null
+      ? `Refresh intel (${intelLimit.remaining}/10 remaining this week)`
+      : 'Refresh intel analysis'
 
   const intel = (data ?? localCached)?.intel
 
@@ -304,10 +324,22 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
             {error?.message ?? 'Something went wrong. Please try again.'}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="min-h-10 gap-2">
-          <RefreshCw className="h-3.5 w-3.5" />
-          Try Again
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                variant="outline" size="sm"
+                onClick={handleRefresh}
+                disabled={isIntelLimited}
+                className="min-h-10 gap-2"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Try Again
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{intelTooltip}</TooltipContent>
+        </Tooltip>
       </div>
     )
   }
@@ -490,14 +522,22 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           {data?.cached === false ? 'Fresh · ' : 'Cached · '}
           Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
         </span>
-        <button
-          onClick={handleRefresh}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          type="button"
-        >
-          <RefreshCw className="h-3 w-3" />
-          Refresh
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                variant="ghost" size="sm"
+                onClick={handleRefresh}
+                disabled={isIntelLimited}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Refresh
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{intelTooltip}</TooltipContent>
+        </Tooltip>
       </div>
 
     </div>
