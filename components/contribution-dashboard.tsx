@@ -57,7 +57,7 @@ import type {
   ContributionOpportunity,
   ContributionType,
 } from "@/lib/contribution-opportunities"
-import type { UserMetadata } from "@/lib/types"
+import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ContributionCommandPalette } from "@/components/contribution-command-palette"
 import { IssueViewer } from "@/components/issue-viewer"
@@ -101,6 +101,7 @@ const CONTRIBUTION_CACHE_TTL_MS = 60 * 60 * 1000
 const CONTRIBUTION_CACHE_PREFIX = "stardash-contribution-opportunities-v2"
 const BRIEF_CACHE_PREFIX = "stardash-contribution-brief"
 const BRIEF_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const REPO_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const ISSUE_DISCOVERY_REPO_LIMIT = 120
 const ISSUE_SCAN_REPO_LIMIT = 40
 
@@ -209,6 +210,32 @@ function writeCachedOpportunities(cacheKey: string | null, cache: CachedOpportun
   } catch {
     // Browser storage can be unavailable or full; the live result is still usable.
   }
+}
+
+function selectIssueDiscoveryRepos(repos: StarredRepo[]) {
+  return [...repos]
+    .filter((repo) => !repo.archived && repo.openIssuesCount > 0)
+    .sort((a, b) => {
+      const pinnedBoostA = a.isPinned ? 1 : 0
+      const pinnedBoostB = b.isPinned ? 1 : 0
+      return (
+        pinnedBoostB - pinnedBoostA ||
+        b.openIssuesCount - a.openIssuesCount ||
+        b.stargazersCount - a.stargazersCount
+      )
+    })
+    .slice(0, ISSUE_DISCOVERY_REPO_LIMIT)
+}
+
+function getIssueDiscoverySignature(repos: StarredRepo[]) {
+  return repos
+    .map((repo) => `${repo.id}:${repo.openIssuesCount}:${repo.pushedAt}`)
+    .join("|")
+}
+
+function isRepoDataStale(lastSynced: string | undefined) {
+  if (!lastSynced) return true
+  return Date.now() - new Date(lastSynced).getTime() >= REPO_CACHE_TTL_MS
 }
 
 function getCodeBlockProps(children: React.ReactNode) {
@@ -464,24 +491,11 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   }, [repos])
 
   const issueDiscoveryRepos = useMemo(() => {
-    return [...repos]
-      .filter((repo) => !repo.archived && repo.openIssuesCount > 0)
-      .sort((a, b) => {
-        const pinnedBoostA = a.isPinned ? 1 : 0
-        const pinnedBoostB = b.isPinned ? 1 : 0
-        return (
-          pinnedBoostB - pinnedBoostA ||
-          b.openIssuesCount - a.openIssuesCount ||
-          b.stargazersCount - a.stargazersCount
-        )
-      })
-      .slice(0, ISSUE_DISCOVERY_REPO_LIMIT)
+    return selectIssueDiscoveryRepos(repos)
   }, [repos])
 
   const issueDiscoverySignature = useMemo(() => {
-    return issueDiscoveryRepos
-      .map((repo) => `${repo.id}:${repo.openIssuesCount}:${repo.pushedAt}`)
-      .join("|")
+    return getIssueDiscoverySignature(issueDiscoveryRepos)
   }, [issueDiscoveryRepos])
 
   const issueCacheKey = getCacheKey(user?.id)
@@ -493,10 +507,39 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     : null
 
   const loadOpportunities = async ({ force = false }: { force?: boolean } = {}) => {
-    if (issueDiscoveryRepos.length === 0) return
+    let reposForScan = issueDiscoveryRepos
+    let repoSignature = issueDiscoverySignature
+
+    if (force && isRepoDataStale(data?.lastSynced)) {
+      setIsLoadingOpportunities(true)
+      setOpportunityError(null)
+
+      try {
+        const refreshed = await refresh({
+          manual: true,
+          triggerKind: "user",
+          triggerSource: "contribute-issue-scan-stale-repos",
+          triggerContext: "contribute",
+        })
+        if (!refreshed) {
+          throw new Error("Failed to refresh repositories")
+        }
+        reposForScan = selectIssueDiscoveryRepos(refreshed.repos)
+        repoSignature = getIssueDiscoverySignature(reposForScan)
+      } catch (loadError) {
+        setOpportunityError(loadError instanceof Error ? loadError.message : "Failed to refresh repositories")
+        setIsLoadingOpportunities(false)
+        return
+      }
+    }
+
+    if (reposForScan.length === 0) {
+      setIsLoadingOpportunities(false)
+      return
+    }
 
     if (!force) {
-      const cached = readCachedOpportunities(issueCacheKey, issueDiscoverySignature)
+      const cached = readCachedOpportunities(issueCacheKey, repoSignature)
       if (cached) {
         setOpportunities(cached.opportunities)
         setScannedRepos(cached.scannedRepos)
@@ -514,7 +557,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          repos: issueDiscoveryRepos,
+          repos: reposForScan,
           maxRepos: ISSUE_SCAN_REPO_LIMIT,
           preferences: {
             languages: [],
@@ -536,7 +579,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         opportunities: result.opportunities,
         scannedRepos: result.scannedRepos,
         generatedAt: result.generatedAt,
-        repoSignature: issueDiscoverySignature,
+        repoSignature,
         cachedAt: new Date().toISOString(),
       })
     } catch (loadError) {

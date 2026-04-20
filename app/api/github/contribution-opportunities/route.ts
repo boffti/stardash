@@ -14,11 +14,30 @@ import type { StarredRepo } from '@/lib/types'
 export const maxDuration = 60
 
 const SCAN_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes between scans per user
+const SCAN_BATCH_SIZE = 5
 
 interface RequestBody {
   repos?: StarredRepo[]
   preferences?: ContributionPreferences
   maxRepos?: number
+}
+
+async function fetchContributionIssueBatches(
+  token: string,
+  repos: StarredRepo[],
+  preferences: ContributionPreferences,
+) {
+  const opportunities: ContributionOpportunity[] = []
+
+  for (let index = 0; index < repos.length; index += SCAN_BATCH_SIZE) {
+    const batch = repos.slice(index, index + SCAN_BATCH_SIZE)
+    const batchResults = await Promise.all(
+      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences)),
+    )
+    opportunities.push(...batchResults.flat())
+  }
+
+  return opportunities
 }
 
 export async function POST(request: Request) {
@@ -30,7 +49,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Per-user rate limit: max one contribution scan per 5 minutes
+    const body = (await request.json()) as RequestBody
+    const repos = body.repos ?? []
+
+    if (!Array.isArray(repos) || repos.length === 0) {
+      return NextResponse.json({ opportunities: [], scannedRepos: 0 })
+    }
+
+    const { token, error: tokenError } = await getValidGitHubToken(user.id)
+    if (tokenError || !token) {
+      return NextResponse.json(
+        {
+          error: tokenError === 'expired'
+            ? 'GitHub token expired. Please sign in again.'
+            : 'GitHub token not found.',
+        },
+        { status: 401 },
+      )
+    }
+
     const adminSupabase = createAdminClient()
     const { data: profile } = await adminSupabase
       .from('profiles')
@@ -38,12 +75,16 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .maybeSingle()
 
+    // Per-user rate limit: max one contribution scan per 5 minutes.
     if (profile?.last_contribution_scan_at) {
       const msSinceLast = Date.now() - new Date(profile.last_contribution_scan_at).getTime()
       if (msSinceLast < SCAN_COOLDOWN_MS) {
         const retryAfter = Math.ceil((SCAN_COOLDOWN_MS - msSinceLast) / 1000)
         return NextResponse.json(
-          { error: 'Please wait before scanning for contribution opportunities again.', retryAfterSeconds: retryAfter },
+          {
+            error: 'Please wait before scanning for contribution opportunities again.',
+            retryAfterSeconds: retryAfter,
+          },
           { status: 429, headers: { 'Retry-After': String(retryAfter) } },
         )
       }
@@ -55,32 +96,14 @@ export async function POST(request: Request) {
       .update({ last_contribution_scan_at: new Date().toISOString() })
       .eq('id', user.id)
 
-    const body = (await request.json()) as RequestBody
-    const repos = body.repos ?? []
-
-    if (!Array.isArray(repos) || repos.length === 0) {
-      return NextResponse.json({ opportunities: [], scannedRepos: 0 })
-    }
-
-    const { token, error: tokenError } = await getValidGitHubToken(user.id)
-    if (tokenError || !token) {
-      return NextResponse.json(
-        { error: tokenError === 'expired' ? 'GitHub token expired. Please sign in again.' : 'GitHub token not found.' },
-        { status: 401 },
-      )
-    }
-
     const preferences = body.preferences ?? {}
     const maxRepos = Math.min(Math.max(body.maxRepos ?? 24, 5), 40)
     const reposToScan = rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
-    const opportunities: ContributionOpportunity[] = []
+    const opportunities = await fetchContributionIssueBatches(token, reposToScan, preferences)
 
-    for (const repo of reposToScan) {
-      const issues = await fetchRepoContributionIssues(token, repo, preferences)
-      opportunities.push(...issues)
-    }
-
-    opportunities.sort((a, b) => b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    opportunities.sort(
+      (a, b) => b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
 
     return NextResponse.json({
       opportunities: opportunities.slice(0, 80),
