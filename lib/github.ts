@@ -209,19 +209,24 @@ export async function unstarRepo(
 }
 
 export async function fetchRepoReadme(
-  accessToken: string,
+  accessToken: string | undefined,
   owner: string,
   repo: string
 ): Promise<ReadmeResult> {
   try {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`
+    }
+
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/readme`,
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
+        headers,
       }
     )
 

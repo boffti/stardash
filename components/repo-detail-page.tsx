@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
@@ -22,6 +22,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { RepoIntelTab } from "@/components/repo-intel-tab"
 import { StarredRepo, STATUS_LABELS, RepoStatus, UserMetadata } from "@/lib/types"
 import { useStarredRepos } from "@/lib/use-starred-repos"
+import { setCachedRepos } from "@/lib/repo-cache"
 import { createClient } from "@/lib/supabase/client"
 import {
   updateRepoStatus, updateRepoNotes, togglePin,
@@ -104,15 +105,34 @@ function SectionCard({
 
 // ─── README ───────────────────────────────────────────────────────────────────
 
-function ReadmeSection({ owner, repoName, cachedReadme }: { owner: string; repoName: string; cachedReadme: string | null }) {
-  const shouldFetch = cachedReadme === null
+function ReadmeSection({
+  owner,
+  repoName,
+  cachedReadme,
+  onReadmeLoaded,
+}: {
+  owner: string
+  repoName: string
+  cachedReadme: string | null
+  onReadmeLoaded?: (readme: string) => void
+}) {
+  const shouldFetch = cachedReadme == null
   const { data, isLoading } = useSWR<{ readme: string | null; error?: string }>(
-    shouldFetch ? `/api/github/readme?owner=${owner}&repo=${repoName}` : null,
-    (url: string) => fetch(url).then(r => r.json()),
+    shouldFetch ? `/api/github/readme?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repoName)}` : null,
+    async (url: string) => {
+      const response = await fetch(url)
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "Failed to fetch README")
+      return body
+    },
     { revalidateOnFocus: false }
   )
 
   const content = cachedReadme ?? data?.readme
+
+  useEffect(() => {
+    if (data?.readme) onReadmeLoaded?.(data.readme)
+  }, [data?.readme, onReadmeLoaded])
 
   if (isLoading) {
     return (
@@ -220,12 +240,15 @@ function ContributionsSection({ owner, repoName, userId }: { owner: string; repo
 
   useEffect(() => {
     if (!userId || typeof window === "undefined") return
-    try {
-      const raw = window.localStorage.getItem(`${CONTRIBUTION_CACHE_PREFIX}-${userId}`)
-      if (!raw) { setOpportunities([]); return }
-      const parsed = JSON.parse(raw) as { opportunities: ContributionOpportunity[] }
-      setOpportunities(parsed.opportunities.filter(o => o.repoFullName === fullName))
-    } catch { setOpportunities([]) }
+    const task = window.setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem(`${CONTRIBUTION_CACHE_PREFIX}-${userId}`)
+        if (!raw) { setOpportunities([]); return }
+        const parsed = JSON.parse(raw) as { opportunities: ContributionOpportunity[] }
+        setOpportunities(parsed.opportunities.filter(o => o.repoFullName === fullName))
+      } catch { setOpportunities([]) }
+    }, 0)
+    return () => window.clearTimeout(task)
   }, [userId, fullName])
 
   if (opportunities === null) {
@@ -329,7 +352,10 @@ function OrganizeSection({
   const [newCollectionEmoji, setNewCollectionEmoji] = useState("📁")
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => { setNotes(repo.notes || "") }, [repo.id, repo.notes])
+  useEffect(() => {
+    const task = window.setTimeout(() => setNotes(repo.notes || ""), 0)
+    return () => window.clearTimeout(task)
+  }, [repo.id, repo.notes])
   useEffect(() => () => { if (notesTimer.current) clearTimeout(notesTimer.current) }, [])
 
   const handleNotesChange = (value: string) => {
@@ -513,8 +539,9 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
   const router = useRouter()
   const supabase = createClient()
   const [copied, setCopied] = useState(false)
+  const userId = user?.id
 
-  const { data: reposData, isLoading: reposLoading } = useStarredRepos(user?.id)
+  const { data: reposData, isLoading: reposLoading, mutate: mutateRepos } = useStarredRepos(userId)
   const { data: metadata, mutate: mutateMetadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
     (url: string) => fetch(url).then(r => r.json()),
@@ -543,6 +570,22 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
 
   const collections = metadata?.collections ?? []
   const allTags = metadata?.tags ?? []
+
+  const handleReadmeLoaded = useCallback((readme: string) => {
+    if (!userId) return
+
+    mutateRepos(prev => {
+      if (!prev) return prev
+
+      const targetFullName = `${owner}/${repoName}`
+      const repos = prev.repos.map(item =>
+        item.fullName === targetFullName ? { ...item, readme } : item
+      )
+
+      setCachedRepos(userId, repos)
+      return { ...prev, repos }
+    }, { revalidate: false })
+  }, [mutateRepos, owner, repoName, userId])
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -876,7 +919,7 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
           </div>
 
           {/* Two-column body */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px] gap-5 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_380px] xl:grid-cols-[minmax(0,0.75fr)_420px] 2xl:grid-cols-[minmax(0,780px)_minmax(440px,1fr)] gap-5 items-start">
 
             {/* Left: README only */}
             <div className="space-y-5 min-w-0">
@@ -895,7 +938,12 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
                   </Button>
                 }
               >
-                <ReadmeSection owner={repo.owner} repoName={repo.name} cachedReadme={repo.readme ?? null} />
+                <ReadmeSection
+                  owner={repo.owner}
+                  repoName={repo.name}
+                  cachedReadme={repo.readme ?? null}
+                  onReadmeLoaded={handleReadmeLoaded}
+                />
               </SectionCard>
             </div>
 

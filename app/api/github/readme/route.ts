@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchRepoReadme } from '@/lib/github'
 import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
@@ -29,6 +30,27 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const adminSupabase = createAdminClient()
+    const fullName = `${owner}/${repo}`
+    const { data: cachedUserRepo, error: cachedUserRepoError } = await adminSupabase
+      .from('user_starred_repos')
+      .select('repos!inner(readme)')
+      .eq('user_id', user.id)
+      .eq('repos.full_name', fullName)
+      .maybeSingle()
+
+    if (cachedUserRepoError) {
+      console.error('[github/readme] cache lookup failed:', cachedUserRepoError)
+    }
+
+    const cachedRepo = Array.isArray(cachedUserRepo?.repos)
+      ? cachedUserRepo.repos[0]
+      : cachedUserRepo?.repos
+
+    if (cachedRepo?.readme) {
+      return NextResponse.json({ readme: cachedRepo.readme })
+    }
+
     const tokenResult = await getValidGitHubToken()
 
     if (tokenResult.error === 'expired') {
@@ -38,14 +60,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    if (tokenResult.error === 'not_found' || !tokenResult.token) {
-      return NextResponse.json(
-        { error: 'GitHub token not available' },
-        { status: 401 },
-      )
-    }
-
-    const result = await fetchRepoReadme(tokenResult.token, owner, repo)
+    const result = await fetchRepoReadme(tokenResult.token ?? undefined, owner, repo)
 
     if (result.error === 'auth') {
       return NextResponse.json(
@@ -54,11 +69,23 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (result.content) {
+      const { error: updateError } = await adminSupabase
+        .from('repos')
+        .update({ readme: result.content })
+        .eq('full_name', fullName)
+
+      if (updateError) {
+        console.error('[github/readme] cache update failed:', updateError)
+      }
+    }
+
     return NextResponse.json({
       readme: result.content,
       error: result.error === 'server' ? 'Failed to fetch README' : undefined,
     })
-  } catch {
+  } catch (error) {
+    console.error('[github/readme] error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch README' },
       { status: 500 },
