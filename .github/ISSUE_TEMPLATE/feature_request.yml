@@ -1,0 +1,60 @@
+name: Feature Request
+description: Suggest an idea or improvement
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea? We'd love to hear it. For larger features, consider opening a [discussion](https://github.com/boffti/stardash/discussions) first so we can align on scope before you invest time building it.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the app does this relate to?
+      options:
+        - Dashboard
+        - Repo Intel
+        - Contribute / Contribution Brief
+        - Discover / Search
+        - Trending
+        - Settings / Tags / Collections
+        - MCP Server
+        - Self-hosting / Docker
+        - New area entirely
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain point or gap. "I'm always frustrated when..." is a great starting point.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should the feature look like? Be as specific or high-level as you like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or other approaches you've thought about?
+
+  - type: dropdown
+    id: willing
+    attributes:
+      label: Would you be willing to contribute this?
+      options:
+        - "Yes — I'd like to open a PR"
+        - "Maybe — I'd need some guidance"
+        - "No — just suggesting"
+    validations:
+      required: true

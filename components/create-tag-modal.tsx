@@ -68,8 +68,8 @@ export function CreateTagModal({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const selectedColor = form.watch("color")
-  const labelValue = form.watch("label")
 
   const handleSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -88,8 +88,6 @@ export function CreateTagModal({
     }
     onOpenChange(open)
   }
-
-  const suggestedColor = labelValue ? pickTagColor(labelValue) : TAG_PALETTE[0]
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

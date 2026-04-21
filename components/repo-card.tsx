@@ -38,6 +38,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: repo.id })
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTimeString(formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true }))
   }, [repo.pushedAt])
 

@@ -2,7 +2,7 @@
 
 <h1>StarDash</h1>
 
-<p>Turn your GitHub stars into a searchable, organized, AI-assisted workspace.</p>
+<p>Turn your GitHub stars into a searchable, organized, AI-powered contribution workspace.</p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="stardash_dark.png">
@@ -10,7 +10,11 @@
   <img alt="StarDash Dashboard" src="stardash_dark.png" width="100%">
 </picture>
 
-`<br/><br/>`
+<br/>
+
+**[→ Try it live at stardash.dev](https://stardash.dev)**
+
+<br/>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -19,12 +23,13 @@
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
 
+[![MCP Compatible](https://img.shields.io/badge/MCP-compatible-6366f1?logo=anthropic&logoColor=white)](./mcp/)
 [![GitHub stars](https://img.shields.io/github/stars/boffti/stardash?style=social)](https://github.com/boffti/stardash/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/boffti/stardash?style=social)](https://github.com/boffti/stardash/network/members)
 [![GitHub issues](https://img.shields.io/github/issues/boffti/stardash)](https://github.com/boffti/stardash/issues)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-[**stardash.dev**](https://stardash.vercel.app) · [**Self-Host**](#-self-hosting) · [**Report a Bug**](https://github.com/boffti/stardash/issues/new?labels=bug) · [**Request a Feature**](https://github.com/boffti/stardash/issues/new?labels=enhancement)
+[**stardash.dev**](https://stardash.dev) · [**Self-Host**](#-self-hosting) · [**Report a Bug**](https://github.com/boffti/stardash/issues/new?labels=bug) · [**Request a Feature**](https://github.com/boffti/stardash/issues/new?labels=enhancement)
 
 </div>
 
@@ -34,13 +39,15 @@
 
 StarDash is an open-source personal dashboard for developers who use GitHub stars as a discovery and bookmarking system. It turns your stars into a searchable, organized, AI-assisted workspace — with deep repo intelligence, contribution discovery, and proactive health alerts built in.
 
-Sign in with GitHub, sync your stars once, and get a full workspace across five views:
+Sign in with GitHub, sync your stars once, and get a full workspace across six views:
 
 | View | What it does |
 |---|---|
 | **Dashboard** | Browse, search, filter, and annotate all your starred repos |
 | **Repo Intel** | AI-generated health report for any starred repo |
 | **Contribute** | Find and prioritize real open issues you could work on |
+| **Repo Workspace** | Deep-dive into a single repo's issues and get an AI contribution brief |
+| **Discover** | AI-powered semantic search to find new repos to star |
 | **Trending** | Discover repos gaining momentum in your starred collection |
 | **Recently Viewed** | Jump back to repos you've been exploring |
 
@@ -88,6 +95,24 @@ Sign in with GitHub, sync your stars once, and get a full workspace across five 
 - Analyzes up to 500 repos per run
 - **Hosted app:** 24-hour cooldown between runs — add your own API key in Settings to run on demand without waiting
 - **Self-hosted:** no cooldown enforced when using your own key
+
+### Repo Contribution Workspace
+
+- Navigate from any contribution opportunity into a focused single-repo workspace
+- Deep scan of up to **500 issues per repo** with `minScore: 0` — finds every possible opportunity
+- Persistent sticky AI brief panel — brief stays visible as you scroll the issue queue
+- Inline risk warnings per issue (amber banner)
+- Full repo stats: stars, forks, open issues, language, last push
+- Deep-link support via `?brief=<id>` — link directly to a pre-loaded brief from notifications or external tools
+
+### Discover ✨ AI-powered
+
+- AI-powered semantic search for finding new repos to star
+- Query expansion: your plain-English query is rewritten and expanded by AI before hitting GitHub search
+- Results are reranked by relevance using a two-pass scoring pipeline
+- Streaming pipeline events — watch the search progress in real-time (`auth → expand → github → dedupe → rerank → render`)
+- Saved search history with persistent bookmarking and 30-day cache
+- Personalized gap detection: AI identifies topics missing from your starred collection and suggests themed repo bundles
 
 ### Bring Your Own Key (BYOK)
 
@@ -395,7 +420,7 @@ You can run StarDash on your own infrastructure. The app is a standard Next.js s
 ### Step 3 — Configure environment variables
 
 ```bash
-cp env.example .env.local
+cp .env.example .env.local
 ```
 
 Edit `.env.local` with your values:
@@ -445,7 +470,15 @@ Then set up your own cron job or system timer to hit `/api/cron/star-snapshots` 
 
 ## 🗺️ Roadmap
 
-TBD
+| Status | Item |
+|--------|------|
+| ✅ Done | Dashboard, Repo Intel, Contribute, Discover, Repo Workspace, Trending |
+| 🔨 In progress | **MCP server** — expose contribution tools to Cursor, Claude, Windsurf |
+| 📋 Planned | Gamification — streaks, XP, challenges, leaderboard |
+| 📋 Planned | Conversational AI assistant (persistent chat panel) |
+| 📋 Planned | RAG-powered briefs (embed repo files for deeper context) |
+| 📋 Planned | PR draft scaffolder |
+| 📋 Planned | Contribution history & skill graph |
 
 Have an idea? [Open an issue](https://github.com/boffti/stardash/issues) or start a [discussion](https://github.com/boffti/stardash/discussions)!
 

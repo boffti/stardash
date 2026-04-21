@@ -15,7 +15,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover"
@@ -79,6 +78,7 @@ export function RepoDetailPanel({
 
   // Sync notes when repo changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotes(repo?.notes || "")
     setActiveTab('overview')
   }, [repo?.id, repo?.notes])

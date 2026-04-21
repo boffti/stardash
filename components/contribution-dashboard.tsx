@@ -598,7 +598,9 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
 
   useEffect(() => {
     if (issueDiscoveryRepos.length === 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadOpportunities()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issueDiscoveryRepos.length, issueDiscoverySignature, issueCacheKey])
 
   const handleRefreshRepos = async () => {

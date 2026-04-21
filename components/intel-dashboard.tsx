@@ -22,7 +22,6 @@ import {
   TrendingDown,
   Zap,
   AlertTriangle,
-  LogIn,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
@@ -455,6 +454,7 @@ function IntelCommandPalette({
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery("")
       setSelectedValue("")
     }
@@ -530,6 +530,7 @@ function IntelCommandPalette({
     if (!open) return
     const nextSelection =
       orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedValue(nextSelection)
   }, [open, orderedItemMatches])
 
@@ -581,7 +582,7 @@ function IntelCommandPalette({
                 <CommandItem value={`search-${query}`} onSelect={applySearch} className="rounded-md">
                   <Search className="h-4 w-4" />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate">Filter Intel for "{query.trim()}"</span>
+                    <span className="truncate">Filter Intel for &quot;{query.trim()}&quot;</span>
                     <span className="text-xs text-muted-foreground">Updates the Repo Intel list</span>
                   </div>
                   <CommandShortcut>

@@ -53,6 +53,7 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
   const router = useRouter()
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
