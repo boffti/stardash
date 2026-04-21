@@ -60,6 +60,11 @@ interface GitHubIssue {
   pull_request?: unknown
 }
 
+interface FetchRepoContributionIssuesOptions {
+  maxIssues?: number
+  minScore?: number
+}
+
 const STARTER_LABELS = [
   'good first issue',
   'good-first-issue',
@@ -80,6 +85,7 @@ const FRONTEND_HINTS = ['ui', 'ux', 'css', 'frontend', 'react', 'next', 'compone
 const BACKEND_HINTS = ['api', 'server', 'database', 'backend', 'auth', 'postgres']
 const VAGUE_HINTS = ['needs discussion', 'needs design', 'proposal', 'investigate', 'research', 'tracking']
 const SMALL_SCOPE_HINTS = ['typo', 'readme', 'docs', 'example', 'copy', 'label', 'lint', 'test', 'snapshot']
+const BLOCKED_LABELS = ['blocked', 'wontfix', 'invalid', 'duplicate', 'question', 'support']
 
 function normalize(value: string) {
   return value.toLowerCase().trim()
@@ -149,14 +155,20 @@ function scoreIssue(
   const text = normalize(`${issue.title} ${issue.body ?? ''} ${labels.join(' ')}`)
   const bodyLength = issue.body?.trim().length ?? 0
   const updatedDaysAgo = (Date.now() - new Date(issue.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+  const createdDaysAgo = (Date.now() - new Date(issue.created_at).getTime()) / (1000 * 60 * 60 * 24)
   let score = 38
   const fitReasons: string[] = []
   const qualitySignals: string[] = []
   const risks: string[] = []
 
   if (includesAny(labels, STARTER_LABELS)) {
-    score += 22
+    score += 24
     fitReasons.push('Labeled as beginner-friendly or help wanted')
+  }
+
+  if (labels.some((label) => label.includes('good first issue'))) {
+    score += 8
+    fitReasons.push('Explicit good first issue signal')
   }
 
   if (preferences.languages?.length && repo.language && preferences.languages.includes(repo.language)) {
@@ -195,6 +207,11 @@ function scoreIssue(
     risks.push('Issue description is short')
   }
 
+  if (labels.length >= 2) {
+    score += 4
+    qualitySignals.push('Maintainers have classified the issue')
+  }
+
   if (updatedDaysAgo <= 3) {
     score += 12
     qualitySignals.push('Very recently active')
@@ -209,6 +226,14 @@ function scoreIssue(
   } else if (updatedDaysAgo > 180) {
     score -= 16
     risks.push('May be stale')
+  }
+
+  if (createdDaysAgo <= 14 && updatedDaysAgo <= 14) {
+    score += 6
+    qualitySignals.push('Recently opened and still active')
+  } else if (createdDaysAgo > 730 && updatedDaysAgo > 120) {
+    score -= 10
+    risks.push('Long-running issue with limited recent activity')
   }
 
   if (issue.comments === 0) {
@@ -235,6 +260,11 @@ function scoreIssue(
   if (VAGUE_HINTS.some((hint) => text.includes(hint))) {
     score -= 6
     risks.push('May need clarification before coding')
+  }
+
+  if (includesAny(labels, BLOCKED_LABELS)) {
+    score -= 18
+    risks.push('Issue label suggests it may be blocked or unsuitable')
   }
 
   if (repo.isPinned) {
@@ -268,29 +298,43 @@ function scoreIssue(
 }
 
 export async function fetchRepoContributionIssues(
-  token: string,
+  token: string | undefined,
   repo: StarredRepo,
   preferences: ContributionPreferences = {},
+  options: FetchRepoContributionIssuesOptions = {},
 ): Promise<ContributionOpportunity[]> {
-  const response = await fetch(
-    `https://api.github.com/repos/${repo.owner}/${repo.name}/issues?state=open&sort=updated&direction=desc&per_page=20`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      next: { revalidate: 900 },
-    },
-  )
+  const maxIssues = Math.min(Math.max(options.maxIssues ?? 100, 20), 500)
+  const minScore = Math.min(Math.max(options.minScore ?? 28, 0), 100)
+  const perPage = 100
+  const pages = Math.ceil(maxIssues / perPage)
+  const issues: GitHubIssue[] = []
 
-  if (!response.ok) {
-    return []
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  }
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  for (let page = 1; page <= pages; page += 1) {
+    const response = await fetch(
+      `https://api.github.com/repos/${repo.owner}/${repo.name}/issues?state=open&sort=updated&direction=desc&per_page=${perPage}&page=${page}`,
+      {
+        headers,
+        next: { revalidate: 900 },
+      },
+    )
+
+    if (!response.ok) {
+      return []
+    }
+
+    const pageIssues = (await response.json()) as GitHubIssue[]
+    issues.push(...pageIssues)
+    if (pageIssues.length < perPage || issues.length >= maxIssues) break
   }
 
-  const issues = (await response.json()) as GitHubIssue[]
-
   return issues
+    .slice(0, maxIssues)
     .filter((issue) => !issue.pull_request)
     .map((issue) => {
       const labels = issue.labels.map((label) => label.name)
@@ -321,7 +365,7 @@ export async function fetchRepoContributionIssues(
         ...scored,
       }
     })
-    .filter((issue) => issue.score >= 28)
+    .filter((issue) => issue.score >= minScore)
 }
 
 export function rankReposForIssueDiscovery(repos: StarredRepo[], preferences: ContributionPreferences = {}) {

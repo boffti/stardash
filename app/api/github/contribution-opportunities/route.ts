@@ -20,19 +20,24 @@ interface RequestBody {
   repos?: StarredRepo[]
   preferences?: ContributionPreferences
   maxRepos?: number
+  maxIssuesPerRepo?: number
+  minScore?: number
+  force?: boolean
 }
 
 async function fetchContributionIssueBatches(
-  token: string,
+  token: string | undefined,
   repos: StarredRepo[],
   preferences: ContributionPreferences,
+  maxIssuesPerRepo: number,
+  minScore: number,
 ) {
   const opportunities: ContributionOpportunity[] = []
 
   for (let index = 0; index < repos.length; index += SCAN_BATCH_SIZE) {
     const batch = repos.slice(index, index + SCAN_BATCH_SIZE)
     const batchResults = await Promise.all(
-      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences)),
+      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences, { maxIssues: maxIssuesPerRepo, minScore })),
     )
     opportunities.push(...batchResults.flat())
   }
@@ -59,14 +64,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ opportunities: [], scannedRepos: 0 })
     }
 
+    const isSingleRepoScan = repos.length === 1
+
     const { token, error: tokenError } = await getValidGitHubToken()
-    if (tokenError || !token) {
+    if (tokenError === 'expired') {
       return NextResponse.json(
-        {
-          error: tokenError === 'expired'
-            ? 'GitHub token expired. Please sign in again.'
-            : 'GitHub token not found.',
-        },
+        { error: 'GitHub token expired. Please sign in again.' },
         { status: 401 },
       )
     }
@@ -78,8 +81,10 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .maybeSingle()
 
-    // Per-user rate limit: max one contribution scan per 5 minutes.
-    if (profile?.last_contribution_scan_at) {
+    // Per-user rate limit: max one broad contribution scan per 5 minutes.
+    // Single-repo scans are cheap and locally cached by the repo detail/contribution pages,
+    // so keep them independent from the global dashboard scan cooldown.
+    if (!isSingleRepoScan && !body.force && profile?.last_contribution_scan_at) {
       const msSinceLast = Date.now() - new Date(profile.last_contribution_scan_at).getTime()
       if (msSinceLast < SCAN_COOLDOWN_MS) {
         const retryAfter = Math.ceil((SCAN_COOLDOWN_MS - msSinceLast) / 1000)
@@ -93,16 +98,22 @@ export async function POST(request: Request) {
       }
     }
 
-    // Record scan start time before the expensive GitHub API calls
-    await adminSupabase
-      .from('profiles')
-      .update({ last_contribution_scan_at: new Date().toISOString() })
-      .eq('id', user.id)
+    // Record broad scan start time before expensive multi-repo GitHub API calls.
+    if (!isSingleRepoScan) {
+      await adminSupabase
+        .from('profiles')
+        .update({ last_contribution_scan_at: new Date().toISOString() })
+        .eq('id', user.id)
+    }
 
     const preferences = body.preferences ?? {}
     const maxRepos = Math.min(Math.max(body.maxRepos ?? 24, 5), 40)
-    const reposToScan = rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
-    const opportunities = await fetchContributionIssueBatches(token, reposToScan, preferences)
+    const maxIssuesPerRepo = Math.min(Math.max(body.maxIssuesPerRepo ?? 100, 20), 500)
+    const minScore = Math.min(Math.max(body.minScore ?? (isSingleRepoScan ? 0 : 28), 0), 100)
+    const reposToScan = isSingleRepoScan
+      ? repos.filter((repo) => !repo.archived)
+      : rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
+    const opportunities = await fetchContributionIssueBatches(token ?? undefined, reposToScan, preferences, maxIssuesPerRepo, minScore)
 
     opportunities.sort(
       (a, b) => b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),

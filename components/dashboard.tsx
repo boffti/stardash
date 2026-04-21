@@ -433,8 +433,7 @@ export function Dashboard({ user }: DashboardProps) {
     if (user?.id) {
       trackRecentlyViewedRepo(user.id, repo, "dashboard")
     }
-    setSelectedRepo(repo)
-    setDetailPanelOpen(true)
+    router.push(`/repo/${repo.owner}/${repo.name}`)
   }
 
   const handleCloseDetail = () => {

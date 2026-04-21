@@ -6,11 +6,14 @@ import type {
 } from './types'
 
 const GITHUB_API = 'https://api.github.com'
-const HEADERS = (token: string) => ({
-  Authorization: `Bearer ${token}`,
-  Accept: 'application/vnd.github+json',
-  'X-GitHub-Api-Version': '2022-11-28',
-})
+const HEADERS = (token?: string) => {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  }
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
 
 // ─── GitHub API shapes ────────────────────────────────────────────────────────
 
@@ -72,7 +75,7 @@ interface RecentCommitStats {
 
 // ─── Fetchers ─────────────────────────────────────────────────────────────────
 
-async function ghGet<T>(path: string, token: string, fallbackOn404?: T): Promise<T> {
+async function ghGet<T>(path: string, token: string | undefined, fallbackOn404?: T): Promise<T> {
   const res = await fetch(`${GITHUB_API}${path}`, { headers: HEADERS(token) })
   if (!res.ok) {
     if (res.status === 404 && fallbackOn404 !== undefined) return fallbackOn404
@@ -81,7 +84,7 @@ async function ghGet<T>(path: string, token: string, fallbackOn404?: T): Promise
   return res.json() as Promise<T>
 }
 
-async function fetchIssues(owner: string, repo: string, token: string): Promise<GHIssue[]> {
+async function fetchIssues(owner: string, repo: string, token: string | undefined): Promise<GHIssue[]> {
   // Fetch last 100 closed + up to 100 open to get a representative sample
   const [open, closed] = await Promise.all([
     ghGet<GHIssue[]>(
@@ -99,7 +102,7 @@ async function fetchIssues(owner: string, repo: string, token: string): Promise<
   return [...open, ...closed].filter(i => !i.pull_request)
 }
 
-async function fetchPRs(owner: string, repo: string, token: string): Promise<GHPR[]> {
+async function fetchPRs(owner: string, repo: string, token: string | undefined): Promise<GHPR[]> {
   const [open, closed] = await Promise.all([
     ghGet<GHPR[]>(
       `/repos/${owner}/${repo}/pulls?state=open&per_page=50&sort=updated&direction=desc`,
@@ -115,7 +118,7 @@ async function fetchPRs(owner: string, repo: string, token: string): Promise<GHP
   return [...open, ...closed]
 }
 
-async function fetchContributors(owner: string, repo: string, token: string): Promise<GHContributor[]> {
+async function fetchContributors(owner: string, repo: string, token: string | undefined): Promise<GHContributor[]> {
   return ghGet<GHContributor[]>(
     `/repos/${owner}/${repo}/contributors?per_page=25&anon=false`,
     token,
@@ -123,7 +126,7 @@ async function fetchContributors(owner: string, repo: string, token: string): Pr
   )
 }
 
-async function fetchCommunityProfile(owner: string, repo: string, token: string): Promise<GHCommunityProfile | null> {
+async function fetchCommunityProfile(owner: string, repo: string, token: string | undefined): Promise<GHCommunityProfile | null> {
   try {
     return await ghGet<GHCommunityProfile>(
       `/repos/${owner}/${repo}/community/profile`,
@@ -134,7 +137,7 @@ async function fetchCommunityProfile(owner: string, repo: string, token: string)
   }
 }
 
-async function fetchRecentCommitStats(owner: string, repo: string, token: string): Promise<RecentCommitStats> {
+async function fetchRecentCommitStats(owner: string, repo: string, token: string | undefined): Promise<RecentCommitStats> {
   const empty = {
     latestCommitDate: null,
     commits30d: 0,
@@ -197,7 +200,7 @@ async function fetchRecentCommitStats(owner: string, repo: string, token: string
   }
 }
 
-async function fetchLatestReleaseDate(owner: string, repo: string, token: string): Promise<string | null> {
+async function fetchLatestReleaseDate(owner: string, repo: string, token: string | undefined): Promise<string | null> {
   try {
     const release = await ghGet<GHRelease>(
       `/repos/${owner}/${repo}/releases/latest`,
@@ -209,7 +212,7 @@ async function fetchLatestReleaseDate(owner: string, repo: string, token: string
   }
 }
 
-async function fetchWorkflowCount(owner: string, repo: string, token: string): Promise<number> {
+async function fetchWorkflowCount(owner: string, repo: string, token: string | undefined): Promise<number> {
   try {
     const res = await ghGet<{ total_count: number }>(
       `/repos/${owner}/${repo}/actions/workflows?per_page=1`,
@@ -496,7 +499,7 @@ export interface RepoIntelRawData {
 export async function fetchRepoIntelData(
   owner: string,
   repo: string,
-  token: string,
+  token?: string,
 ): Promise<RepoIntelRawData> {
   const [issues, prs, contributors, community, commitStats, latestReleaseDate, workflowCount] =
     await Promise.all([

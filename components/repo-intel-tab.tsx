@@ -60,8 +60,8 @@ function HealthScoreRing({ score }: { score: number }) {
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (prefersReducedMotion) {
-      setDisplay(score)
-      return
+      const task = window.setTimeout(() => setDisplay(score), 0)
+      return () => window.clearTimeout(task)
     }
 
     const start = performance.now()
@@ -237,12 +237,11 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const { getHeaders } = useAIKey()
   const [intelLimit, setIntelLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
 
-  // Use localStorage cache on initial load; bypass on manual refresh
+  // Use localStorage as immediate fallback data, but still call the API so the
+  // server DB cache remains authoritative and gets populated when missing.
   const localCached = refreshKey === 0 ? lsGet(owner, name) : null
 
-  const apiUrl = localCached
-    ? null  // skip fetch — serve from local cache
-    : `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}${refreshKey > 0 ? '&refresh=true' : ''}`
+  const apiUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}${refreshKey > 0 ? '&refresh=true' : ''}`
 
   const fetchIntel = useCallback(async (url: string) => {
     const res = await fetch(url, { headers: getHeaders() })
@@ -270,6 +269,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
     {
       revalidateOnFocus: false,
       shouldRetryOnError: false,
+      fallbackData: localCached ?? undefined,
       onSuccess(result) { lsSet(owner, name, result) },
     }
   )
@@ -285,7 +285,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       ? `Refresh intel (${intelLimit.remaining}/10 remaining this week)`
       : 'Refresh intel analysis'
 
-  const intel = (data ?? localCached)?.intel
+  const intel = data?.intel
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (isLoading) {
