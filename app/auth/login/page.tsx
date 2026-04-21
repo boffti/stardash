@@ -11,6 +11,9 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const nextPath = searchParams.get('next')
+  const safeNextPath = nextPath?.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/'
+  const isReauth = searchParams.get('reauth') === 'github'
 
   const handleGitHubLogin = async () => {
     try {
@@ -18,10 +21,10 @@ function LoginContent() {
       setError(null)
       const supabase = createClient()
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNextPath)}`,
           scopes: 'read:user user:email',
         },
       })
@@ -29,7 +32,7 @@ function LoginContent() {
       if (error) {
         setError(error.message)
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setIsLoading(false)
@@ -64,7 +67,9 @@ function LoginContent() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-xl">Welcome back</CardTitle>
             <CardDescription>
-              Sign in with your GitHub account to continue
+              {isReauth
+                ? 'Reconnect GitHub to continue with authenticated API access'
+                : 'Sign in with your GitHub account to continue'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

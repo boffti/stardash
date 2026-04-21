@@ -1,9 +1,70 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getValidGitHubToken } from '@/lib/tokens'
-import { unstarRepo } from '@/lib/github'
+import { starRepo, unstarRepo } from '@/lib/github'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { owner, repo, githubRepoId, collectionIds, tagIds } = await request.json()
+    if (!owner || !repo) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const tokenResult = await getValidGitHubToken()
+    if (tokenResult.error || !tokenResult.token) {
+      return NextResponse.json({ error: 'GitHub token expired' }, { status: 401 })
+    }
+
+    await starRepo(tokenResult.token, owner, repo)
+
+    // Upsert tag/collection assignments if provided
+    if (githubRepoId && (collectionIds?.length || tagIds?.length)) {
+      const adminSupabase = createAdminClient()
+
+      const { data: userRepoRow } = await adminSupabase
+        .from('user_starred_repos')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('github_repo_id', githubRepoId)
+        .maybeSingle()
+
+      if (userRepoRow) {
+        const assignments: Promise<unknown>[] = []
+        if (tagIds?.length) {
+          assignments.push(
+            adminSupabase.from('user_starred_repo_tags').upsert(
+              tagIds.map((tag_id: string) => ({ user_starred_repo_id: userRepoRow.id, user_id: user.id, tag_id })),
+              { onConflict: 'user_starred_repo_id,tag_id' }
+            )
+          )
+        }
+        if (collectionIds?.length) {
+          assignments.push(
+            adminSupabase.from('user_starred_repo_collections').upsert(
+              collectionIds.map((collection_id: string) => ({ user_starred_repo_id: userRepoRow.id, user_id: user.id, collection_id })),
+              { onConflict: 'user_starred_repo_id,collection_id' }
+            )
+          )
+        }
+        await Promise.all(assignments)
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    Sentry.captureException(err)
+    console.error('Star error:', err)
+    return NextResponse.json({ error: 'Failed to star repository' }, { status: 500 })
+  }
+}
 
 export async function DELETE(request: Request) {
   try {

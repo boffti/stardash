@@ -173,6 +173,7 @@ export function AppSidebar({
   const isIntelRoute = pathname === "/intel"
   const isContributeRoute = pathname === "/contribute"
   const isSettingsRoute = pathname === "/settings"
+  const isSearchRoute = pathname === "/search"
   const recentEntries = useRecentlyViewed(userId)
   const resolvedRecentCount = useMemo(
     () => recentCount ?? recentEntries.length,
@@ -221,6 +222,14 @@ export function AppSidebar({
                     </Link>
                   </SidebarMenuButton>
                 )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isSearchRoute}>
+                  <Link href="/search">
+                    <Search className="h-4 w-4" />
+                    <span>Discover</span>
+                  </Link>
+                </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isRecentlyViewedRoute}>

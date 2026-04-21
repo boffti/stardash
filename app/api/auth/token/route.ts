@@ -15,7 +15,14 @@ export async function GET() {
     
     if (result.error === 'not_found') {
       return NextResponse.json(
-        { error: 'Token not found — please re-authenticate', code: 'TOKEN_NOT_FOUND' },
+        { error: 'Token not found — please re-authenticate', code: 'GITHUB_REAUTH_REQUIRED', reauthRequired: true },
+        { status: 401 }
+      )
+    }
+
+    if (result.error === 'expired') {
+      return NextResponse.json(
+        { error: 'GitHub token expired — please re-authenticate', code: 'GITHUB_REAUTH_REQUIRED', reauthRequired: true },
         { status: 401 }
       )
     }
@@ -27,7 +34,29 @@ export async function GET() {
       )
     }
     
-    return NextResponse.json({ valid: true })
+    if (!result.token) {
+      return NextResponse.json(
+        { error: 'Token not found — please re-authenticate', code: 'GITHUB_REAUTH_REQUIRED', reauthRequired: true },
+        { status: 401 }
+      )
+    }
+
+    const githubResponse = await fetch('https://api.github.com/user', {
+      headers: {
+        Authorization: `Bearer ${result.token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    })
+
+    if (githubResponse.status === 401 || githubResponse.status === 403) {
+      return NextResponse.json(
+        { error: 'GitHub token is invalid — please re-authenticate', code: 'GITHUB_REAUTH_REQUIRED', reauthRequired: true },
+        { status: 401 }
+      )
+    }
+
+    return NextResponse.json({ valid: true, source: result.source })
   } catch {
     return NextResponse.json(
       { error: 'Failed to check token' },

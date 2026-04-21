@@ -1,4 +1,5 @@
 import { requireAuth } from '@/lib/auth'
+import { GitHubTokenRefresher } from '@/components/github-token-refresher'
 
 export default async function AuthenticatedLayout({
   children,
@@ -7,5 +8,10 @@ export default async function AuthenticatedLayout({
 }) {
   await requireAuth()
 
-  return <>{children}</>
+  return (
+    <>
+      <GitHubTokenRefresher />
+      {children}
+    </>
+  )
 }

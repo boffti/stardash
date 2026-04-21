@@ -18,6 +18,9 @@ Run them **in order** using the Supabase SQL editor or CLI.
 | `011_secure_profile_token_columns.sql` | RLS on sensitive profile token columns |
 | `012_ai_weekly_limits.sql` | Weekly AI usage tracking columns |
 | `013_guardrails.sql` | Input length CHECK constraints + contribution scan rate-limit column |
+| `014_remove_provider_token_columns.sql` | Removes legacy profile token columns |
+| `015_github_oauth_tokens.sql` | Server-only GitHub OAuth token store for cookie repair |
+| `016_discover_searches.sql` | Cached Discover search history and saved searches |
 
 ## How to apply
 
