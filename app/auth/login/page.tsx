@@ -4,7 +4,8 @@ import { Suspense, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Github, AlertCircle, Loader2, Star, Sparkles, FolderOpen, Tag } from 'lucide-react'
+import { AlertCircle, Loader2, Star, Sparkles, FolderOpen, Tag } from 'lucide-react'
+import { GitHubIcon } from '@/components/icons/github-icon'
 import { useSearchParams } from 'next/navigation'
 
 function LoginContent() {
@@ -93,7 +94,7 @@ function LoginContent() {
                 </>
               ) : (
                 <>
-                  <Github className="mr-2 h-5 w-5" />
+                  <GitHubIcon className="mr-2 h-5 w-5" />
                   Continue with GitHub
                 </>
               )}

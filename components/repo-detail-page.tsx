@@ -6,10 +6,11 @@ import useSWR from "swr"
 import {
   Star, GitFork, AlertCircle, Clock, ExternalLink,
   X, Pin, FolderPlus, Tag as TagIcon, FileText, GitCommit,
-  Scale, Globe, Github, Copy, Check, Plus, Loader2,
+  Scale, Globe, Copy, Check, Plus, Loader2,
   ChevronLeft, AlertTriangle, Zap, RefreshCw, ChevronDown, ChevronUp,
   Bot, ArrowRight,
 } from "lucide-react"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -872,7 +873,7 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
                   </Button>
                   <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
                     <a href={`https://github.com/${repo.fullName}`} target="_blank" rel="noopener noreferrer">
-                      <Github className="h-3.5 w-3.5" />GitHub
+                      <GitHubIcon className="h-3.5 w-3.5" />GitHub
                     </a>
                   </Button>
                 </div>

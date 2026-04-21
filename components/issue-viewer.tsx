@@ -1,9 +1,10 @@
 "use client"
 
 import React from "react"
-import { ExternalLink, Github, Loader2, AlertCircle, MessageSquare, Calendar } from "lucide-react"
+import { ExternalLink, Loader2, AlertCircle, MessageSquare, Calendar } from "lucide-react"
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -84,7 +85,7 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
             </div>
             <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 px-2 sm:px-3" asChild>
               <a href={opportunity.htmlUrl} target="_blank" rel="noopener noreferrer">
-                <Github className="h-3.5 w-3.5" />
+                <GitHubIcon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Open on GitHub</span>
                 <ExternalLink className="hidden h-3 w-3 sm:block" />
               </a>
@@ -141,7 +142,7 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 <EmptyDescription>Could not fetch issue body from GitHub.</EmptyDescription>
                 <Button variant="outline" size="sm" className="mt-4 gap-1.5" asChild>
                   <a href={opportunity.htmlUrl} target="_blank" rel="noopener noreferrer">
-                    <Github className="h-3.5 w-3.5" />
+                    <GitHubIcon className="h-3.5 w-3.5" />
                     View on GitHub
                     <ExternalLink className="h-3 w-3" />
                   </a>
@@ -210,7 +211,7 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
             ) : (
               <Empty className="py-16">
                 <EmptyMedia variant="icon">
-                  <Github className="h-10 w-10 text-muted-foreground" />
+                  <GitHubIcon className="h-10 w-10 text-muted-foreground" />
                 </EmptyMedia>
                 <EmptyTitle>No description</EmptyTitle>
                 <EmptyDescription>This issue has no body text.</EmptyDescription>
