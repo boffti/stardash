@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
@@ -404,14 +404,12 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
     [owner, repoName, reposData?.repos],
   )
   const fullName = `${owner}/${repoName}`
-  const fallbackData = useMemo(() => readCachedRepoScan(userId, fullName), [fullName, userId])
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<OpportunitiesResponse>(
     repo ? ["repo-contributions", repo.fullName] : null,
     () => scanRepo(repo!, false),
     {
-      fallbackData,
-      revalidateOnMount: !fallbackData || fallbackData.opportunities.length === 0,
+      revalidateOnMount: false, // handled by the mount effect below
       revalidateOnFocus: false,
       shouldRetryOnError: false,
       onSuccess(result) {
@@ -419,6 +417,19 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
       },
     },
   )
+
+  // Seed SWR from localStorage after mount to avoid SSR/client hydration mismatch.
+  // readCachedRepoScan reads window.localStorage so it must not run during SSR.
+  useEffect(() => {
+    const cached = readCachedRepoScan(userId, fullName)
+    if (cached && cached.opportunities.length > 0) {
+      mutate(cached, { revalidate: false })
+    } else {
+      mutate()
+    }
+    // mutate is stable (SWR bound function), intentionally omitted from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, fullName])
 
   const [search, setSearch] = useState("")
   const [difficulty, setDifficulty] = useState<SelectableDifficulty>("all")
