@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Github, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { GitHubIcon } from '@/components/icons/github-icon'
 
 export function LandingAuthButtons() {
   const [isLoading, setIsLoading] = useState(false)
@@ -33,7 +34,7 @@ export function LandingAuthButtons() {
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <>
-          <Github className="h-4 w-4" />
+          <GitHubIcon className="h-4 w-4" />
           Sign in with GitHub
         </>
       )}

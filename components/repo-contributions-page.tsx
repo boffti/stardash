@@ -15,7 +15,6 @@ import {
   ExternalLink,
   GitFork,
   GitPullRequestArrow,
-  Github,
   Loader2,
   RefreshCw,
   Search,
@@ -25,6 +24,7 @@ import {
 import type { User } from "@supabase/supabase-js"
 import { AppSidebar } from "@/components/app-sidebar"
 import { IssueViewer } from "@/components/issue-viewer"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -626,7 +626,7 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
                 </div>
                 <Button variant="outline" size="sm" asChild>
                   <a href={`https://github.com/${fullName}`} target="_blank" rel="noreferrer">
-                    <Github data-icon="inline-start" />
+                    <GitHubIcon data-icon="inline-start" />
                     GitHub
                   </a>
                 </Button>

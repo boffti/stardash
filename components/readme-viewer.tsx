@@ -1,9 +1,10 @@
 "use client"
 
 import React from "react"
-import { ExternalLink, Github, FileText, Loader2, AlertCircle } from "lucide-react"
+import { ExternalLink, FileText, Loader2, AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import {
   Sheet,
   SheetContent,
@@ -119,7 +120,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Github className="h-3.5 w-3.5" />
+                  <GitHubIcon className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">View on GitHub</span>
                   <span className="sm:hidden">GitHub</span>
                   <ExternalLink className="h-3 w-3 hidden sm:block" />
@@ -162,7 +163,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                     })
                   }}
                 >
-                  <Github className="h-3.5 w-3.5" />
+                  <GitHubIcon className="h-3.5 w-3.5" />
                   Reconnect GitHub
                 </Button>
               </Empty>
@@ -271,7 +272,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Github className="h-3.5 w-3.5" />
+                    <GitHubIcon className="h-3.5 w-3.5" />
                     View on GitHub
                     <ExternalLink className="h-3 w-3" />
                   </a>

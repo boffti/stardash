@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import {
   Star, GitFork, AlertCircle, Clock, ExternalLink, X,
   Pin, FolderPlus, Tag as TagIcon, FileText, GitCommit,
-  Scale, Globe, Github, Copy, Check, BookOpen, Plus, Loader2,
+  Scale, Globe, Copy, Check, BookOpen, Plus, Loader2,
 } from "lucide-react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -19,6 +19,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover"
 import { RepoIntelTab } from "@/components/repo-intel-tab"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import { StarredRepo, STATUS_LABELS, RepoStatus, Collection, Tag } from "@/lib/types"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -237,7 +238,7 @@ export function RepoDetailPanel({
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
                 <a href={`https://github.com/${repo.fullName}`} target="_blank" rel="noopener noreferrer">
-                  <Github className="h-3.5 w-3.5" />
+                  <GitHubIcon className="h-3.5 w-3.5" />
                   View on GitHub
                 </a>
               </Button>

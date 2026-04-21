@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BookOpen,
   FolderTree,
-  Github,
   Search,
   Sparkles,
   Star,
@@ -18,6 +17,7 @@ import {
 import { LandingAuthButtons } from "@/components/landing-auth-buttons"
 import { LandingHeroMedia } from "@/components/landing-hero-media"
 import { LandingThemeToggle } from "@/components/landing-theme-toggle"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/server"
@@ -112,7 +112,7 @@ export default async function HomePage() {
         <section className="mx-auto flex w-full max-w-7xl flex-col items-center gap-12 px-6 py-16 text-center lg:px-8 lg:py-24">
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-muted-foreground dark:border-white/10 dark:bg-white/5">
-              <Github className="h-3.5 w-3.5" />
+              <GitHubIcon className="h-3.5 w-3.5" />
               Star it. Find it. Actually use it.
             </div>
 

@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Github, RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
+import { RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
+import { GitHubIcon } from '@/components/icons/github-icon'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,7 +109,7 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <a href={githubUrl} target="_blank" rel="noopener noreferrer">
-            <Github className="mr-2 h-4 w-4" />
+            <GitHubIcon className="mr-2 h-4 w-4" />
             View GitHub
           </a>
         </DropdownMenuItem>
