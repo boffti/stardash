@@ -11,7 +11,6 @@ import { formatDistanceToNow } from "date-fns"
 import type { User } from "@supabase/supabase-js"
 import {
   AlertCircle,
-  ArrowUpRight,
   Bot,
   Bug,
   Check,
@@ -736,6 +735,88 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           searchLabel="Search opportunities..."
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           hideNavActions
+          desktopControls={
+            <>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger aria-label="Language filter" className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground">
+                  <SelectValue placeholder="Language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All languages</SelectItem>
+                  {languageOptions.map(([name, count]) => (
+                    <SelectItem key={name} value={name}>
+                      {name} ({count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={difficulty} onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}>
+                <SelectTrigger aria-label="Difficulty filter" className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground">
+                  <SelectValue placeholder="Difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any difficulty</SelectItem>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={contributionType} onValueChange={(value) => setContributionType(value as SelectableType)}>
+                <SelectTrigger aria-label="Contribution type filter" className="w-36 lg:w-40 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground">
+                  <SelectValue placeholder="Contribution type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any type</SelectItem>
+                  {Object.entries(typeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          }
+          mobileControls={
+            <>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger aria-label="Language filter" className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground">
+                  <SelectValue placeholder="Language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All languages</SelectItem>
+                  {languageOptions.map(([name, count]) => (
+                    <SelectItem key={name} value={name}>
+                      {name} ({count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={difficulty} onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}>
+                <SelectTrigger aria-label="Difficulty filter" className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground">
+                  <SelectValue placeholder="Difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any difficulty</SelectItem>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={contributionType} onValueChange={(value) => setContributionType(value as SelectableType)}>
+                <SelectTrigger aria-label="Contribution type filter" className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground">
+                  <SelectValue placeholder="Contribution type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any type</SelectItem>
+                  {Object.entries(typeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          }
           actions={
             isTokenExpired ? (
               <Tooltip>
@@ -780,7 +861,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                 Contribution opportunities. Ranked open issues from repositories you already care about, filtered by stack, difficulty, and contribution style.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
                 <span className="text-sm font-semibold tabular-nums">{filteredOpportunities.length}</span>
                 <span className="ml-1.5 text-xs text-muted-foreground">Matches</span>
@@ -793,53 +874,9 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                 <span className="text-sm font-semibold tabular-nums">{scannedRepos}</span>
                 <span className="ml-1.5 text-xs text-muted-foreground">Repos scanned</span>
               </div>
-            </div>
-
-            <div className="grid gap-3 rounded-xl border border-border/60 bg-card/60 p-3 md:grid-cols-4">
-              <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger aria-label="Language filter">
-                  <SelectValue placeholder="Language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All languages</SelectItem>
-                  {languageOptions.map(([name, count]) => (
-                    <SelectItem key={name} value={name}>
-                      {name} ({count})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={difficulty} onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}>
-                <SelectTrigger aria-label="Difficulty filter">
-                  <SelectValue placeholder="Difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any difficulty</SelectItem>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={contributionType} onValueChange={(value) => setContributionType(value as SelectableType)}>
-                <SelectTrigger aria-label="Contribution type filter">
-                  <SelectValue placeholder="Contribution type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any type</SelectItem>
-                  {Object.entries(typeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center justify-between rounded-md border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
-                <span>{generatedAt ? `Updated ${formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}` : "Not scanned yet"}</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </div>
+              <span className="ml-1 text-xs text-muted-foreground">
+                {generatedAt ? `Updated ${formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}` : "Not scanned yet"}
+              </span>
             </div>
           </section>
 
