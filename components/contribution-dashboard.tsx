@@ -700,6 +700,9 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
     : briefLimit.remaining !== null
       ? `Generate AI brief (${briefLimit.remaining}/10 remaining this week)`
       : "Generate AI brief"
+  const cachedRepoOnlyMessage = opportunities.length > 0
+    ? "Your GitHub session has expired. Showing cached data — live sync is unavailable."
+    : "Your GitHub session has expired. Starred repos are cached, but contribution scans need a live GitHub token."
 
   return (
     <SidebarProvider>
@@ -856,7 +859,9 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
             </div>
           )}
 
-          {isTokenExpired && !opportunityError && data && <TokenExpiredBanner onReconnect={handleReconnect} />}
+          {isTokenExpired && !opportunityError && data && (
+            <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
+          )}
 
           {opportunityError && (
             (() => {
@@ -865,7 +870,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                 opportunityError.toLowerCase().includes('sign in') ||
                 opportunityError.toLowerCase().includes('unauthorized')
               return isOpportunityTokenError
-                ? <TokenExpiredBanner onReconnect={handleReconnect} />
+                ? <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
                 : (
                   <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {opportunityError}
