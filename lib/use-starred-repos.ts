@@ -10,6 +10,7 @@ const MIN_BACKGROUND_SYNC_INTERVAL_MS = 5 * 60 * 1000
 const STARRED_REPOS_SYNC_URL = "/api/github/starred"
 
 export type StarredReposSyncTriggerKind = "time-based" | "user" | "app"
+type StarredReposCacheMode = "prefer" | "refresh"
 
 export interface StarredReposResponse {
   repos: StarredRepo[]
@@ -20,6 +21,7 @@ export interface StarredReposResponse {
 
 interface RefreshOptions {
   manual?: boolean
+  cacheMode?: StarredReposCacheMode
   triggerKind?: StarredReposSyncTriggerKind
   triggerSource?: string
   triggerContext?: string
@@ -38,6 +40,10 @@ function buildStarredReposSyncUrl(url: string, options: RefreshOptions = {}) {
 
   if (options.triggerContext) {
     params.set("triggerContext", options.triggerContext)
+  }
+
+  if (options.cacheMode) {
+    params.set("cache", options.cacheMode)
   }
 
   const query = params.toString()
@@ -103,9 +109,16 @@ export function useStarredRepos(userId?: string) {
 
   const refresh = async ({ manual = false, ...options }: RefreshOptions = {}) => {
     manualRefreshRef.current = manual
-    return swr.mutate(fetchStarredRepos(STARRED_REPOS_SYNC_URL, userId, { manual, ...options }), {
-      revalidate: false,
-    })
+    return swr.mutate(
+      fetchStarredRepos(STARRED_REPOS_SYNC_URL, userId, {
+        manual,
+        cacheMode: options.cacheMode ?? (manual ? "refresh" : "prefer"),
+        ...options,
+      }),
+      {
+        revalidate: false,
+      },
+    )
   }
 
   const data = swr.data ?? cachedData
@@ -120,6 +133,7 @@ export function useStarredRepos(userId?: string) {
 
     if (shouldBackgroundSync) {
       void refresh({
+        cacheMode: "prefer",
         triggerKind: "time-based",
         triggerSource: cached ? "background-cooldown-expired" : "initial-load-no-cache",
         triggerContext: "use-starred-repos",

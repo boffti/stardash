@@ -14,7 +14,10 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -45,7 +48,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch issue' }, { status: res.status })
     }
 
-    const issue = await res.json() as { body: string | null; user?: { login: string; avatar_url: string } | null; created_at: string; comments: number }
+    const issue = (await res.json()) as {
+      body: string | null
+      user?: { login: string; avatar_url: string } | null
+      created_at: string
+      comments: number
+    }
 
     return NextResponse.json({
       body: issue.body,
