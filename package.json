@@ -51,7 +51,7 @@
     "@radix-ui/react-tooltip": "1.2.8",
     "@sentry/nextjs": "^10.46.0",
     "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.104.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vercel/analytics": "1.6.1",
