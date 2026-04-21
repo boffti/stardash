@@ -8,6 +8,7 @@ import {
   X, Pin, FolderPlus, Tag as TagIcon, FileText, GitCommit,
   Scale, Globe, Github, Copy, Check, Plus, Loader2,
   ChevronLeft, AlertTriangle, Zap, RefreshCw, ChevronDown, ChevronUp,
+  Bot, ArrowRight,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -364,12 +365,11 @@ function ContributionsSection({ repo, userId, variant = "rail" }: { repo: Starre
 function MiniContribCard({ opp }: { opp: ContributionOpportunity }) {
   const scoreTone =
     opp.score >= 80 ? "text-emerald-400" : opp.score >= 60 ? "text-sky-400" : "text-amber-400"
+  const workspaceUrl = `/repo/${opp.repoOwner}/${opp.repoName}/contributions?brief=${encodeURIComponent(opp.id)}`
 
   return (
     <a
-      href={opp.htmlUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={workspaceUrl}
       className="block rounded-md border border-border/50 bg-background/40 px-3 py-2.5 hover:border-border hover:bg-muted/30 transition-all group"
     >
       <div className="flex items-start justify-between gap-2">
@@ -383,7 +383,7 @@ function MiniContribCard({ opp }: { opp: ContributionOpportunity }) {
         {opp.contributionTypes.slice(0, 1).map(t => (
           <Badge key={t} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{t}</Badge>
         ))}
-        <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+        <Bot className="h-3 w-3 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
     </a>
   )
@@ -991,7 +991,7 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
               action={
                 <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" asChild onClick={e => e.stopPropagation()}>
                   <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
-                    <ExternalLink className="h-3 w-3" />Workspace
+                    <ArrowRight className="h-3 w-3" />Workspace
                   </a>
                 </Button>
               }

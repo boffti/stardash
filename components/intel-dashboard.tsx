@@ -935,54 +935,34 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
           }
         `}</style>
 
-        <div className="flex flex-1 flex-col gap-0">
-          {/* ── Hero header ── */}
-          <div className="relative overflow-hidden border-b border-border/50 bg-gradient-to-br from-background via-background to-muted/20 px-6 pb-6 pt-6">
-            {/* Faint grid texture */}
-            <div
-              className="pointer-events-none absolute inset-0 opacity-[0.03] dark:opacity-[0.06]"
-              style={{
-                backgroundImage: `linear-gradient(hsl(var(--border)) 1px, transparent 1px),
-                  linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)`,
-                backgroundSize: "32px 32px",
-              }}
-            />
-
-            <div className="relative">
-              {/* Title row */}
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/8">
-                  <Brain className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-semibold tracking-tight text-foreground">Repo Intel</h1>
-                  <p className="text-[13px] text-muted-foreground">AI-powered health briefs for your starred repos</p>
-                </div>
-              </div>
-
-              {/* Stats row — only visible when there's data */}
-              {!isLoading && allIntel.length > 0 && (
-                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <StatPill icon={Brain} value={allIntel.length} label="Repos analyzed" colorClass="bg-sky-500/10 text-sky-700 dark:text-sky-400" />
-                  <StatPill
-                    icon={Activity}
-                    value={avgScore}
-                    label="Avg health score"
-                    colorClass={cn(
-                      avgScore >= 70 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" :
-                      avgScore >= 40 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" :
-                      "bg-rose-500/10 text-rose-700 dark:text-rose-400"
-                    )}
-                  />
-                  <StatPill icon={TrendingUp} value={healthyCount} label="Healthy (≥70)" colorClass="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" />
-                  <StatPill icon={TrendingDown} value={atRiskCount} label="At risk (<40)" colorClass="bg-rose-500/10 text-rose-700 dark:text-rose-400" />
-                </div>
-              )}
+        <main className="flex-1 p-6">
+          <section className="mb-8 space-y-4">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight">Repo Intel</h1>
+              <p className="text-sm text-muted-foreground">AI-powered health briefs for your starred repos</p>
             </div>
-          </div>
 
-          {/* ── Content ── */}
-          <div className="flex flex-1 flex-col gap-3 p-6">
+            {/* Stats row — only visible when there's data */}
+            {!isLoading && allIntel.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatPill icon={Brain} value={allIntel.length} label="Repos analyzed" colorClass="bg-sky-500/10 text-sky-700 dark:text-sky-400" />
+                <StatPill
+                  icon={Activity}
+                  value={avgScore}
+                  label="Avg health score"
+                  colorClass={cn(
+                    avgScore >= 70 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" :
+                    avgScore >= 40 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" :
+                    "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                  )}
+                />
+                <StatPill icon={TrendingUp} value={healthyCount} label="Healthy (≥70)" colorClass="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" />
+                <StatPill icon={TrendingDown} value={atRiskCount} label="At risk (<40)" colorClass="bg-rose-500/10 text-rose-700 dark:text-rose-400" />
+              </div>
+            )}
+          </section>
+
+          <div className="flex flex-col gap-3">
             {/* Token expiry banner — always at top when expired */}
             {isTokenExpired && <TokenExpiredBanner onReconnect={handleReconnect} />}
 
@@ -1051,7 +1031,7 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
               </div>
             )}
           </div>
-        </div>
+        </main>
       </SidebarInset>
 
       <IntelCommandPalette

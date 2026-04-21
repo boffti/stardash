@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import {
   AlertCircle,
@@ -159,6 +159,7 @@ function OpportunityIssueRow({
   isBriefLoading,
   isBriefLimited,
   isSelected,
+  rowRef,
 }: {
   opportunity: ContributionOpportunity
   onBrief: (opportunity: ContributionOpportunity) => void
@@ -166,12 +167,16 @@ function OpportunityIssueRow({
   isBriefLoading: boolean
   isBriefLimited: boolean
   isSelected: boolean
+  rowRef?: (el: HTMLDivElement | null) => void
 }) {
   return (
-    <div className={cn(
-      "grid gap-4 border-b border-border/60 px-4 py-4 last:border-b-0 lg:grid-cols-[minmax(0,1fr)_220px]",
-      isSelected && "bg-primary/5"
-    )}>
+    <div
+      ref={rowRef}
+      className={cn(
+        "grid gap-4 border-b border-border/60 px-4 py-4 last:border-b-0 lg:grid-cols-[minmax(0,1fr)_220px]",
+        isSelected && "bg-primary/5"
+      )}
+    >
       <div className="min-w-0">
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline" className={cn("h-5 tabular-nums", scoreTone(opportunity.score))}>
@@ -390,6 +395,8 @@ async function scanRepo(repo: StarredRepo, force = false): Promise<Opportunities
 
 export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContributionsPageProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const autoBriefId = searchParams.get("brief")
   const userId = user?.id
   const { getHeaders } = useAIKey()
   const { data: reposData, isLoading: reposLoading } = useStarredRepos(userId)
@@ -404,14 +411,13 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
     [owner, repoName, reposData?.repos],
   )
   const fullName = `${owner}/${repoName}`
-  const fallbackData = useMemo(() => readCachedRepoScan(userId, fullName), [fullName, userId])
+  const hasRepo = Boolean(repo)
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<OpportunitiesResponse>(
     repo ? ["repo-contributions", repo.fullName] : null,
     () => scanRepo(repo!, false),
     {
-      fallbackData,
-      revalidateOnMount: !fallbackData || fallbackData.opportunities.length === 0,
+      revalidateOnMount: false, // handled by the mount effect below
       revalidateOnFocus: false,
       shouldRetryOnError: false,
       onSuccess(result) {
@@ -419,6 +425,22 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
       },
     },
   )
+
+  // Seed SWR from localStorage after mount to avoid SSR/client hydration mismatch.
+  // readCachedRepoScan reads window.localStorage so it must not run during SSR.
+  // hasRepo is included so this re-fires once useStarredRepos resolves — the SWR
+  // key is null until repo is non-null, making mutate() a no-op before that point.
+  useEffect(() => {
+    if (!repo) return
+    const cached = readCachedRepoScan(userId, fullName)
+    if (cached && cached.opportunities.length > 0) {
+      mutate(cached, { revalidate: false })
+    } else {
+      mutate()
+    }
+    // mutate is stable (SWR bound function), intentionally omitted from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, fullName, hasRepo])
 
   const [search, setSearch] = useState("")
   const [difficulty, setDifficulty] = useState<SelectableDifficulty>("all")
@@ -431,7 +453,10 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
   const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
   const [copiedPrompt, setCopiedPrompt] = useState(false)
 
+  const rowRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
+
   const opportunities = useMemo(() => data?.opportunities ?? [], [data?.opportunities])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return opportunities.filter((opportunity) => {
@@ -498,6 +523,26 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
       setBriefLoadingId(null)
     }
   }
+
+  // Scroll the selected issue row into view whenever the selection changes.
+  useEffect(() => {
+    if (!selectedOpportunity) return
+    const el = rowRefsMap.current.get(selectedOpportunity.id)
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+  }, [selectedOpportunity])
+
+  // Auto-trigger brief when navigated here from a specific issue card (?brief=<id>).
+  // handleBrief is deferred via setTimeout to avoid calling setState synchronously
+  // inside the effect body (which would trigger cascading renders).
+  const autoBriefFiredRef = useRef(false)
+  useEffect(() => {
+    if (!autoBriefId || autoBriefFiredRef.current || opportunities.length === 0) return
+    const target = opportunities.find((o) => o.id === decodeURIComponent(autoBriefId))
+    if (!target) return
+    autoBriefFiredRef.current = true
+    setTimeout(() => void handleBrief(target), 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoBriefId, opportunities])
 
   const collections = metadata?.collections ?? []
   const tags = metadata?.tags ?? []
@@ -707,6 +752,10 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
                       isBriefLoading={briefLoadingId === opportunity.id}
                       isBriefLimited={isBriefLimited}
                       isSelected={selectedOpportunity?.id === opportunity.id}
+                      rowRef={(el) => {
+                        if (el) rowRefsMap.current.set(opportunity.id, el)
+                        else rowRefsMap.current.delete(opportunity.id)
+                      }}
                     />
                   ))}
                 </div>

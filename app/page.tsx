@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
 } from "lucide-react"
 
+import { LandingAuthButtons } from "@/components/landing-auth-buttons"
 import { LandingHeroMedia } from "@/components/landing-hero-media"
 import { LandingThemeToggle } from "@/components/landing-theme-toggle"
 import { BorderBeam } from "@/components/ui/border-beam"
@@ -101,15 +102,7 @@ export default async function HomePage() {
 
           <div className="flex items-center gap-2">
             <LandingThemeToggle />
-            <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
-              <Link href="/auth/login">Log in</Link>
-            </Button>
-            <Button
-              asChild
-              className="border border-black/10 bg-zinc-900 text-white hover:bg-zinc-700 dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-            >
-              <Link href="/auth/login">Get started</Link>
-            </Button>
+            <LandingAuthButtons />
           </div>
         </div>
       </header>

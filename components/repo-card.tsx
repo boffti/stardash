@@ -94,7 +94,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+                  className="h-6 w-6 hidden group-hover:flex"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
