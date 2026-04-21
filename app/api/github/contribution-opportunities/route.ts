@@ -20,19 +20,22 @@ interface RequestBody {
   repos?: StarredRepo[]
   preferences?: ContributionPreferences
   maxRepos?: number
+  maxIssuesPerRepo?: number
+  force?: boolean
 }
 
 async function fetchContributionIssueBatches(
-  token: string,
+  token: string | undefined,
   repos: StarredRepo[],
   preferences: ContributionPreferences,
+  maxIssuesPerRepo: number,
 ) {
   const opportunities: ContributionOpportunity[] = []
 
   for (let index = 0; index < repos.length; index += SCAN_BATCH_SIZE) {
     const batch = repos.slice(index, index + SCAN_BATCH_SIZE)
     const batchResults = await Promise.all(
-      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences)),
+      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences, { maxIssues: maxIssuesPerRepo })),
     )
     opportunities.push(...batchResults.flat())
   }
@@ -60,13 +63,9 @@ export async function POST(request: Request) {
     }
 
     const { token, error: tokenError } = await getValidGitHubToken()
-    if (tokenError || !token) {
+    if (tokenError === 'expired') {
       return NextResponse.json(
-        {
-          error: tokenError === 'expired'
-            ? 'GitHub token expired. Please sign in again.'
-            : 'GitHub token not found.',
-        },
+        { error: 'GitHub token expired. Please sign in again.' },
         { status: 401 },
       )
     }
@@ -79,7 +78,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     // Per-user rate limit: max one contribution scan per 5 minutes.
-    if (profile?.last_contribution_scan_at) {
+    if (!body.force && profile?.last_contribution_scan_at) {
       const msSinceLast = Date.now() - new Date(profile.last_contribution_scan_at).getTime()
       if (msSinceLast < SCAN_COOLDOWN_MS) {
         const retryAfter = Math.ceil((SCAN_COOLDOWN_MS - msSinceLast) / 1000)
@@ -101,8 +100,9 @@ export async function POST(request: Request) {
 
     const preferences = body.preferences ?? {}
     const maxRepos = Math.min(Math.max(body.maxRepos ?? 24, 5), 40)
+    const maxIssuesPerRepo = Math.min(Math.max(body.maxIssuesPerRepo ?? 100, 20), 500)
     const reposToScan = rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
-    const opportunities = await fetchContributionIssueBatches(token, reposToScan, preferences)
+    const opportunities = await fetchContributionIssueBatches(token ?? undefined, reposToScan, preferences, maxIssuesPerRepo)
 
     opportunities.sort(
       (a, b) => b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),

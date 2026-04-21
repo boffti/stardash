@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       .from('repo_insights')
       .select('*')
       .eq('repo_full_name', repoFullName)
-      .single()
+      .maybeSingle()
 
     // Return fresh cached data without hitting rate limit
     if (cached && !refresh) {
@@ -82,11 +82,12 @@ export async function GET(request: Request) {
       }
     }
 
-    // Get GitHub token
+    // Use a GitHub token when present, but allow public repositories to be analyzed
+    // without one. Cached DB intel above never depends on GitHub auth.
     const { token, error: tokenError } = await getValidGitHubToken()
-    if (tokenError || !token) {
+    if (tokenError === 'expired') {
       return NextResponse.json(
-        { error: tokenError === 'expired' ? 'GitHub token expired. Please sign out and sign in again.' : 'GitHub token not found.' },
+        { error: 'GitHub token expired. Please sign out and sign in again.' },
         { status: 401 }
       )
     }
@@ -120,7 +121,7 @@ export async function GET(request: Request) {
     }
 
     // Fetch GitHub data
-    const rawData = await fetchRepoIntelData(owner, repo, token)
+    const rawData = await fetchRepoIntelData(owner, repo, token ?? undefined)
 
     // AI synthesis
     const analysis = await analyzeRepoIntel(

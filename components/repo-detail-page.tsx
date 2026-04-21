@@ -7,7 +7,7 @@ import {
   Star, GitFork, AlertCircle, Clock, ExternalLink,
   X, Pin, FolderPlus, Tag as TagIcon, FileText, GitCommit,
   Scale, Globe, Github, Copy, Check, Plus, Loader2,
-  ChevronLeft, AlertTriangle, Zap, Play, RefreshCw, ChevronDown, ChevronUp,
+  ChevronLeft, AlertTriangle, Zap, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -210,48 +210,89 @@ function ReadmeSection({
 // ─── Intel section ────────────────────────────────────────────────────────────
 
 function IntelSection({ owner, repoName }: { owner: string; repoName: string }) {
-  const [triggered, setTriggered] = useState(false)
-
-  if (!triggered) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center">
-        <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
-          AI-powered analysis of health, maintenance, sentiment, and adoption readiness.
-        </p>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setTriggered(true)}>
-          <Play className="h-3.5 w-3.5" />
-          Run Analysis
-        </Button>
-      </div>
-    )
-  }
-
   return <RepoIntelTab owner={owner} name={repoName} />
 }
 
 // ─── Contributions section ────────────────────────────────────────────────────
 
-const CONTRIBUTION_CACHE_PREFIX = "stardash-contribution-opportunities-v2"
+const CONTRIBUTION_CACHE_PREFIX = "stardash-repo-contribution-opportunities-v1"
+const CONTRIBUTION_CACHE_TTL_MS = 60 * 60 * 1000
 
-function ContributionsSection({ owner, repoName, userId }: { owner: string; repoName: string; userId?: string }) {
-  const fullName = `${owner}/${repoName}`
-  const [opportunities, setOpportunities] = useState<ContributionOpportunity[] | null>(null)
+interface RepoContributionResponse {
+  opportunities: ContributionOpportunity[]
+  scannedRepos: number
+  generatedAt: string
+  error?: string
+}
+
+function contributionCacheKey(userId: string, fullName: string) {
+  return `${CONTRIBUTION_CACHE_PREFIX}-${userId}-${fullName}`
+}
+
+function readCachedRepoContributions(userId: string | undefined, fullName: string): RepoContributionResponse | undefined {
+  if (!userId || typeof window === "undefined") return undefined
+  try {
+    const raw = window.localStorage.getItem(contributionCacheKey(userId, fullName))
+    if (!raw) return undefined
+    const cached = JSON.parse(raw) as RepoContributionResponse & { cachedAt: string }
+    if (Date.now() - new Date(cached.cachedAt).getTime() > CONTRIBUTION_CACHE_TTL_MS) return undefined
+    return cached
+  } catch {
+    return undefined
+  }
+}
+
+function writeCachedRepoContributions(userId: string | undefined, fullName: string, data: RepoContributionResponse) {
+  if (!userId || typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(
+      contributionCacheKey(userId, fullName),
+      JSON.stringify({ ...data, cachedAt: new Date().toISOString() }),
+    )
+  } catch {
+    // Cache best effort only.
+  }
+}
+
+function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: string }) {
+  const fullName = repo.fullName
   const [showAll, setShowAll] = useState(false)
+  const fallbackData = useMemo(() => readCachedRepoContributions(userId, fullName), [fullName, userId])
 
-  useEffect(() => {
-    if (!userId || typeof window === "undefined") return
-    const task = window.setTimeout(() => {
-      try {
-        const raw = window.localStorage.getItem(`${CONTRIBUTION_CACHE_PREFIX}-${userId}`)
-        if (!raw) { setOpportunities([]); return }
-        const parsed = JSON.parse(raw) as { opportunities: ContributionOpportunity[] }
-        setOpportunities(parsed.opportunities.filter(o => o.repoFullName === fullName))
-      } catch { setOpportunities([]) }
-    }, 0)
-    return () => window.clearTimeout(task)
-  }, [userId, fullName])
+  const { data, isLoading, error } = useSWR<RepoContributionResponse>(
+    userId ? ["repo-detail-contributions", fullName] : null,
+    async () => {
+      const response = await fetch("/api/github/contribution-opportunities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repos: [repo],
+          maxRepos: 5,
+          maxIssuesPerRepo: 180,
+          preferences: {
+            languages: repo.language ? [repo.language] : [],
+            difficulty: "all",
+            contributionTypes: [],
+          },
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || "Failed to scan contribution opportunities")
+      return result
+    },
+    {
+      fallbackData,
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+      onSuccess(result) {
+        writeCachedRepoContributions(userId, fullName, result)
+      },
+    },
+  )
 
-  if (opportunities === null) {
+  const opportunities = data?.opportunities ?? []
+
+  if (isLoading && !data) {
     return (
       <div className="space-y-2 py-2">
         <Skeleton className="h-16 w-full rounded-md" />
@@ -264,12 +305,12 @@ function ContributionsSection({ owner, repoName, userId }: { owner: string; repo
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
         <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
-          Scans open issues for beginner-friendly contribution opportunities.
+          {error ? error.message : "Scanning open issues for contribution opportunities."}
         </p>
         <Button size="sm" variant="outline" className="gap-1.5" asChild>
-          <a href="/contribute">
+          <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
             <RefreshCw className="h-3.5 w-3.5" />
-            Scan All Repos
+            Open Scanner
           </a>
         </Button>
       </div>
@@ -291,6 +332,12 @@ function ContributionsSection({ owner, repoName, userId }: { owner: string; repo
           {showAll ? "Show less" : `+${opportunities.length - 3} more`}
         </button>
       )}
+      <Button variant="outline" size="sm" className="w-full gap-1.5" asChild>
+        <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
+          <GitCommit className="h-3.5 w-3.5" />
+          Explore Contribution Opportunities
+        </a>
+      </Button>
     </div>
   )
 }
@@ -968,8 +1015,8 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
                 <IntelSection owner={repo.owner} repoName={repo.name} />
               </SectionCard>
 
-              <SectionCard title="Contributions" icon={GitCommit} collapsible defaultOpen>
-                <ContributionsSection owner={repo.owner} repoName={repo.name} userId={user?.id} />
+              <SectionCard title="Contribution Opportunities" icon={GitCommit} collapsible defaultOpen>
+                <ContributionsSection repo={repo} userId={userId} />
               </SectionCard>
             </div>
           </div>
