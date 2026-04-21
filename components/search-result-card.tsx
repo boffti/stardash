@@ -29,11 +29,11 @@ export function SearchResultCard({ repo, tags, collections, onStarred, className
 
   return (
     <Card className={cn(
-      "group relative overflow-hidden border-border bg-card",
+      "group relative overflow-hidden border-border bg-card py-0",
       "hover:border-muted-foreground/30 hover:bg-card/80 transition-all duration-200",
       className
     )}>
-      <CardContent className="p-4 flex flex-col gap-0">
+      <CardContent className="px-3.5 py-3 flex flex-col gap-0">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -58,13 +58,13 @@ export function SearchResultCard({ repo, tags, collections, onStarred, className
         </div>
 
         {/* Description */}
-        <p className="mt-3 text-sm text-muted-foreground line-clamp-2 leading-relaxed min-h-[2.5rem]">
+        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed min-h-[2.5rem]">
           {repo.description ?? "No description available"}
         </p>
 
         {/* Topics */}
         {repo.topics.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-1.5 flex flex-wrap gap-1">
             {repo.topics.slice(0, 4).map(topic => (
               <Badge key={topic} variant="secondary" className="text-xs px-1.5 py-0 h-5 font-normal">
                 {topic}
@@ -75,7 +75,7 @@ export function SearchResultCard({ repo, tags, collections, onStarred, className
 
         {/* Evidence strip */}
         {repo.evidence.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-border/40 space-y-1">
+          <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
             {repo.evidence.map((e, i) => (
               <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground/70">
                 <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5 text-emerald-500/60" />
@@ -86,7 +86,7 @@ export function SearchResultCard({ repo, tags, collections, onStarred, className
         )}
 
         {/* Footer */}
-        <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
+        <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {langColor && (
               <div className="flex items-center gap-1.5">
@@ -112,7 +112,7 @@ export function SearchResultCard({ repo, tags, collections, onStarred, className
           />
         </div>
 
-        <p className="mt-1.5 text-[11px] text-muted-foreground/40">Updated {updatedAgo}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground/40">Updated {updatedAgo}</p>
       </CardContent>
     </Card>
   )
