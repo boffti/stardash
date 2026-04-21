@@ -80,6 +80,7 @@ export function useRecentlyViewed(userId?: string) {
 
   useEffect(() => {
     if (!userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEntries([])
       return
     }

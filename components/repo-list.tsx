@@ -1,6 +1,6 @@
 "use client"
 
-import { Star, GitFork, Clock, Pin, ExternalLink } from "lucide-react"
+import { Star, GitFork, Pin } from "lucide-react"
 import { RepoHealthBadges } from "./repo-health-badges"
 import { useDraggable } from "@dnd-kit/core"
 import {

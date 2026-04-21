@@ -40,6 +40,7 @@ export function ThemeProvider({
   React.useEffect(() => {
     const storedTheme = window.localStorage.getItem(storageKey) as Theme | null
     const nextTheme = storedTheme ?? defaultTheme
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeState(nextTheme)
     setResolvedTheme(
       nextTheme === 'system' && enableSystem ? getSystemTheme() : nextTheme === 'light' ? 'light' : 'dark'

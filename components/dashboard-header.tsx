@@ -32,7 +32,6 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({
   searchQuery,
-  onSearchChange: _onSearchChange,
   sortBy,
   onSortChange,
   languageFilter,

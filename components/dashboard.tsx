@@ -14,7 +14,7 @@ import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
 import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Sparkles, LayoutGrid, List, StarOff, LogOut, LogIn, Star } from "lucide-react"
+import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, List, StarOff, LogIn, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -75,6 +75,7 @@ export function Dashboard({ user }: DashboardProps) {
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_MODE_KEY)
     if (stored === "list" || stored === "grid") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setViewModeState(stored)
     }
   }, [])
@@ -125,7 +126,7 @@ export function Dashboard({ user }: DashboardProps) {
 
   // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
   const repos = useMemo(() => {
-    return rawRepos.map(repo => {
+    return (data?.repos ?? []).map(repo => {
       const dbMeta = metadata?.repoMeta[repo.id]
 
       let mergedRepo = repo
@@ -153,7 +154,7 @@ export function Dashboard({ user }: DashboardProps) {
 
       return mergedRepo
     })
-  }, [rawRepos, metadata, categorization])
+  }, [data?.repos, metadata, categorization])
 
   const collections = useMemo(() => {
     const dbCollections = metadata?.collections ?? []
@@ -203,6 +204,7 @@ export function Dashboard({ user }: DashboardProps) {
     const tagFromUrl = searchParams.get("tag")
     const uncategorizedFromUrl = searchParams.get("uncategorized") === "true"
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedCollection(collectionFromUrl)
     setSelectedTag(tagFromUrl)
     setShowUncategorized(uncategorizedFromUrl)
@@ -343,11 +345,13 @@ export function Dashboard({ user }: DashboardProps) {
 
   // Reset to page 1 when filters/sort change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
   }, [searchQuery, sortBy, languageFilter, healthFilter, selectedCollection, selectedTag, showUncategorized])
 
   // Reset to page 1 when page size changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
   }, [pageSize])
 
@@ -364,7 +368,7 @@ export function Dashboard({ user }: DashboardProps) {
       ids.unshift(selectedRepo.id)
     }
     return Array.from(new Set(ids)).slice(0, MAX_HEALTH_REPOS_PER_VIEW)
-  }, [paginatedRepos, selectedRepo?.id])
+  }, [paginatedRepos, selectedRepo])
 
   // Batch health requests in chunks of 50 to avoid long URLs
   const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
@@ -464,13 +468,6 @@ export function Dashboard({ user }: DashboardProps) {
       triggerSource,
       triggerContext: "dashboard",
     })
-  }
-
-  const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
   }
 
   const handleReconnect = async () => {
@@ -683,7 +680,8 @@ export function Dashboard({ user }: DashboardProps) {
     mutate(prev => prev ? { ...prev, repos: prev.repos.filter(r => r.id !== repo.id) } : prev, { revalidate: false })
     mutateMetadata(prev => {
       if (!prev) return prev
-      const { [repo.id]: _, ...remainingMeta } = prev.repoMeta
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [repo.id]: _removed, ...remainingMeta } = prev.repoMeta
       return { ...prev, repoMeta: remainingMeta }
     }, { revalidate: false })
 

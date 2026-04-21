@@ -79,6 +79,7 @@ export function RepoCommandPalette({
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery("")
       setSelectedValue("")
     }
@@ -137,6 +138,7 @@ export function RepoCommandPalette({
     const nextSelection =
       orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedValue(nextSelection)
   }, [open, orderedItemMatches])
 
@@ -229,7 +231,7 @@ export function RepoCommandPalette({
             {!hasVisibleResults && (
               <div className="py-10">
                 <div className="space-y-2 text-center">
-                  <p className="font-medium">No results for "{query.trim()}"</p>
+                  <p className="font-medium">No results for &quot;{query.trim()}&quot;</p>
                   <p className="text-xs text-muted-foreground">
                     {emptyHint}
                   </p>

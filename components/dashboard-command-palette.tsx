@@ -124,6 +124,7 @@ export function DashboardCommandPalette({
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery("")
       setSelectedValue("")
     }
@@ -317,6 +318,7 @@ export function DashboardCommandPalette({
     const nextSelection =
       orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedValue(nextSelection)
   }, [open, orderedItemMatches])
 
@@ -396,7 +398,7 @@ export function DashboardCommandPalette({
                 >
                   <Search className="h-4 w-4" />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate">Filter dashboard for "{query.trim()}"</span>
+                    <span className="truncate">Filter dashboard for &quot;{query.trim()}&quot;</span>
                     <span className="text-xs text-muted-foreground">
                       Updates the persistent repo search field
                     </span>
@@ -581,7 +583,7 @@ export function DashboardCommandPalette({
             {orderedItemMatches.length === 0 && (
               <div className="py-10">
                 <div className="space-y-2 text-center">
-                  <p className="font-medium">No results for "{query.trim()}"</p>
+                  <p className="font-medium">No results for &quot;{query.trim()}&quot;</p>
                   <p className="text-xs text-muted-foreground">
                     Try a repo name, a language, or a dashboard action.
                   </p>

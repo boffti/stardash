@@ -73,6 +73,7 @@ export function CreateCollectionModal({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const selectedColor = form.watch("color")
 
   const handleSubmit = async (data: FormData) => {

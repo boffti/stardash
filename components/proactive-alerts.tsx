@@ -40,6 +40,7 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
     try {
       const stored = localStorage.getItem(`${STORAGE_KEY}_${userId}`)
       if (stored) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDismissedAlerts(new Set(JSON.parse(stored)))
       }
     } catch {

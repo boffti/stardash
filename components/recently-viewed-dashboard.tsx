@@ -35,7 +35,7 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const { data, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
+  const { data, isRefreshing, refresh } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
     (url: string) => fetch(url).then((response) => response.json()),

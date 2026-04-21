@@ -78,6 +78,7 @@ export function useStarredRepos(userId?: string) {
 
   useEffect(() => {
     if (!userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCachedData(undefined)
       return
     }
@@ -139,6 +140,7 @@ export function useStarredRepos(userId?: string) {
         triggerContext: "use-starred-repos",
       }).catch(() => {})
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   useEffect(() => {
