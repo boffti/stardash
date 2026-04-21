@@ -208,6 +208,31 @@ export async function unstarRepo(
   }
 }
 
+export async function starRepo(
+  accessToken: string,
+  owner: string,
+  repo: string
+): Promise<void> {
+  const response = await fetch(
+    `https://api.github.com/user/starred/${owner}/${repo}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Length': '0',
+      },
+    }
+  )
+
+  // 204 = success, 304 = already starred (treat as success)
+  if (!response.ok && response.status !== 304) {
+    const details = await response.text().catch(() => '')
+    throw new Error(details ? `GitHub API error: ${response.status} ${details}` : `GitHub API error: ${response.status}`)
+  }
+}
+
 export async function fetchRepoReadme(
   accessToken: string | undefined,
   owner: string,
