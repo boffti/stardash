@@ -773,31 +773,25 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
         />
 
         <main className="flex-1 p-6">
-          <section className="mb-6 flex flex-col gap-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="flex max-w-3xl flex-col gap-2">
-                <div className="inline-flex w-fit items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  Contribution Opportunities
-                </div>
-                <h1 className="text-2xl font-semibold tracking-tight">Turn starred repos into open-source work</h1>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Ranked open issues from repositories you already care about, filtered by stack, difficulty, and contribution style.
-                </p>
+          <section className="mb-8 space-y-4">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight">Turn starred repos into open-source work</h1>
+              <p className="text-sm text-muted-foreground">
+                Contribution opportunities. Ranked open issues from repositories you already care about, filtered by stack, difficulty, and contribution style.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                <span className="text-sm font-semibold tabular-nums">{filteredOpportunities.length}</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">Matches</span>
               </div>
-              <div className="grid grid-cols-3 gap-2 sm:min-w-96">
-                <div className="rounded-lg border border-border/60 bg-card/70 p-3">
-                  <div className="text-lg font-semibold tabular-nums">{filteredOpportunities.length}</div>
-                  <div className="text-xs text-muted-foreground">Matches</div>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card/70 p-3">
-                  <div className="text-lg font-semibold tabular-nums">{topStats.starter}</div>
-                  <div className="text-xs text-muted-foreground">Beginner</div>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card/70 p-3">
-                  <div className="text-lg font-semibold tabular-nums">{scannedRepos}</div>
-                  <div className="text-xs text-muted-foreground">Repos scanned</div>
-                </div>
+              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                <span className="text-sm font-semibold tabular-nums">{topStats.starter}</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">Beginner</span>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+                <span className="text-sm font-semibold tabular-nums">{scannedRepos}</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">Repos scanned</span>
               </div>
             </div>
 
