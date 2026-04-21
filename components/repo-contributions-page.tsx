@@ -535,10 +535,26 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
       <SidebarInset className="overflow-x-hidden">
         <main className="flex w-full flex-col gap-5 px-4 py-6 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button variant="ghost" size="sm" onClick={() => router.push(`/repo/${owner}/${repoName}`)}>
-              <ArrowLeft data-icon="inline-start" />
-              Repo detail
-            </Button>
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="size-4" />
+                Dashboard
+              </button>
+              <span className="text-border">/</span>
+              <span className="text-sm text-muted-foreground">{owner}</span>
+              <span className="text-border">/</span>
+              <button
+                onClick={() => router.push(`/repo/${owner}/${repoName}`)}
+                className="truncate font-mono text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {repoName}
+              </button>
+              <span className="text-border">/</span>
+              <span className="text-sm font-medium">contributions</span>
+            </div>
             <Button variant="outline" size="sm" onClick={handleScanAgain} disabled={!repo || isValidating}>
               {isValidating ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <RefreshCw data-icon="inline-start" />}
               Scan issues
