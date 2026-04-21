@@ -62,6 +62,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ opportunities: [], scannedRepos: 0 })
     }
 
+    const isSingleRepoScan = repos.length === 1
+
     const { token, error: tokenError } = await getValidGitHubToken()
     if (tokenError === 'expired') {
       return NextResponse.json(
@@ -77,8 +79,10 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .maybeSingle()
 
-    // Per-user rate limit: max one contribution scan per 5 minutes.
-    if (!body.force && profile?.last_contribution_scan_at) {
+    // Per-user rate limit: max one broad contribution scan per 5 minutes.
+    // Single-repo scans are cheap and locally cached by the repo detail/contribution pages,
+    // so keep them independent from the global dashboard scan cooldown.
+    if (!isSingleRepoScan && !body.force && profile?.last_contribution_scan_at) {
       const msSinceLast = Date.now() - new Date(profile.last_contribution_scan_at).getTime()
       if (msSinceLast < SCAN_COOLDOWN_MS) {
         const retryAfter = Math.ceil((SCAN_COOLDOWN_MS - msSinceLast) / 1000)
@@ -92,11 +96,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Record scan start time before the expensive GitHub API calls
-    await adminSupabase
-      .from('profiles')
-      .update({ last_contribution_scan_at: new Date().toISOString() })
-      .eq('id', user.id)
+    // Record broad scan start time before expensive multi-repo GitHub API calls.
+    if (!isSingleRepoScan) {
+      await adminSupabase
+        .from('profiles')
+        .update({ last_contribution_scan_at: new Date().toISOString() })
+        .eq('id', user.id)
+    }
 
     const preferences = body.preferences ?? {}
     const maxRepos = Math.min(Math.max(body.maxRepos ?? 24, 5), 40)

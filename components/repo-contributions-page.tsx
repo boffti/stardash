@@ -301,6 +301,7 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
     () => scanRepo(repo!, false),
     {
       fallbackData,
+      revalidateOnMount: !fallbackData,
       revalidateOnFocus: false,
       shouldRetryOnError: false,
       onSuccess(result) {

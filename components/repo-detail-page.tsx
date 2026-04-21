@@ -282,6 +282,7 @@ function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: st
     },
     {
       fallbackData,
+      revalidateOnMount: !fallbackData,
       revalidateOnFocus: false,
       shouldRetryOnError: false,
       onSuccess(result) {
