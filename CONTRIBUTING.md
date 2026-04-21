@@ -18,7 +18,7 @@ Thank you for considering a contribution! This document outlines how to get set 
 git clone https://github.com/boffti/stardash.git
 cd stardash
 pnpm install
-cp .env.example .env   # fill in your keys
+cp .env.example .env.local   # fill in your keys
 pnpm dev
 ```
 
