@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { SearchHero } from "@/components/search-hero"
+import { SearchPipelineTimeline } from "@/components/search-pipeline-timeline"
 import { SearchResultCard } from "@/components/search-result-card"
 import { SearchTrendingStrip } from "@/components/search-trending-strip"
 import { SearchPersonalizedSection } from "@/components/search-personalized-section"
@@ -20,7 +21,7 @@ import {
   setCachedPersonalizedSearch,
 } from "@/lib/search-cache"
 import type { UserMetadata } from "@/lib/types"
-import type { SearchRepo } from "@/app/api/search/repos/route"
+import type { SearchPipelineEvent, SearchRepo } from "@/app/api/search/repos/route"
 import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
 
 interface SearchPageProps {
@@ -31,10 +32,12 @@ export function SearchPage({ user }: SearchPageProps) {
   const [searchResults, setSearchResults] = useState<SearchRepo[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasResults, setHasResults] = useState(false)
+  const [pipelineEvents, setPipelineEvents] = useState<SearchPipelineEvent[]>([])
   const [personalizedThemes, setPersonalizedThemes] = useState<PersonalizedTheme[]>([])
   const [personalizedLoaded, setPersonalizedLoaded] = useState(false)
   const [isPersonalizing, setIsPersonalizing] = useState(false)
   const personalizingRef = useRef(false)
+  const searchRunRef = useRef(0)
 
   const { getHeaders } = useAIKey()
   const { data: starData, isLoading: isLoadingStars } = useStarredRepos(user?.id)
@@ -130,34 +133,101 @@ export function SearchPage({ user }: SearchPageProps) {
   }, [getHeaders, personalizedLoaded, starData?.repos, user?.id])
 
   const handleSearch = useCallback(async (query: string) => {
+    const searchRunId = searchRunRef.current + 1
+    searchRunRef.current = searchRunId
     setIsSearching(true)
     setHasResults(false)
+    setSearchResults([])
+    setPipelineEvents([])
+
+    const applyPipelineEvent = (event: SearchPipelineEvent) => {
+      if (searchRunRef.current !== searchRunId) return
+      setPipelineEvents(prev => [...prev, event])
+      if (event.type === "result") {
+        setSearchResults(event.repos)
+        setHasResults(true)
+      }
+      if (event.type === "error") {
+        console.error("[search] pipeline error:", event.error)
+      }
+    }
+
     try {
       const res = await fetch("/api/search/repos", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getHeaders() },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/x-ndjson",
+          "x-search-pipeline": "stream",
+          ...getHeaders(),
+        },
         body: JSON.stringify({ query }),
       })
-      const data = await res.json()
       if (!res.ok) {
+        const data = await res.json()
         console.error('[search] API error:', data)
         return
       }
-      if (data.repos) {
-        setSearchResults(data.repos)
-        setHasResults(true)
+
+      if (!res.body) {
+        const data = await res.json()
+        if (data.repos) {
+          setSearchResults(data.repos)
+          setHasResults(true)
+        }
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() ?? ""
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          applyPipelineEvent(JSON.parse(line) as SearchPipelineEvent)
+        }
+      }
+
+      buffer += decoder.decode()
+      if (buffer.trim()) {
+        applyPipelineEvent(JSON.parse(buffer) as SearchPipelineEvent)
       }
     } catch (err) {
-      console.error('[search] fetch error:', err)
+      if (searchRunRef.current === searchRunId) {
+        console.error('[search] fetch error:', err)
+        setPipelineEvents(prev => [
+          ...prev,
+          {
+            type: "error",
+            error: err instanceof Error ? err.message : "Search failed",
+            elapsedMs: 0,
+          },
+        ])
+      }
     } finally {
-      setIsSearching(false)
+      if (searchRunRef.current === searchRunId) {
+        setIsSearching(false)
+      }
     }
   }, [getHeaders])
 
   const handleClear = useCallback(() => {
+    searchRunRef.current += 1
     setSearchResults([])
+    setPipelineEvents([])
     setHasResults(false)
+    setIsSearching(false)
   }, [])
+
+  const hasPipelineFeedback = isSearching || pipelineEvents.length > 0
 
   return (
     <SidebarProvider>
@@ -193,6 +263,14 @@ export function SearchPage({ user }: SearchPageProps) {
           />
 
           <div className="flex-1 px-6 pb-8">
+            {hasPipelineFeedback && (
+              <SearchPipelineTimeline
+                events={pipelineEvents}
+                isSearching={isSearching}
+                className="mt-6"
+              />
+            )}
+
             {/* Search results */}
             {hasResults && (
               <div className="mt-6 space-y-4">
@@ -213,7 +291,7 @@ export function SearchPage({ user }: SearchPageProps) {
             )}
 
             {/* Loading state */}
-            {isSearching && (
+            {isSearching && !hasResults && (
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <Skeleton key={i} className="h-56 rounded-lg" />
@@ -222,7 +300,7 @@ export function SearchPage({ user }: SearchPageProps) {
             )}
 
             {/* Initial load: trending + personalized */}
-            {!hasResults && !isSearching && (
+            {!hasResults && !isSearching && pipelineEvents.length === 0 && (
               <div className="mt-6 space-y-10">
                 {trendingRepos.length > 0 && (
                   <SearchTrendingStrip
