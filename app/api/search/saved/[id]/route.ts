@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/server'
+import { isDiscoverSearchesMissingTableError } from '@/lib/search-cache'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -26,7 +27,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       .eq('id', id)
       .eq('user_id', user.id)
 
-    if (error) throw error
+    if (error) {
+      if (isDiscoverSearchesMissingTableError(error)) {
+        return NextResponse.json({ error: 'Saved search cache is not available' }, { status: 503 })
+      }
+
+      throw error
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {
@@ -51,7 +58,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
       .eq('id', id)
       .eq('user_id', user.id)
 
-    if (error) throw error
+    if (error) {
+      if (isDiscoverSearchesMissingTableError(error)) {
+        return NextResponse.json({ error: 'Saved search cache is not available' }, { status: 503 })
+      }
+
+      throw error
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

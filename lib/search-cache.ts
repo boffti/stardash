@@ -17,6 +17,20 @@ export interface DiscoverSavedSearch {
   isSaved: boolean
 }
 
+export function isDiscoverSearchesMissingTableError(error: unknown) {
+  if (!error || typeof error !== "object") return false
+
+  const maybeError = error as { code?: unknown; message?: unknown }
+  const code = typeof maybeError.code === "string" ? maybeError.code : null
+  const message = typeof maybeError.message === "string" ? maybeError.message : ""
+
+  return (
+    code === "PGRST205" ||
+    code === "42P01" ||
+    message.includes("discover_searches") && message.includes("schema cache")
+  )
+}
+
 interface PersonalizedSearchCache {
   themes: PersonalizedTheme[]
   repoSignature: string

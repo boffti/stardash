@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/server'
 import type { DiscoverSavedSearch } from '@/lib/search-cache'
-import { DISCOVER_SEARCH_CACHE_VERSION } from '@/lib/search-cache'
+import { DISCOVER_SEARCH_CACHE_VERSION, isDiscoverSearchesMissingTableError } from '@/lib/search-cache'
 
 interface DiscoverSearchSummaryRow {
   id: string
@@ -47,7 +47,13 @@ export async function GET() {
       .order('last_run_at', { ascending: false })
       .limit(50)
 
-    if (error) throw error
+    if (error) {
+      if (isDiscoverSearchesMissingTableError(error)) {
+        return NextResponse.json({ searches: [], unavailable: true })
+      }
+
+      throw error
+    }
 
     const now = Date.now()
     const searches = ((data ?? []) as DiscoverSearchSummaryRow[])

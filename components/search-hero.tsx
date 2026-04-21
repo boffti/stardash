@@ -164,7 +164,8 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
                   onClick={() => handleChip(chip)}
                   className={cn(
                     "px-3 py-1.5 rounded-full text-xs border border-border/50 bg-muted/30",
-                    "text-muted-foreground hover:text-accent-foreground hover:border-accent/50 hover:bg-accent/10",
+                    "text-muted-foreground hover:border-accent/60 hover:bg-accent/15 hover:text-foreground",
+                    "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                     "transition-all duration-150"
                   )}
                 >

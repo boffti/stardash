@@ -1,19 +1,11 @@
 "use client"
 
 import {
-  BrainCircuit,
   Check,
-  Circle,
   Code2,
-  Database,
-  GitBranch,
   Loader2,
-  Search,
-  ShieldCheck,
-  Sparkles,
   X,
 } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -28,43 +20,36 @@ const PIPELINE_STEPS: Array<{
   id: SearchPipelineStepId
   title: string
   description: string
-  icon: LucideIcon
 }> = [
   {
     id: "auth",
     title: "Session",
     description: "Validate app session and choose GitHub access mode.",
-    icon: ShieldCheck,
   },
   {
     id: "expand",
     title: "Intent expansion",
     description: "Generate targeted GitHub search operators.",
-    icon: BrainCircuit,
   },
   {
     id: "github",
     title: "GitHub retrieval",
     description: "Fetch public repository candidates in parallel.",
-    icon: Search,
   },
   {
     id: "dedupe",
     title: "Candidate merge",
     description: "Remove duplicate repos across expanded searches.",
-    icon: GitBranch,
   },
   {
     id: "rerank",
     title: "AI rerank",
     description: "Score each repository and attach evidence notes.",
-    icon: Sparkles,
   },
   {
     id: "render",
     title: "Result shaping",
     description: "Sort and prepare the final result grid.",
-    icon: Database,
   },
 ]
 
@@ -82,11 +67,16 @@ function getStepEvent(events: SearchPipelineEvent[], id: SearchPipelineStepId): 
   return undefined
 }
 
-function getStatusIcon(status: SearchPipelineStatus) {
+function getStatusIndicator(status: SearchPipelineStatus, stepNumber: number) {
   if (status === "completed") return <Check className="h-3 w-3" />
-  if (status === "running") return <Loader2 className="h-3 w-3 animate-spin" />
   if (status === "error") return <X className="h-3 w-3" />
-  return <Circle className="h-2 w-2 fill-current" />
+
+  return (
+    <>
+      {status === "running" && <Loader2 className="absolute inset-0 h-full w-full animate-spin p-1 text-primary/70" />}
+      <span className="relative text-[11px] font-semibold tabular-nums leading-none">{stepNumber}</span>
+    </>
+  )
 }
 
 interface SearchPipelineTimelineProps {
@@ -135,24 +125,20 @@ export function SearchPipelineTimeline({ events, isSearching, className }: Searc
         {PIPELINE_STEPS.map((step, index) => {
           const event = getStepEvent(events, step.id)
           const status = event?.status ?? "pending"
-          const Icon = step.icon
           const elapsed = formatElapsed(event?.elapsedMs)
-          const isLast = index === PIPELINE_STEPS.length - 1
+          const stepNumber = index + 1
 
           return (
-            <div key={step.id} className="relative flex gap-3 rounded-md border border-border/60 bg-background/50 p-3">
-              {!isLast && (
-                <div className="pointer-events-none absolute left-[1.55rem] top-10 hidden h-px w-full bg-border lg:block" />
-              )}
+            <div key={step.id} className="relative flex items-center gap-3 rounded-md border border-border/60 bg-background/50 p-3">
               <div
                 className={cn(
-                  "relative z-[1] flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground",
+                  "relative flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground",
                   status === "completed" && "border-primary bg-primary text-primary-foreground",
                   status === "running" && "border-primary text-primary",
                   status === "error" && "border-destructive bg-destructive text-destructive-foreground",
                 )}
               >
-                {status === "pending" ? <Icon className="h-3.5 w-3.5" /> : getStatusIcon(status)}
+                {getStatusIndicator(status, stepNumber)}
               </div>
 
               <div className="min-w-0 flex-1">
