@@ -11,6 +11,7 @@ import { SearchPipelineTimeline } from "@/components/search-pipeline-timeline"
 import { SearchResultCard } from "@/components/search-result-card"
 import { SearchTrendingStrip } from "@/components/search-trending-strip"
 import { SearchPersonalizedSection } from "@/components/search-personalized-section"
+import { SearchSavedSection } from "@/components/search-saved-section"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { useAIKey } from "@/lib/use-ai-key"
@@ -20,6 +21,7 @@ import {
   getCachedPersonalizedSearch,
   setCachedPersonalizedSearch,
 } from "@/lib/search-cache"
+import type { DiscoverSavedSearch } from "@/lib/search-cache"
 import type { UserMetadata } from "@/lib/types"
 import type { SearchPipelineEvent, SearchRepo } from "@/app/api/search/repos/route"
 import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
@@ -48,8 +50,15 @@ export function SearchPage({ user }: SearchPageProps) {
     { revalidateOnFocus: false }
   )
 
+  const { data: savedSearchData, mutate: mutateSavedSearches, isLoading: isLoadingSavedSearches } = useSWR<{ searches: DiscoverSavedSearch[] }>(
+    user?.id ? "/api/search/saved" : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false }
+  )
+
   const tags = metadata?.tags ?? []
   const collections = metadata?.collections ?? []
+  const savedSearches = savedSearchData?.searches ?? []
 
   const uncategorizedCount = useMemo(() => {
     const repos = starData?.repos ?? []
@@ -215,9 +224,24 @@ export function SearchPage({ user }: SearchPageProps) {
     } finally {
       if (searchRunRef.current === searchRunId) {
         setIsSearching(false)
+        mutateSavedSearches()
       }
     }
-  }, [getHeaders])
+  }, [getHeaders, mutateSavedSearches])
+
+  const handleToggleSavedSearch = useCallback(async (search: DiscoverSavedSearch) => {
+    await fetch(`/api/search/saved/${search.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isSaved: !search.isSaved }),
+    })
+    mutateSavedSearches()
+  }, [mutateSavedSearches])
+
+  const handleDeleteSavedSearch = useCallback(async (search: DiscoverSavedSearch) => {
+    await fetch(`/api/search/saved/${search.id}`, { method: "DELETE" })
+    mutateSavedSearches()
+  }, [mutateSavedSearches])
 
   const handleClear = useCallback(() => {
     searchRunRef.current += 1
@@ -302,6 +326,14 @@ export function SearchPage({ user }: SearchPageProps) {
             {/* Initial load: trending + personalized */}
             {!hasResults && !isSearching && pipelineEvents.length === 0 && (
               <div className="mt-6 space-y-10">
+                <SearchSavedSection
+                  searches={savedSearches}
+                  isLoading={isLoadingSavedSearches}
+                  onSearch={handleSearch}
+                  onToggleSaved={handleToggleSavedSearch}
+                  onDelete={handleDeleteSavedSearch}
+                />
+
                 {trendingRepos.length > 0 && (
                   <SearchTrendingStrip
                     repos={trendingRepos}

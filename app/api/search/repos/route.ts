@@ -7,6 +7,12 @@ import { getValidGitHubToken } from '@/lib/tokens'
 import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import { createClient } from '@/lib/supabase/server'
+import {
+  DISCOVER_SEARCH_CACHE_TTL_DAYS,
+  DISCOVER_SEARCH_CACHE_VERSION,
+  normalizeDiscoverSearchQuery,
+} from '@/lib/search-cache'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 
 export const maxDuration = 60
 
@@ -58,6 +64,9 @@ export interface SearchPipelineResultEvent {
   type: 'result'
   repos: SearchRepo[]
   elapsedMs: number
+  searchId?: string
+  cached?: boolean
+  cachedAt?: string
 }
 
 export interface SearchPipelineErrorEvent {
@@ -105,8 +114,126 @@ async function searchGitHub(query: string, token: string | null): Promise<GitHub
 
 type EmitSearchPipelineEvent = (event: SearchPipelineEvent) => void
 
+interface DiscoverSearchRow {
+  id: string
+  query: string
+  normalized_query: string
+  results: SearchRepo[]
+  pipeline_events: SearchPipelineEvent[]
+  result_count: number
+  cached_at: string
+  last_run_at: string
+  last_opened_at: string | null
+  expires_at: string
+  is_saved: boolean
+}
+
 function elapsedSince(startedAt: number) {
   return Date.now() - startedAt
+}
+
+function discoverSearchExpiresAt() {
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + DISCOVER_SEARCH_CACHE_TTL_DAYS)
+  return expiresAt.toISOString()
+}
+
+function getModelId(modelConfig: AIModelConfig) {
+  const model = modelConfig.model as { modelId?: string }
+  return model.modelId ?? null
+}
+
+async function getCachedDiscoverSearch({
+  supabase,
+  userId,
+  normalizedQuery,
+}: {
+  supabase: SupabaseClient
+  userId: string
+  normalizedQuery: string
+}): Promise<DiscoverSearchRow | null> {
+  try {
+    const { data, error } = await supabase
+      .from('discover_searches')
+      .select('id, query, normalized_query, results, pipeline_events, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved')
+      .eq('user_id', userId)
+      .eq('normalized_query', normalizedQuery)
+      .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
+      .maybeSingle()
+
+    if (error || !data) return null
+
+    const row = data as DiscoverSearchRow
+    const isFresh = new Date(row.expires_at).getTime() > Date.now()
+    if (!row.is_saved && !isFresh) return null
+    if (!Array.isArray(row.results)) return null
+
+    await supabase
+      .from('discover_searches')
+      .update({ last_opened_at: new Date().toISOString() })
+      .eq('id', row.id)
+      .eq('user_id', userId)
+
+    return row
+  } catch (err) {
+    console.warn('[search-cache] cache lookup skipped:', err)
+    return null
+  }
+}
+
+async function saveDiscoverSearch({
+  supabase,
+  userId,
+  query,
+  normalizedQuery,
+  repos,
+  pipelineEvents,
+  modelConfig,
+}: {
+  supabase: SupabaseClient
+  userId: string
+  query: string
+  normalizedQuery: string
+  repos: SearchRepo[]
+  pipelineEvents: SearchPipelineEvent[]
+  modelConfig: AIModelConfig
+}): Promise<string | null> {
+  try {
+    const { data: existing } = await supabase
+      .from('discover_searches')
+      .select('id, is_saved')
+      .eq('user_id', userId)
+      .eq('normalized_query', normalizedQuery)
+      .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
+      .maybeSingle()
+
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('discover_searches')
+      .upsert({
+        user_id: userId,
+        query,
+        normalized_query: normalizedQuery,
+        results: repos,
+        pipeline_events: pipelineEvents,
+        result_count: repos.length,
+        model_provider: modelConfig.provider,
+        model_id: getModelId(modelConfig),
+        search_version: DISCOVER_SEARCH_CACHE_VERSION,
+        cached_at: now,
+        last_run_at: now,
+        expires_at: discoverSearchExpiresAt(),
+        is_saved: Boolean(existing?.is_saved),
+      }, { onConflict: 'user_id,normalized_query,search_version' })
+      .select('id')
+      .single()
+
+    if (error) return existing?.id ?? null
+    return data?.id ?? existing?.id ?? null
+  } catch (err) {
+    console.warn('[search-cache] cache save skipped:', err)
+    return null
+  }
 }
 
 function repoToSearchRepo(item: GitHubSearchItem, rank?: { evidence: string[]; relevanceScore: number }): SearchRepo {
@@ -334,10 +461,16 @@ Include ALL repos in your response. Sort by relevanceScore descending.`,
 
 function streamSearchPipeline({
   query,
+  normalizedQuery,
+  user,
+  supabase,
   token,
   modelConfig,
 }: {
   query: string
+  normalizedQuery: string
+  user: User
+  supabase: SupabaseClient
   token: string | null
   modelConfig: AIModelConfig
 }) {
@@ -351,8 +484,45 @@ function streamSearchPipeline({
       }
 
       try {
-        const repos = await runSearchPipeline({ query, token, modelConfig, startedAt, emit })
-        emit({ type: 'result', repos, elapsedMs: elapsedSince(startedAt) })
+        const cached = await getCachedDiscoverSearch({ supabase, userId: user.id, normalizedQuery })
+        if (cached) {
+          emit({
+            type: 'step',
+            id: 'render',
+            status: 'completed',
+            title: cached.is_saved ? 'Loaded saved search' : 'Loaded cached search',
+            detail: `Reused ${cached.result_count} cached repositories from Discover history.`,
+            elapsedMs: elapsedSince(startedAt),
+            meta: { cached: true, resultCount: cached.result_count },
+          })
+          emit({
+            type: 'result',
+            repos: cached.results,
+            elapsedMs: elapsedSince(startedAt),
+            searchId: cached.id,
+            cached: true,
+            cachedAt: cached.cached_at,
+          })
+          controller.close()
+          return
+        }
+
+        const pipelineEvents: SearchPipelineEvent[] = []
+        const emitAndCollect: EmitSearchPipelineEvent = (event) => {
+          pipelineEvents.push(event)
+          emit(event)
+        }
+        const repos = await runSearchPipeline({ query, token, modelConfig, startedAt, emit: emitAndCollect })
+        const searchId = await saveDiscoverSearch({
+          supabase,
+          userId: user.id,
+          query,
+          normalizedQuery,
+          repos,
+          pipelineEvents,
+          modelConfig,
+        })
+        emit({ type: 'result', repos, elapsedMs: elapsedSince(startedAt), searchId: searchId ?? undefined, cached: false })
         after(async () => { await langfuseSpanProcessor?.forceFlush() })
         controller.close()
       } catch (err) {
@@ -387,7 +557,8 @@ export async function POST(request: Request) {
     }
 
     const { query } = await request.json()
-    if (!query?.trim()) {
+    const normalizedQuery = typeof query === 'string' ? normalizeDiscoverSearchQuery(query) : ''
+    if (!normalizedQuery) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 })
     }
 
@@ -401,13 +572,39 @@ export async function POST(request: Request) {
       || request.headers.get('x-search-pipeline') === 'stream'
 
     if (wantsPipelineStream) {
-      return streamSearchPipeline({ query, token, modelConfig })
+      return streamSearchPipeline({ query: query.trim(), normalizedQuery, user, supabase, token, modelConfig })
     }
 
-    const repos = await runSearchPipeline({ query, token, modelConfig, startedAt })
+    const cached = await getCachedDiscoverSearch({ supabase, userId: user.id, normalizedQuery })
+    if (cached) {
+      return NextResponse.json({
+        repos: cached.results,
+        searchId: cached.id,
+        cached: true,
+        cachedAt: cached.cached_at,
+      })
+    }
+
+    const pipelineEvents: SearchPipelineEvent[] = []
+    const repos = await runSearchPipeline({
+      query: query.trim(),
+      token,
+      modelConfig,
+      startedAt,
+      emit: (event) => pipelineEvents.push(event),
+    })
+    const searchId = await saveDiscoverSearch({
+      supabase,
+      userId: user.id,
+      query: query.trim(),
+      normalizedQuery,
+      repos,
+      pipelineEvents,
+      modelConfig,
+    })
 
     after(async () => { await langfuseSpanProcessor?.forceFlush() })
-    return NextResponse.json({ repos })
+    return NextResponse.json({ repos, searchId, cached: false })
   } catch (err) {
     Sentry.captureException(err)
     console.error('Search error:', err)

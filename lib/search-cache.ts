@@ -2,6 +2,20 @@ import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
 import type { StarredRepo } from "@/lib/types"
 
 const PERSONALIZED_SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+export const DISCOVER_SEARCH_CACHE_VERSION = "v1"
+export const DISCOVER_SEARCH_CACHE_TTL_DAYS = 7
+
+export interface DiscoverSavedSearch {
+  id: string
+  query: string
+  normalizedQuery: string
+  resultCount: number
+  cachedAt: string
+  lastRunAt: string
+  lastOpenedAt: string | null
+  expiresAt: string
+  isSaved: boolean
+}
 
 interface PersonalizedSearchCache {
   themes: PersonalizedTheme[]
@@ -11,6 +25,10 @@ interface PersonalizedSearchCache {
 
 function personalizedSearchCacheKey(userId: string) {
   return `stardash-personalized-search-cache-${userId}`
+}
+
+export function normalizeDiscoverSearchQuery(query: string) {
+  return query.trim().toLowerCase().replace(/\s+/g, " ")
 }
 
 function hashString(value: string) {
