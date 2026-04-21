@@ -57,14 +57,16 @@ const ReRankingSchema = z.object({
   })),
 })
 
-async function searchGitHub(query: string, token: string): Promise<GitHubSearchItem[]> {
+async function searchGitHub(query: string, token: string | null): Promise<GitHubSearchItem[]> {
   const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=20`
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  }
+  if (token) headers.Authorization = `Bearer ${token}`
+
   const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
+    headers,
   })
   if (!res.ok) return []
   const data = await res.json()
@@ -84,10 +86,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 })
     }
 
-    const { token, error: tokenError } = await getValidGitHubToken()
-    if (tokenError || !token) {
-      return NextResponse.json({ error: 'GitHub token expired' }, { status: 401 })
-    }
+    // GitHub's repository search endpoint can return public results without a
+    // user token. Keep the Supabase user check above, but do not fail Discover
+    // search just because the short-lived GitHub OAuth cookie has expired.
+    const { token } = await getValidGitHubToken()
 
     const modelConfig = getAIModel(request)
     // Step 1: Expand query into GitHub search strings

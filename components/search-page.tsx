@@ -14,6 +14,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { useAIKey } from "@/lib/use-ai-key"
 import { getCachedRepos } from "@/lib/repo-cache"
+import {
+  buildPersonalizedSearchRepoSignature,
+  getCachedPersonalizedSearch,
+  setCachedPersonalizedSearch,
+} from "@/lib/search-cache"
 import type { UserMetadata } from "@/lib/types"
 import type { SearchRepo } from "@/app/api/search/repos/route"
 import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
@@ -80,6 +85,17 @@ export function SearchPage({ user }: SearchPageProps) {
     const repos = starData?.repos.length ? starData.repos : cached?.repos
     if (!repos?.length) return
 
+    const repoSignature = buildPersonalizedSearchRepoSignature(repos)
+    const cachedPersonalized = getCachedPersonalizedSearch(user.id, repoSignature)
+    if (cachedPersonalized?.themes.length) {
+      personalizingRef.current = true
+      startTransition(() => {
+        setPersonalizedThemes(cachedPersonalized.themes)
+        setPersonalizedLoaded(true)
+      })
+      return
+    }
+
     const sample = repos.slice(0, 100).map(r => ({
       name: r.name,
       description: r.description ?? "",
@@ -102,6 +118,7 @@ export function SearchPage({ user }: SearchPageProps) {
           return
         }
         if (Array.isArray(data.themes) && data.themes.length > 0) {
+          setCachedPersonalizedSearch(user.id, repoSignature, data.themes)
           setPersonalizedThemes(data.themes)
         }
       })
@@ -122,12 +139,16 @@ export function SearchPage({ user }: SearchPageProps) {
         body: JSON.stringify({ query }),
       })
       const data = await res.json()
+      if (!res.ok) {
+        console.error('[search] API error:', data)
+        return
+      }
       if (data.repos) {
         setSearchResults(data.repos)
         setHasResults(true)
       }
-    } catch {
-      // fail silently
+    } catch (err) {
+      console.error('[search] fetch error:', err)
     } finally {
       setIsSearching(false)
     }
