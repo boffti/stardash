@@ -1,26 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { getValidGitHubToken, updateGitHubToken } from '@/lib/tokens'
+import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
-
-async function resolveGitHubToken(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-) {
-  const tokenResult = await getValidGitHubToken(userId)
-  if (!tokenResult.error && tokenResult.token) return tokenResult
-
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
-
-  if (sessionError || !session?.provider_token) {
-    return tokenResult
-  }
-
-  await updateGitHubToken(userId, session.provider_token)
-  return { token: session.provider_token as string }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,13 +14,16 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tokenResult = await resolveGitHubToken(supabase, user.id)
+    const tokenResult = await getValidGitHubToken()
 
     if (tokenResult.error === 'expired') {
       return NextResponse.json({ error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' }, { status: 401 })
@@ -65,7 +48,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch issue' }, { status: res.status })
     }
 
-    const issue = await res.json() as { body: string | null; user?: { login: string; avatar_url: string } | null; created_at: string; comments: number }
+    const issue = (await res.json()) as {
+      body: string | null
+      user?: { login: string; avatar_url: string } | null
+      created_at: string
+      comments: number
+    }
 
     return NextResponse.json({
       body: issue.body,

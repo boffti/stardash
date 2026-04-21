@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getValidGitHubToken, updateGitHubToken } from '@/lib/tokens'
+import { getValidGitHubToken } from '@/lib/tokens'
 import {
   fetchRepoContributionIssues,
   rankReposForIssueDiscovery,
@@ -40,30 +40,13 @@ async function fetchContributionIssueBatches(
   return opportunities
 }
 
-async function resolveGitHubToken(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-) {
-  const tokenResult = await getValidGitHubToken(userId)
-  if (!tokenResult.error && tokenResult.token) return tokenResult
-
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
-
-  if (sessionError || !session?.provider_token) {
-    return tokenResult
-  }
-
-  await updateGitHubToken(userId, session.provider_token)
-  return { token: session.provider_token as string }
-}
-
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -76,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ opportunities: [], scannedRepos: 0 })
     }
 
-    const { token, error: tokenError } = await resolveGitHubToken(supabase, user.id)
+    const { token, error: tokenError } = await getValidGitHubToken()
     if (tokenError || !token) {
       return NextResponse.json(
         {

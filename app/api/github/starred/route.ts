@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchAllStarredRepos } from '@/lib/github'
-import { getValidGitHubToken, updateGitHubToken } from '@/lib/tokens'
+import { getValidGitHubToken } from '@/lib/tokens'
 import { upsertStarredRepos } from '@/lib/user-metadata'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
@@ -139,26 +139,6 @@ function isFreshCache(lastSynced: string | null | undefined) {
   return Date.now() - new Date(lastSynced).getTime() < REPO_CACHE_TTL_MS
 }
 
-async function resolveGitHubToken(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-) {
-  const tokenResult = await getValidGitHubToken(userId)
-  if (!tokenResult.error && tokenResult.token) return tokenResult
-
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
-
-  if (sessionError || !session?.provider_token) {
-    return tokenResult
-  }
-
-  await updateGitHubToken(userId, session.provider_token)
-  return { token: session.provider_token as string }
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const cacheMode = searchParams.get('cache') === 'refresh' ? 'refresh' : 'prefer'
@@ -174,15 +154,16 @@ export async function GET(request: Request) {
 
   try {
     const supabase = await createClient()
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     currentUserId = user.id
 
-    // Enforce per-user sync cooldown to prevent repeated expensive full-syncs
     adminSupabase = createAdminClient()
     const { data: profile } = await adminSupabase
       .from('profiles')
@@ -212,8 +193,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const tokenResult = await resolveGitHubToken(supabase, user.id)
-
+    const tokenResult = await getValidGitHubToken()
     if (tokenResult.error === 'expired') {
       const cachedResponse = await storedReposResponse(
         adminSupabase,

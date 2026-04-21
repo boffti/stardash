@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tokenResult = await getValidGitHubToken(user.id)
+    const tokenResult = await getValidGitHubToken()
     const accessToken = tokenResult.token ?? undefined
 
     const { searchParams } = new URL(request.url)

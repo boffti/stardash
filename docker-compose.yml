@@ -1,0 +1,24 @@
+name: stardash
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    restart: unless-stopped
+    depends_on:
+      cron:
+        condition: service_started
+
+  # Runs the star-snapshot cron job once per day at 02:00 UTC.
+  # Uses mcuadros/ofelia as a lightweight cron scheduler.
+  cron:
+    image: mcuadros/ofelia:latest
+    depends_on:
+      - app
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/ofelia.ini:/etc/ofelia/config.ini:ro
+    restart: unless-stopped

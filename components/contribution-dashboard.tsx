@@ -461,6 +461,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
   const { getHeaders } = useAIKey()
   const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
+  const [scanCooldownSeconds, setScanCooldownSeconds] = useState<number | null>(null)
 
   const repos = useMemo(() => {
     const rawRepos = data?.repos ?? []
@@ -566,12 +567,19 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
           },
         }),
       })
-      const result = (await response.json()) as OpportunitiesResponse
+      const result = (await response.json()) as OpportunitiesResponse & { retryAfterSeconds?: number }
+
+      if (response.status === 429) {
+        // Cooldown — not a hard error. Keep existing results and show a subtle notice.
+        setScanCooldownSeconds(result.retryAfterSeconds ?? 300)
+        return
+      }
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to load opportunities")
       }
 
+      setScanCooldownSeconds(null)
       setOpportunities(result.opportunities)
       setScannedRepos(result.scannedRepos)
       setGeneratedAt(result.generatedAt)
@@ -742,15 +750,24 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
                 <TooltipContent>Reconnect GitHub to scan issues</TooltipContent>
               </Tooltip>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => loadOpportunities({ force: true })}
-                disabled={isLoadingOpportunities || repos.length === 0}
-              >
-                {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
-                <span className="hidden sm:inline">Scan issues</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadOpportunities({ force: true })}
+                      disabled={isLoadingOpportunities || repos.length === 0 || scanCooldownSeconds !== null}
+                    >
+                      {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+                      <span className="hidden sm:inline">Scan issues</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {scanCooldownSeconds !== null && (
+                  <TooltipContent>Next scan available in {Math.ceil(scanCooldownSeconds / 60)} min</TooltipContent>
+                )}
+              </Tooltip>
             )
           }
         />
@@ -861,6 +878,13 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
 
           {isTokenExpired && !opportunityError && data && (
             <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
+          )}
+
+          {scanCooldownSeconds !== null && !opportunityError && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+              Showing cached results — next scan available in {Math.ceil(scanCooldownSeconds / 60)} min.
+            </div>
           )}
 
           {opportunityError && (
