@@ -254,7 +254,7 @@ function writeCachedRepoContributions(userId: string | undefined, fullName: stri
   }
 }
 
-function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: string }) {
+function ContributionsSection({ repo, userId, variant = "rail" }: { repo: StarredRepo; userId?: string; variant?: "rail" | "spotlight" }) {
   const fullName = repo.fullName
   const [showAll, setShowAll] = useState(false)
   const fallbackData = useMemo(() => readCachedRepoContributions(userId, fullName), [fullName, userId])
@@ -269,6 +269,7 @@ function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: st
           repos: [repo],
           maxRepos: 5,
           maxIssuesPerRepo: 180,
+          minScore: 0,
           preferences: {
             languages: repo.language ? [repo.language] : [],
             difficulty: "all",
@@ -282,7 +283,7 @@ function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: st
     },
     {
       fallbackData,
-      revalidateOnMount: !fallbackData,
+      revalidateOnMount: !fallbackData || fallbackData.opportunities.length === 0,
       revalidateOnFocus: false,
       shouldRetryOnError: false,
       onSuccess(result) {
@@ -295,9 +296,10 @@ function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: st
 
   if (isLoading && !data) {
     return (
-      <div className="space-y-2 py-2">
-        <Skeleton className="h-16 w-full rounded-md" />
-        <Skeleton className="h-16 w-full rounded-md" />
+      <div className={cn("grid gap-3", variant === "spotlight" && "md:grid-cols-3")}>
+        <Skeleton className="h-20 w-full rounded-md" />
+        <Skeleton className="h-20 w-full rounded-md" />
+        {variant === "spotlight" && <Skeleton className="h-20 w-full rounded-md" />}
       </div>
     )
   }
@@ -306,7 +308,7 @@ function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: st
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
         <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
-          {error ? error.message : "Scanning open issues for contribution opportunities."}
+          {error ? error.message : "No open issues ranked yet. Open the scanner to inspect this repo deeply."}
         </p>
         <Button size="sm" variant="outline" className="gap-1.5" asChild>
           <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
@@ -318,25 +320,41 @@ function ContributionsSection({ repo, userId }: { repo: StarredRepo; userId?: st
     )
   }
 
-  const visible = showAll ? opportunities : opportunities.slice(0, 3)
+  const visibleLimit = variant === "spotlight" ? 4 : 3
+  const visible = showAll ? opportunities : opportunities.slice(0, visibleLimit)
 
   return (
-    <div className="space-y-2">
-      {visible.map(opp => (
-        <MiniContribCard key={opp.id} opp={opp} />
-      ))}
-      {opportunities.length > 3 && (
-        <button
-          className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 transition-colors"
+    <div className="space-y-3">
+      {variant === "spotlight" && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Ready-to-work issues</p>
+            <p className="text-xs text-muted-foreground">
+              Ranked from the latest open issues in this repo, with fit signals and risk flags.
+            </p>
+          </div>
+          <Badge variant="outline" className="font-mono">{opportunities.length} ranked</Badge>
+        </div>
+      )}
+      <div className={cn("grid gap-2", variant === "spotlight" && "md:grid-cols-2 xl:grid-cols-4")}>
+        {visible.map(opp => (
+          <MiniContribCard key={opp.id} opp={opp} />
+        ))}
+      </div>
+      {opportunities.length > visibleLimit && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs text-muted-foreground"
           onClick={() => setShowAll(s => !s)}
         >
-          {showAll ? "Show less" : `+${opportunities.length - 3} more`}
-        </button>
+          {showAll ? "Show fewer" : `Show ${opportunities.length - visibleLimit} more here`}
+        </Button>
       )}
       <Button variant="outline" size="sm" className="w-full gap-1.5" asChild>
         <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
           <GitCommit className="h-3.5 w-3.5" />
-          Explore Contribution Opportunities
+          Open full contribution workspace
         </a>
       </Button>
     </div>
@@ -966,6 +984,22 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
             )}
           </div>
 
+          <div className="mb-5">
+            <SectionCard
+              title="Contribution Opportunities"
+              icon={GitCommit}
+              action={
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" asChild onClick={e => e.stopPropagation()}>
+                  <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
+                    <ExternalLink className="h-3 w-3" />Workspace
+                  </a>
+                </Button>
+              }
+            >
+              <ContributionsSection repo={repo} userId={userId} variant="spotlight" />
+            </SectionCard>
+          </div>
+
           {/* Two-column body */}
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_380px] xl:grid-cols-[minmax(0,0.75fr)_420px] 2xl:grid-cols-[minmax(0,780px)_minmax(440px,1fr)] gap-5 items-start">
 
@@ -995,8 +1029,12 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
               </SectionCard>
             </div>
 
-            {/* Right: Organize + Intel + Contributions */}
+            {/* Right: Intel + Organize */}
             <div className="space-y-4 sticky top-6 self-start">
+              <SectionCard title="Intel" icon={Zap} collapsible defaultOpen>
+                <IntelSection owner={repo.owner} repoName={repo.name} />
+              </SectionCard>
+
               <SectionCard title="Organize" icon={TagIcon} collapsible defaultOpen>
                 <OrganizeSection
                   repo={repo}
@@ -1010,14 +1048,6 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
                   onCollectionCreate={handleCollectionCreate}
                   onNotesChange={handleNotesChange}
                 />
-              </SectionCard>
-
-              <SectionCard title="Intel" icon={Zap} collapsible defaultOpen>
-                <IntelSection owner={repo.owner} repoName={repo.name} />
-              </SectionCard>
-
-              <SectionCard title="Contribution Opportunities" icon={GitCommit} collapsible defaultOpen>
-                <ContributionsSection repo={repo} userId={userId} />
               </SectionCard>
             </div>
           </div>

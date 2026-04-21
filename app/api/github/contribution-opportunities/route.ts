@@ -21,6 +21,7 @@ interface RequestBody {
   preferences?: ContributionPreferences
   maxRepos?: number
   maxIssuesPerRepo?: number
+  minScore?: number
   force?: boolean
 }
 
@@ -29,13 +30,14 @@ async function fetchContributionIssueBatches(
   repos: StarredRepo[],
   preferences: ContributionPreferences,
   maxIssuesPerRepo: number,
+  minScore: number,
 ) {
   const opportunities: ContributionOpportunity[] = []
 
   for (let index = 0; index < repos.length; index += SCAN_BATCH_SIZE) {
     const batch = repos.slice(index, index + SCAN_BATCH_SIZE)
     const batchResults = await Promise.all(
-      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences, { maxIssues: maxIssuesPerRepo })),
+      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences, { maxIssues: maxIssuesPerRepo, minScore })),
     )
     opportunities.push(...batchResults.flat())
   }
@@ -107,8 +109,11 @@ export async function POST(request: Request) {
     const preferences = body.preferences ?? {}
     const maxRepos = Math.min(Math.max(body.maxRepos ?? 24, 5), 40)
     const maxIssuesPerRepo = Math.min(Math.max(body.maxIssuesPerRepo ?? 100, 20), 500)
-    const reposToScan = rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
-    const opportunities = await fetchContributionIssueBatches(token ?? undefined, reposToScan, preferences, maxIssuesPerRepo)
+    const minScore = Math.min(Math.max(body.minScore ?? (isSingleRepoScan ? 0 : 28), 0), 100)
+    const reposToScan = isSingleRepoScan
+      ? repos.filter((repo) => !repo.archived)
+      : rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
+    const opportunities = await fetchContributionIssueBatches(token ?? undefined, reposToScan, preferences, maxIssuesPerRepo, minScore)
 
     opportunities.sort(
       (a, b) => b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),

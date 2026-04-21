@@ -62,6 +62,7 @@ interface GitHubIssue {
 
 interface FetchRepoContributionIssuesOptions {
   maxIssues?: number
+  minScore?: number
 }
 
 const STARTER_LABELS = [
@@ -303,6 +304,7 @@ export async function fetchRepoContributionIssues(
   options: FetchRepoContributionIssuesOptions = {},
 ): Promise<ContributionOpportunity[]> {
   const maxIssues = Math.min(Math.max(options.maxIssues ?? 100, 20), 500)
+  const minScore = Math.min(Math.max(options.minScore ?? 28, 0), 100)
   const perPage = 100
   const pages = Math.ceil(maxIssues / perPage)
   const issues: GitHubIssue[] = []
@@ -363,7 +365,7 @@ export async function fetchRepoContributionIssues(
         ...scored,
       }
     })
-    .filter((issue) => issue.score >= 28)
+    .filter((issue) => issue.score >= minScore)
 }
 
 export function rankReposForIssueDiscovery(repos: StarredRepo[], preferences: ContributionPreferences = {}) {
