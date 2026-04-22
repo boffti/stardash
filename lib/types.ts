@@ -116,18 +116,29 @@ export interface RepoIntelMetrics {
   staleIssueCount: number
   prMergeRate: number             // 0–1
   avgPrMergeDays: number | null
+  stalePrCount?: number
   activeContributors90d: number   // Deprecated proxy kept for cached insight compatibility.
   topContributorCount?: number
+  topContributorShare?: number
+  topThreeContributorShare?: number
   commits30d?: number
   commits90d?: number
   activeCommitAuthors90d?: number
   daysSinceLastCommit: number | null
   daysSinceLastRelease: number | null
+  releases6mo?: number
+  releases12mo?: number
+  releaseCadenceDays?: number | null
   maintenanceAssessment?: RepoMaintenanceAssessment
   hasCommunityFiles: {
     contributingGuide: boolean
     codeOfConduct: boolean
     ci: boolean
+    securityPolicy?: boolean
+    issueTemplate?: boolean
+    pullRequestTemplate?: boolean
+    license?: boolean
+    readme?: boolean
   }
 }
 

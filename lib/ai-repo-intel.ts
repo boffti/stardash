@@ -79,13 +79,19 @@ HEALTH METRICS
 - Stale open issues (no activity > 90 days): ${metrics.staleIssueCount}
 - PR merge rate: ${pct(metrics.prMergeRate)}
 - Avg PR merge time: ${days(metrics.avgPrMergeDays)}
+- Stale open PRs (no activity > 90 days): ${metrics.stalePrCount ?? 'unknown'}
 - Top contributors fetched: ${metrics.topContributorCount ?? metrics.activeContributors90d}
 - Contributor count from GitHub sample: ${contributorCount}
+- Top contributor share: ${metrics.topContributorShare == null ? 'unknown' : pct(metrics.topContributorShare)}
+- Top 3 contributor share: ${metrics.topThreeContributorShare == null ? 'unknown' : pct(metrics.topThreeContributorShare)}
 - Commits in last 30 days: ${metrics.commits30d ?? 'unknown'}
 - Commits in last 90 days: ${metrics.commits90d ?? 'unknown'}
 - Commit authors in last 90 days: ${metrics.activeCommitAuthors90d ?? 'unknown'}
 - Days since last commit: ${days(metrics.daysSinceLastCommit)}
 - Days since last release: ${days(metrics.daysSinceLastRelease)}
+- Stable releases in last 6 months: ${metrics.releases6mo ?? 'unknown'}
+- Stable releases in last 12 months: ${metrics.releases12mo ?? 'unknown'}
+- Median release cadence: ${days(metrics.releaseCadenceDays ?? null)}
 
 DETERMINISTIC MAINTENANCE ASSESSMENT
 - Verdict: ${maintenanceAssessment.verdict}
@@ -96,8 +102,13 @@ DETERMINISTIC MAINTENANCE ASSESSMENT
 ${maintenanceAssessment.reasons.map(reason => `  - ${reason}`).join('\n')}
 
 COMMUNITY FILES
+- README: ${metrics.hasCommunityFiles.readme ? 'yes' : 'no'}
+- License: ${metrics.hasCommunityFiles.license ? 'yes' : 'no'}
 - Contributing guide: ${metrics.hasCommunityFiles.contributingGuide ? 'yes' : 'no'}
 - Code of conduct: ${metrics.hasCommunityFiles.codeOfConduct ? 'yes' : 'no'}
+- Security policy: ${metrics.hasCommunityFiles.securityPolicy ? 'yes' : 'no'}
+- Issue templates: ${metrics.hasCommunityFiles.issueTemplate ? 'yes' : 'no'}
+- PR template: ${metrics.hasCommunityFiles.pullRequestTemplate ? 'yes' : 'no'}
 - CI/CD workflows: ${metrics.hasCommunityFiles.ci ? 'yes' : 'no'}
 
 RECENT OPEN ISSUES (sample for pain point analysis)

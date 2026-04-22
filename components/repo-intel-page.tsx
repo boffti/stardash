@@ -9,7 +9,7 @@ import {
   Wrench, Activity, Users, Shield, Flame, TrendingUp, TrendingDown,
   Minus, CheckCircle2, XCircle, AlertCircle,
   BookOpen, FileCode2, ShieldCheck, Sparkles,
-  Star, GitFork, Scale, Globe, GitCommit,
+  Star, GitFork, Scale, Globe, GitCommit, GitPullRequest,
 } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
 import type { RepoIntel, StarredRepo, UserMetadata } from "@/lib/types"
@@ -40,6 +40,7 @@ type StarVelocityLabel = 'on-fire' | 'heating-up' | 'steady' | 'cooling'
 interface StarVelocity {
   growth7d: number
   growth30d: number
+  growth90d?: number
   label: StarVelocityLabel
 }
 
@@ -93,6 +94,18 @@ function scoreColor(score: number) {
 function formatNumber(num: number): string {
   if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k"
   return num.toString()
+}
+
+function formatOptionalDays(days: number | null | undefined): string {
+  if (days === undefined || days === null) return "Unknown"
+  if (days === 0) return "Today"
+  if (days === 1) return "1 day"
+  return `${Math.round(days)} days`
+}
+
+function formatOptionalPercent(value: number | null | undefined): string {
+  if (value === undefined || value === null) return "Unknown"
+  return `${Math.round(value * 100)}%`
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -288,6 +301,213 @@ function RepoHero({ repo, owner, name }: { repo: StarredRepo | null; owner: stri
         </>
       )}
     </div>
+  )
+}
+
+type EvidenceTone = "good" | "watch" | "risk" | "neutral"
+
+const evidenceToneStyles: Record<EvidenceTone, {
+  panel: string
+  icon: string
+  badge: string
+  dot: string
+}> = {
+  good: {
+    panel: "border-emerald-500/20 bg-emerald-500/5",
+    icon: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    badge: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+  },
+  watch: {
+    panel: "border-amber-500/20 bg-amber-500/5",
+    icon: "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    badge: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
+  risk: {
+    panel: "border-rose-500/20 bg-rose-500/5",
+    icon: "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+    badge: "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-400",
+    dot: "bg-rose-500",
+  },
+  neutral: {
+    panel: "border-border/50 bg-muted/15",
+    icon: "border-border/60 bg-background text-muted-foreground",
+    badge: "border-border/60 bg-background text-muted-foreground",
+    dot: "bg-muted-foreground/50",
+  },
+}
+
+function evidenceStatus(tone: EvidenceTone) {
+  if (tone === "good") return "Healthy"
+  if (tone === "watch") return "Watch"
+  if (tone === "risk") return "Risk"
+  return "Unknown"
+}
+
+function toneForVelocity(label: StarVelocityLabel | undefined): EvidenceTone {
+  if (!label) return "neutral"
+  if (label === "on-fire" || label === "heating-up") return "good"
+  if (label === "steady") return "watch"
+  return "risk"
+}
+
+function toneForReleaseCount(count: number): EvidenceTone {
+  if (count >= 2) return "good"
+  if (count >= 1) return "watch"
+  return "risk"
+}
+
+function toneForContributorShare(share: number | null | undefined): EvidenceTone {
+  if (share === undefined || share === null) return "neutral"
+  if (share <= 0.7) return "good"
+  if (share <= 0.85) return "watch"
+  return "risk"
+}
+
+function toneForStaleWork(count: number): EvidenceTone {
+  if (count <= 2) return "good"
+  if (count <= 8) return "watch"
+  return "risk"
+}
+
+function toneForCommits(count: number): EvidenceTone {
+  if (count >= 30) return "good"
+  if (count >= 3) return "watch"
+  return "risk"
+}
+
+function toneForRatio(ratio: number): EvidenceTone {
+  if (ratio >= 0.6) return "good"
+  if (ratio >= 0.3) return "watch"
+  return "risk"
+}
+
+function EvidenceSignal({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone,
+  className,
+}: {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  detail?: string
+  tone: EvidenceTone
+  className?: string
+}) {
+  const styles = evidenceToneStyles[tone]
+
+  return (
+    <div className={cn("rounded-lg border px-3.5 py-3 transition-colors", styles.panel, className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md border", styles.icon)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <Badge variant="outline" className={cn("h-5 gap-1 rounded-md px-1.5 text-[10px] font-medium", styles.badge)}>
+          <span className={cn("h-1.5 w-1.5 rounded-full", styles.dot)} />
+          {evidenceStatus(tone)}
+        </Badge>
+      </div>
+      <div className="mt-3 min-w-0">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="mt-1 truncate text-base font-semibold text-foreground">{value}</div>
+        {detail && <div className="mt-1 text-xs leading-snug text-muted-foreground">{detail}</div>}
+      </div>
+    </div>
+  )
+}
+
+function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVelocity | null }) {
+  const metrics = intel.metrics
+  const topThreeShare = metrics.topThreeContributorShare
+  const releaseCount = metrics.releases12mo ?? 0
+  const stalePrCount = metrics.stalePrCount ?? 0
+  const staleWorkCount = metrics.staleIssueCount + stalePrCount
+  const commits90d = metrics.commits90d ?? 0
+  const concentrationLabel =
+    topThreeShare === undefined ? "Unknown"
+    : topThreeShare >= 0.85 ? "High concentration"
+    : topThreeShare >= 0.7 ? "Moderate concentration"
+    : "Distributed"
+
+  return (
+    <Card className="gap-0 overflow-hidden border-border/60 bg-card py-0">
+      <CardHeader className="border-b border-border/40 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/20 text-muted-foreground">
+              <Activity className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-semibold">Evidence</CardTitle>
+              <p className="mt-0.5 text-xs text-muted-foreground">Deterministic signals behind this report</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="h-6 shrink-0 rounded-md border-border/60 bg-muted/20 px-2 text-[11px] text-muted-foreground">
+            7 signals
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4">
+        <div className="grid gap-3 lg:grid-cols-4">
+          <EvidenceSignal
+            icon={velocity ? velocityConfig[velocity.label].icon : Star}
+            label="Star velocity"
+            value={velocity ? `+${velocity.growth30d}` : "Unknown"}
+            detail={velocity ? `+${velocity.growth7d} in 7d / +${velocity.growth90d ?? velocity.growth30d} in 90d` : "Snapshot history unavailable"}
+            tone={toneForVelocity(velocity?.label)}
+          />
+          <EvidenceSignal
+            icon={RefreshCw}
+            label="Release cadence"
+            value={`${releaseCount} / year`}
+            detail={`Median ${formatOptionalDays(metrics.releaseCadenceDays)}`}
+            tone={toneForReleaseCount(releaseCount)}
+          />
+          <EvidenceSignal
+            icon={Users}
+            label="Contributor risk"
+            value={concentrationLabel}
+            detail={`Top 3 share ${formatOptionalPercent(topThreeShare)}`}
+            tone={toneForContributorShare(topThreeShare)}
+          />
+          <EvidenceSignal
+            icon={AlertCircle}
+            label="Stale work"
+            value={`${staleWorkCount} items`}
+            detail={`${metrics.staleIssueCount} stale issues / ${stalePrCount} stale PRs`}
+            tone={toneForStaleWork(staleWorkCount)}
+          />
+        </div>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <EvidenceSignal
+            icon={GitCommit}
+            label="Commits"
+            value={`${commits90d} in 90d`}
+            detail={`${metrics.activeCommitAuthors90d ?? 0} active authors`}
+            tone={toneForCommits(commits90d)}
+          />
+          <EvidenceSignal
+            icon={CheckCircle2}
+            label="Issues"
+            value={`${Math.round(metrics.issueCloseRate * 100)}% closed`}
+            detail={`Median close ${formatOptionalDays(metrics.medianIssueCloseDays ?? metrics.avgIssueResponseDays)}`}
+            tone={toneForRatio(metrics.issueCloseRate)}
+          />
+          <EvidenceSignal
+            icon={GitPullRequest}
+            label="Pull requests"
+            value={`${Math.round(metrics.prMergeRate * 100)}% merged`}
+            detail={`Median merge ${formatOptionalDays(metrics.avgPrMergeDays)}`}
+            tone={toneForRatio(metrics.prMergeRate)}
+          />
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -555,6 +775,8 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
               </Badge>
             </div>
 
+            <EvidencePanel intel={intel} velocity={velocity} />
+
             {/* AI summary */}
             <Card>
               <CardHeader className="pb-3">
@@ -612,9 +834,14 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
                   <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Governance & Maturity</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <MaturityBadge present={Boolean(cf.readme)} label="README" icon={BookOpen} />
+                    <MaturityBadge present={Boolean(cf.license)} label="License" icon={FileCode2} />
+                    <MaturityBadge present={Boolean(cf.securityPolicy)} label="Security Policy" icon={ShieldCheck} />
                     <MaturityBadge present={cf.contributingGuide} label="Contributing Guide" icon={BookOpen} />
                     <MaturityBadge present={cf.codeOfConduct}     label="Code of Conduct"   icon={FileCode2} />
+                    <MaturityBadge present={Boolean(cf.issueTemplate)} label="Issue Templates" icon={AlertCircle} />
+                    <MaturityBadge present={Boolean(cf.pullRequestTemplate)} label="PR Template" icon={GitCommit} />
                     <MaturityBadge present={cf.ci}                label="CI/CD Workflows"   icon={ShieldCheck} />
                   </div>
                 </CardContent>

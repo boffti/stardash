@@ -91,15 +91,15 @@ export async function GET(request: NextRequest) {
       })
       .filter((row): row is { github_repo_id: number; owner: string; name: string; starred_at: string | null } => row !== null)
 
-    // Get star snapshots for trending calculation
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    // Get star snapshots for traction calculation
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
 
     const { data: snapshots, error: snapshotsError } = await supabase
       .from('repo_star_snapshots')
       .select('repo_github_id, star_count, snapshot_date')
       .in('repo_github_id', repoIds)
-      .gte('snapshot_date', thirtyDaysAgo.toISOString().split('T')[0])
+      .gte('snapshot_date', ninetyDaysAgo.toISOString().split('T')[0])
       .order('snapshot_date', { ascending: true })
 
     if (snapshotsError) {
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     }
 
     type StarVelocityLabel = 'on-fire' | 'heating-up' | 'steady' | 'cooling'
-    interface StarVelocity { growth7d: number; growth30d: number; label: StarVelocityLabel }
+    interface StarVelocity { growth7d: number; growth30d: number; growth90d: number; label: StarVelocityLabel }
 
     // Group snapshots by repo
     const snapshotsByRepo = new Map<number, { count: number; date: string }[]>()
@@ -132,10 +132,17 @@ export async function GET(request: NextRequest) {
 
       if (oldest.count < 10) continue
 
-      const growth30d = newest.count - oldest.count
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-      const sevenDaysAgo = new Date(thirtyDaysAgo)
-      sevenDaysAgo.setDate(thirtyDaysAgo.getDate() + 23) // 30 - 7 = 23 days into the window
+      const thirtyDaySnap = repoSnapshots
+        .filter(s => new Date(s.date) <= thirtyDaysAgo)
+        .at(-1)
+
+      const growth30d = thirtyDaySnap ? newest.count - thirtyDaySnap.count : newest.count - oldest.count
+      const growth90d = newest.count - oldest.count
 
       const sevenDaySnap = repoSnapshots
         .filter(s => new Date(s.date) <= sevenDaysAgo)
@@ -160,9 +167,9 @@ export async function GET(request: NextRequest) {
           label = 'heating-up'
         }
 
-        velocityMap.set(repoId, { growth7d, growth30d, label })
+        velocityMap.set(repoId, { growth7d, growth30d, growth90d, label })
       } else {
-        velocityMap.set(repoId, { growth7d: 0, growth30d, label: 'steady' })
+        velocityMap.set(repoId, { growth7d: 0, growth30d, growth90d, label: 'steady' })
       }
 
       trendingMap.set(repoId, label === 'on-fire' || label === 'heating-up')

@@ -32,6 +32,14 @@ function busFactorTrustPoints(authors90d: number | undefined): number {
   return 0
 }
 
+function concentrationTrustPoints(topThreeShare: number | undefined): number {
+  if (topThreeShare === undefined) return 0
+  if (topThreeShare <= 0.5) return 20
+  if (topThreeShare <= 0.7) return 14
+  if (topThreeShare <= 0.85) return 7
+  return 0
+}
+
 export function computeSubScores(metrics: RepoIntelMetrics): IntelSubScores {
   // ── Maintenance ──────────────────────────────────────────────────────────
   const maintenance = clamp(metrics.maintenanceAssessment?.score ?? 0)
@@ -45,9 +53,11 @@ export function computeSubScores(metrics: RepoIntelMetrics): IntelSubScores {
   // ── Community ────────────────────────────────────────────────────────────
   const cf = metrics.hasCommunityFiles
   const filePoints =
-    (cf.contributingGuide ? 22 : 0) +
-    (cf.codeOfConduct ? 18 : 0) +
-    (cf.ci ? 10 : 0)
+    (cf.contributingGuide ? 14 : 0) +
+    (cf.codeOfConduct ? 12 : 0) +
+    (cf.securityPolicy ? 10 : 0) +
+    (cf.issueTemplate ? 7 : 0) +
+    (cf.pullRequestTemplate ? 7 : 0)
   const contribPoints = contributorPoints(
     metrics.activeCommitAuthors90d ?? metrics.activeContributors90d
   )
@@ -63,10 +73,13 @@ export function computeSubScores(metrics: RepoIntelMetrics): IntelSubScores {
     metrics.activeCommitAuthors90d ?? metrics.activeContributors90d
   )
   const govTrust =
-    (cf.contributingGuide ? 20 : 0) +
-    (cf.codeOfConduct ? 15 : 0) +
-    (cf.ci ? 15 : 0)
-  const trust = clamp(busTrust + govTrust)
+    (cf.license ? 15 : 0) +
+    (cf.securityPolicy ? 20 : 0) +
+    (cf.ci ? 15 : 0) +
+    (cf.contributingGuide ? 10 : 0) +
+    (cf.codeOfConduct ? 10 : 0)
+  const concentrationTrust = concentrationTrustPoints(metrics.topThreeContributorShare)
+  const trust = clamp(busTrust + govTrust + concentrationTrust)
 
   return { maintenance, activity, community, trust }
 }
