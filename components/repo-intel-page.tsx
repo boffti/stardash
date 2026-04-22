@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
 import { format, formatDistanceToNow } from "date-fns"
@@ -50,6 +50,14 @@ interface HealthEntry {
   starVelocity: StarVelocity | null
 }
 
+type RepoIntelResponse = {
+  intel: RepoIntel
+  cached: boolean
+  limitReached?: boolean
+  remaining?: number | null
+  nextAllowedAt?: string | null
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const velocityConfig: Record<StarVelocityLabel, {
@@ -84,6 +92,37 @@ const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
   return r.json()
 })
+
+const INTEL_CACHE_TTL = 7 * 24 * 60 * 60 * 1000
+const HEALTH_CACHE_TTL = 6 * 60 * 60 * 1000
+
+function intelCacheKey(owner: string, name: string) {
+  return `stardash-intel:${owner}/${name}`
+}
+
+function healthCacheKey(repoId: number) {
+  return `stardash-intel-health:${repoId}`
+}
+
+function readLocalCache<T>(key: string, ttl: number): T | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const { data, ts } = JSON.parse(raw)
+    if (Date.now() - ts > ttl) return null
+    return data as T
+  } catch {
+    return null
+  }
+}
+
+function writeLocalCache<T>(key: string, data: T) {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }))
+  } catch {}
+}
 
 function scoreColor(score: number) {
   if (score >= 70) return { text: 'text-emerald-600 dark:text-emerald-400', ring: '#10b981', track: 'rgba(16,185,129,0.10)', glow: '#10b98130' }
@@ -514,12 +553,44 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function RepoIntelPage({ owner, repo, user }: Props) {
-  const [refresh, setRefresh] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [intelCacheHydrated, setIntelCacheHydrated] = useState(false)
+  const [localIntelData, setLocalIntelData] = useState<RepoIntelResponse | null>(null)
+  const [healthCacheHydrated, setHealthCacheHydrated] = useState(false)
+  const [localHealthData, setLocalHealthData] = useState<Record<string, HealthEntry> | null>(null)
 
-  const intelUrl = `/api/ai/repo-intel?owner=${owner}&repo=${repo}${refresh ? '&refresh=true' : ''}`
-  const { data: intelData, isLoading, error, mutate } = useSWR<{
-    intel: RepoIntel; cached: boolean; limitReached?: boolean
-  }>(intelUrl, fetcher, { revalidateOnFocus: false })
+  useEffect(() => {
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled) return
+      setLocalIntelData(readLocalCache<RepoIntelResponse>(intelCacheKey(owner, repo), INTEL_CACHE_TTL))
+      setIntelCacheHydrated(true)
+    })
+
+    return () => {
+      cancelled = true
+      setIntelCacheHydrated(false)
+      setLocalIntelData(null)
+    }
+  }, [owner, repo])
+
+  const intelUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&_k=${refreshKey}${refreshKey > 0 ? '&refresh=true' : ''}`
+  const shouldFetchIntel = intelCacheHydrated && (refreshKey > 0 || !localIntelData)
+  const { data: intelData, isLoading, error } = useSWR<RepoIntelResponse>(
+    shouldFetchIntel ? intelUrl : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: false,
+      fallbackData: localIntelData ?? undefined,
+      onSuccess(result) {
+        writeLocalCache(intelCacheKey(owner, repo), result)
+        setLocalIntelData(result)
+      },
+    }
+  )
 
   const { data: repoMeta } = useSWR<{ githubRepoId: number | null }>(
     `/api/github/repo-meta?owner=${owner}&repo=${repo}`,
@@ -531,8 +602,47 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
     ? `/api/github/health?repoIds=${repoMeta.githubRepoId}`
     : null
 
+  useEffect(() => {
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled) return
+
+      if (!repoMeta?.githubRepoId) {
+        setLocalHealthData(null)
+        setHealthCacheHydrated(true)
+        return
+      }
+
+      setLocalHealthData(readLocalCache<Record<string, HealthEntry>>(
+        healthCacheKey(repoMeta.githubRepoId),
+        HEALTH_CACHE_TTL
+      ))
+      setHealthCacheHydrated(true)
+    })
+
+    return () => {
+      cancelled = true
+      setHealthCacheHydrated(false)
+      setLocalHealthData(null)
+    }
+  }, [repoMeta?.githubRepoId])
+
   const { data: healthData } = useSWR<Record<string, HealthEntry>>(
-    healthUrl, fetcher, { revalidateOnFocus: false }
+    healthCacheHydrated && (!localHealthData || refreshKey > 0) ? healthUrl : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: false,
+      fallbackData: localHealthData ?? undefined,
+      onSuccess(result) {
+        if (repoMeta?.githubRepoId) {
+          writeLocalCache(healthCacheKey(repoMeta.githubRepoId), result)
+          setLocalHealthData(result)
+        }
+      },
+    }
   )
 
   const { data: starredData } = useStarredRepos(user?.id)
@@ -577,8 +687,7 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
     : null
 
   const handleRefresh = () => {
-    setRefresh(true)
-    mutate()
+    setRefreshKey((key) => key + 1)
   }
 
   const cf = intel?.metrics.hasCommunityFiles
@@ -610,12 +719,6 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
           actions={
             <>
               <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <Link href="/intel">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Intel
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
                 <a href={`https://github.com/${owner}/${repo}`} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5" />
                   GitHub
@@ -632,8 +735,8 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
           }
         />
 
-        <main className="flex-1 p-6">
-          <div className="mx-auto flex max-w-5xl flex-col gap-5">
+        <main className="flex-1 p-4 md:p-6">
+          <div className="flex w-full max-w-none flex-col gap-5">
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <Button asChild variant="ghost" size="sm" className="h-7 gap-1.5 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground">
                 <Link href="/intel" className="hover:text-foreground">Intel</Link>
@@ -695,183 +798,198 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
 
         {/* Intel content */}
         {!isLoading && intel && subScores && (
-          <>
-            {/* Score overview */}
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Health Overview</CardTitle>
-                  {intelData?.cached && (
-                    <span className="text-[11px] text-muted-foreground/50 flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
-                  <ScoreDial score={intel.healthScore} size={96} />
-
-                  <div className="hidden h-16 w-px bg-border/50 sm:block" />
-
-                  <div className="grid flex-1 grid-cols-4 gap-4">
-                    <ScoreDial score={subScores.maintenance} size={64} label="Maintenance" icon={Wrench} />
-                    <ScoreDial score={subScores.activity}    size={64} label="Activity"    icon={Activity} />
-                    <ScoreDial score={subScores.community}   size={64} label="Community"   icon={Users} />
-                    <ScoreDial score={subScores.trust}       size={64} label="Trust"       icon={Shield} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Star velocity */}
-            {velocity && (() => {
-              const vcfg = velocityConfig[velocity.label]
-              return (
-                <Card>
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border", vcfg.className)}>
-                      <vcfg.icon className="h-5 w-5" />
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+            <section className="min-w-0 space-y-5">
+              <div className="grid gap-5 2xl:grid-cols-[380px_minmax(0,1fr)]">
+                {/* Score overview */}
+                <Card className="min-w-0">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Health Overview</CardTitle>
+                      {intelData?.cached && (
+                        <span className="flex items-center gap-1 whitespace-nowrap text-[11px] text-muted-foreground/50">
+                          <Sparkles className="h-3 w-3" />
+                          {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Star Momentum: {vcfg.label}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        +{velocity.growth7d} this week · +{velocity.growth30d} this month
-                      </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-center 2xl:flex-col 2xl:items-stretch">
+                      <div className="flex justify-center">
+                        <ScoreDial score={intel.healthScore} size={96} />
+                      </div>
+
+                      <div className="hidden h-16 w-px bg-border/50 sm:block 2xl:hidden" />
+
+                      <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4 2xl:grid-cols-2">
+                        <ScoreDial score={subScores.maintenance} size={64} label="Maintenance" icon={Wrench} />
+                        <ScoreDial score={subScores.activity}    size={64} label="Activity"    icon={Activity} />
+                        <ScoreDial score={subScores.community}   size={64} label="Community"   icon={Users} />
+                        <ScoreDial score={subScores.trust}       size={64} label="Trust"       icon={Shield} />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              )
-            })()}
 
-            {/* Status badges */}
-            <div className="flex flex-wrap gap-2">
-              {(() => {
-                const v = verdictConfig[intel.maintenanceVerdict]
-                return (
-                  <Badge variant="outline" className="gap-1.5 px-3 py-1 text-sm font-medium">
-                    <span className={cn("h-1.5 w-1.5 rounded-full", v?.dotClass)} />
-                    {v?.label ?? intel.maintenanceVerdict}
-                  </Badge>
-                )
-              })()}
-              <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
-                {{
-                  'production-ready': 'Production Ready',
-                  'maturing': 'Maturing',
-                  'experimental': 'Experimental',
-                  'deprecated': 'Deprecated',
-                }[intel.adoptionReadiness] ?? intel.adoptionReadiness}
-              </Badge>
-              <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
-                {{
-                  'positive': 'Positive Sentiment',
-                  'mixed': 'Mixed Sentiment',
-                  'frustrated': 'Frustrated Users',
-                }[intel.communitySentiment] ?? intel.communitySentiment}
-              </Badge>
-            </div>
+                <EvidencePanel intel={intel} velocity={velocity} />
+              </div>
 
-            <EvidencePanel intel={intel} velocity={velocity} />
-
-            {/* AI summary */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  <Brain className="h-4 w-4" />
-                  AI Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm leading-relaxed text-muted-foreground">{intel.summary}</p>
-                {intel.recommendation && (
-                  <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
-                    <p className="text-sm font-medium text-foreground">{intel.recommendation}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Maintenance signals */}
-            {assessment && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Maintenance Signals</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
-                    {([
-                      { label: 'Commit Recency',  value: assessment.signals.commitRecency },
-                      { label: 'Commit Velocity', value: assessment.signals.commitVelocity },
-                      { label: 'Issue Response',  value: assessment.signals.issueResponsiveness },
-                      { label: 'PR Activity',     value: assessment.signals.prActivity },
-                      { label: 'Release Recency', value: assessment.signals.releaseRecency },
-                    ] as const).map(({ label, value }) => (
-                      <div key={label} className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2">
-                        <div className="text-[11px] text-muted-foreground">{label}</div>
-                        <div className={cn("mt-1 text-sm font-semibold capitalize", signalColor[value ?? 'unknown'])}>
-                          {value ?? 'Unknown'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-1.5">
-                    {assessment.reasons.map((reason, i) => (
-                      <p key={i} className="text-xs text-muted-foreground">{reason}</p>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Governance & maturity */}
-            {cf && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Governance & Maturity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <MaturityBadge present={Boolean(cf.readme)} label="README" icon={BookOpen} />
-                    <MaturityBadge present={Boolean(cf.license)} label="License" icon={FileCode2} />
-                    <MaturityBadge present={Boolean(cf.securityPolicy)} label="Security Policy" icon={ShieldCheck} />
-                    <MaturityBadge present={cf.contributingGuide} label="Contributing Guide" icon={BookOpen} />
-                    <MaturityBadge present={cf.codeOfConduct}     label="Code of Conduct"   icon={FileCode2} />
-                    <MaturityBadge present={Boolean(cf.issueTemplate)} label="Issue Templates" icon={AlertCircle} />
-                    <MaturityBadge present={Boolean(cf.pullRequestTemplate)} label="PR Template" icon={GitCommit} />
-                    <MaturityBadge present={cf.ci}                label="CI/CD Workflows"   icon={ShieldCheck} />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Known issues */}
-            {intel.topPainPoints.length > 0 && (
+              {/* AI summary */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    <AlertCircle className="h-4 w-4" />
-                    Known Issues
+                    <Brain className="h-4 w-4" />
+                    AI Analysis
                   </CardTitle>
                 </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm leading-relaxed text-muted-foreground">{intel.summary}</p>
+                  {intel.recommendation && (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                      <p className="text-sm font-medium text-foreground">{intel.recommendation}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Maintenance signals */}
+              {assessment && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Maintenance Signals</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
+                      {([
+                        { label: 'Commit Recency',  value: assessment.signals.commitRecency },
+                        { label: 'Commit Velocity', value: assessment.signals.commitVelocity },
+                        { label: 'Issue Response',  value: assessment.signals.issueResponsiveness },
+                        { label: 'PR Activity',     value: assessment.signals.prActivity },
+                        { label: 'Release Recency', value: assessment.signals.releaseRecency },
+                      ] as const).map(({ label, value }) => (
+                        <div key={label} className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2">
+                          <div className="text-[11px] text-muted-foreground">{label}</div>
+                          <div className={cn("mt-1 text-sm font-semibold capitalize", signalColor[value ?? 'unknown'])}>
+                            {value ?? 'Unknown'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-1.5">
+                      {assessment.reasons.map((reason, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">{reason}</p>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Known issues */}
+              {intel.topPainPoints.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <AlertCircle className="h-4 w-4" />
+                      Known Issues
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-2 lg:grid-cols-2">
+                      {intel.topPainPoints.map((point, i) => (
+                        <div key={i} className="flex gap-3 rounded-lg border border-border/50 bg-muted/10 px-3 py-2.5">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
+                            {i + 1}
+                          </span>
+                          <p className="text-sm leading-relaxed text-muted-foreground">{point}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </section>
+
+            <aside className="grid min-w-0 content-start gap-5 md:grid-cols-2 xl:grid-cols-1">
+              {/* Status badges */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Repo Status</CardTitle>
+                </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col gap-2">
-                    {intel.topPainPoints.map((point, i) => (
-                      <div key={i} className="flex gap-3 rounded-lg border border-border/50 bg-muted/10 px-3 py-2.5">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
-                          {i + 1}
-                        </span>
-                        <p className="text-sm leading-relaxed text-muted-foreground">{point}</p>
-                      </div>
-                    ))}
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      const v = verdictConfig[intel.maintenanceVerdict]
+                      return (
+                        <Badge variant="outline" className="gap-1.5 px-3 py-1 text-sm font-medium">
+                          <span className={cn("h-1.5 w-1.5 rounded-full", v?.dotClass)} />
+                          {v?.label ?? intel.maintenanceVerdict}
+                        </Badge>
+                      )
+                    })()}
+                    <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
+                      {{
+                        'production-ready': 'Production Ready',
+                        'maturing': 'Maturing',
+                        'experimental': 'Experimental',
+                        'deprecated': 'Deprecated',
+                      }[intel.adoptionReadiness] ?? intel.adoptionReadiness}
+                    </Badge>
+                    <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
+                      {{
+                        'positive': 'Positive Sentiment',
+                        'mixed': 'Mixed Sentiment',
+                        'frustrated': 'Frustrated Users',
+                      }[intel.communitySentiment] ?? intel.communitySentiment}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
-            )}
-          </>
+
+              {/* Star velocity */}
+              {velocity && (() => {
+                const vcfg = velocityConfig[velocity.label]
+                return (
+                  <Card>
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border", vcfg.className)}>
+                        <vcfg.icon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          Star Momentum: {vcfg.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          +{velocity.growth7d} this week · +{velocity.growth30d} this month
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })()}
+
+              {/* Governance & maturity */}
+              {cf && (
+                <Card className="md:col-span-2 xl:col-span-1">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Governance & Maturity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <MaturityBadge present={Boolean(cf.readme)} label="README" icon={BookOpen} />
+                      <MaturityBadge present={Boolean(cf.license)} label="License" icon={FileCode2} />
+                      <MaturityBadge present={Boolean(cf.securityPolicy)} label="Security Policy" icon={ShieldCheck} />
+                      <MaturityBadge present={cf.contributingGuide} label="Contributing Guide" icon={BookOpen} />
+                      <MaturityBadge present={cf.codeOfConduct}     label="Code of Conduct"   icon={FileCode2} />
+                      <MaturityBadge present={Boolean(cf.issueTemplate)} label="Issue Templates" icon={AlertCircle} />
+                      <MaturityBadge present={Boolean(cf.pullRequestTemplate)} label="PR Template" icon={GitCommit} />
+                      <MaturityBadge present={cf.ci}                label="CI/CD Workflows"   icon={ShieldCheck} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </aside>
+          </div>
         )}
           </div>
         </main>

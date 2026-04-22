@@ -434,7 +434,7 @@ function IntelCard({ intel, onOpenRepo }: {
           {(() => {
             const sub = computeSubScores(intel.metrics)
             const subItems = [
-              { label: 'Maint', score: sub.maintenance, icon: Wrench },
+              { label: 'Maintenance', score: sub.maintenance, icon: Wrench },
               { label: 'Activity', score: sub.activity, icon: Activity },
               { label: 'Community', score: sub.community, icon: Users },
               { label: 'Trust', score: sub.trust, icon: Shield },
