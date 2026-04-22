@@ -51,6 +51,7 @@ interface GHCommunityProfile {
     code_of_conduct: { url: string } | null
     issue_template?: { url: string } | null
     pull_request_template?: { url: string } | null
+    security_policy?: { url: string } | null
   }
 }
 
@@ -88,6 +89,10 @@ interface ReleaseStats {
 }
 
 interface SupplementalCommunityFiles {
+  readme: boolean
+  license: boolean
+  contributingGuide: boolean
+  codeOfConduct: boolean
   securityPolicy: boolean
   issueTemplate: boolean
   pullRequestTemplate: boolean
@@ -286,28 +291,135 @@ async function contentExists(owner: string, repo: string, path: string, token: s
   }
 }
 
+async function endpointExists(owner: string, repo: string, endpoint: 'readme' | 'license', token: string | undefined): Promise<boolean> {
+  try {
+    await ghGet<unknown>(
+      `/repos/${owner}/${repo}/${endpoint}`,
+      token
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function anyContentExists(owner: string, repo: string, paths: string[], token: string | undefined): Promise<boolean> {
+  const results = await Promise.all(paths.map((path) => contentExists(owner, repo, path, token)))
+  return results.some(Boolean)
+}
+
 async function fetchSupplementalCommunityFiles(owner: string, repo: string, token: string | undefined): Promise<SupplementalCommunityFiles> {
   const [
-    rootSecurity,
-    githubSecurity,
-    issueTemplateDir,
-    issueTemplateMd,
-    prTemplateRoot,
-    prTemplateGithub,
+    readme,
+    licenseEndpoint,
+    licenseFile,
+    contributingGuide,
+    codeOfConduct,
+    securityPolicy,
+    issueTemplate,
+    pullRequestTemplate,
   ] = await Promise.all([
-    contentExists(owner, repo, 'SECURITY.md', token),
-    contentExists(owner, repo, '.github/SECURITY.md', token),
-    contentExists(owner, repo, '.github/ISSUE_TEMPLATE', token),
-    contentExists(owner, repo, 'ISSUE_TEMPLATE.md', token),
-    contentExists(owner, repo, 'PULL_REQUEST_TEMPLATE.md', token),
-    contentExists(owner, repo, '.github/PULL_REQUEST_TEMPLATE.md', token),
+    endpointExists(owner, repo, 'readme', token),
+    endpointExists(owner, repo, 'license', token),
+    anyContentExists(owner, repo, [
+      'LICENSE',
+      'LICENSE.md',
+      'LICENSE.txt',
+      'LICENCE',
+      'LICENCE.md',
+      'COPYING',
+      'COPYING.md',
+    ], token),
+    anyContentExists(owner, repo, [
+      'CONTRIBUTING.md',
+      'CONTRIBUTING',
+      '.github/CONTRIBUTING.md',
+      '.github/CONTRIBUTING',
+      'docs/CONTRIBUTING.md',
+      'docs/CONTRIBUTING',
+    ], token),
+    anyContentExists(owner, repo, [
+      'CODE_OF_CONDUCT.md',
+      'CODE_OF_CONDUCT',
+      '.github/CODE_OF_CONDUCT.md',
+      '.github/CODE_OF_CONDUCT',
+      'docs/CODE_OF_CONDUCT.md',
+      'docs/CODE_OF_CONDUCT',
+    ], token),
+    anyContentExists(owner, repo, [
+      'SECURITY.md',
+      'SECURITY',
+      '.github/SECURITY.md',
+      '.github/SECURITY',
+      'docs/SECURITY.md',
+      'docs/SECURITY',
+    ], token),
+    anyContentExists(owner, repo, [
+      'ISSUE_TEMPLATE.md',
+      'ISSUE_TEMPLATE',
+      '.github/ISSUE_TEMPLATE.md',
+      '.github/ISSUE_TEMPLATE',
+      'docs/ISSUE_TEMPLATE.md',
+      'docs/ISSUE_TEMPLATE',
+    ], token),
+    anyContentExists(owner, repo, [
+      'PULL_REQUEST_TEMPLATE.md',
+      'pull_request_template.md',
+      'PULL_REQUEST_TEMPLATE',
+      '.github/PULL_REQUEST_TEMPLATE.md',
+      '.github/pull_request_template.md',
+      '.github/PULL_REQUEST_TEMPLATE',
+      'docs/PULL_REQUEST_TEMPLATE.md',
+      'docs/pull_request_template.md',
+      'PULL_REQUEST_TEMPLATE/pull_request_template.md',
+      '.github/PULL_REQUEST_TEMPLATE/pull_request_template.md',
+    ], token),
   ])
 
   return {
-    securityPolicy: rootSecurity || githubSecurity,
-    issueTemplate: issueTemplateDir || issueTemplateMd,
-    pullRequestTemplate: prTemplateRoot || prTemplateGithub,
+    readme,
+    license: licenseEndpoint || licenseFile,
+    contributingGuide,
+    codeOfConduct,
+    securityPolicy,
+    issueTemplate,
+    pullRequestTemplate,
   }
+}
+
+function communityProfileHasFile(community: GHCommunityProfile | null, file: keyof GHCommunityProfile['files']): boolean {
+  return community?.files?.[file] !== null && community?.files?.[file] !== undefined
+}
+
+function mergeCommunityFileSignals(
+  community: GHCommunityProfile | null,
+  supplementalCommunityFiles: SupplementalCommunityFiles,
+  workflowCount: number,
+): RepoIntelMetrics['hasCommunityFiles'] {
+  return {
+    readme: communityProfileHasFile(community, 'readme') || supplementalCommunityFiles.readme,
+    license: communityProfileHasFile(community, 'license') || supplementalCommunityFiles.license,
+    contributingGuide: communityProfileHasFile(community, 'contributing') || supplementalCommunityFiles.contributingGuide,
+    codeOfConduct: communityProfileHasFile(community, 'code_of_conduct') || supplementalCommunityFiles.codeOfConduct,
+    issueTemplate: communityProfileHasFile(community, 'issue_template') || supplementalCommunityFiles.issueTemplate,
+    pullRequestTemplate: communityProfileHasFile(community, 'pull_request_template') || supplementalCommunityFiles.pullRequestTemplate,
+    securityPolicy: communityProfileHasFile(community, 'security_policy') || supplementalCommunityFiles.securityPolicy,
+    ci: workflowCount > 0,
+  }
+}
+
+export async function fetchRepoCommunityFileSignals(
+  owner: string,
+  repo: string,
+  token?: string,
+): Promise<RepoIntelMetrics['hasCommunityFiles']> {
+  const [community, supplementalCommunityFiles, workflowCount] = await Promise.all([
+    fetchCommunityProfile(owner, repo, token),
+    fetchSupplementalCommunityFiles(owner, repo, token),
+    fetchWorkflowCount(owner, repo, token),
+  ])
+
+  return mergeCommunityFileSignals(community, supplementalCommunityFiles, workflowCount)
 }
 
 async function fetchWorkflowCount(owner: string, repo: string, token: string | undefined): Promise<number> {
@@ -590,16 +702,7 @@ function computeMetrics(
     releases12mo: releaseStats.releases12mo,
     releaseCadenceDays: releaseStats.releaseCadenceDays,
     maintenanceAssessment,
-    hasCommunityFiles: {
-      readme: community?.files?.readme !== null && community?.files?.readme !== undefined,
-      license: community?.files?.license !== null && community?.files?.license !== undefined,
-      contributingGuide: community?.files?.contributing !== null && community?.files?.contributing !== undefined,
-      codeOfConduct: community?.files?.code_of_conduct !== null && community?.files?.code_of_conduct !== undefined,
-      issueTemplate: (community?.files?.issue_template !== null && community?.files?.issue_template !== undefined) || supplementalCommunityFiles.issueTemplate,
-      pullRequestTemplate: (community?.files?.pull_request_template !== null && community?.files?.pull_request_template !== undefined) || supplementalCommunityFiles.pullRequestTemplate,
-      securityPolicy: supplementalCommunityFiles.securityPolicy,
-      ci: workflowCount > 0,
-    },
+    hasCommunityFiles: mergeCommunityFileSignals(community, supplementalCommunityFiles, workflowCount),
   }
 }
 

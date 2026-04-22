@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { after } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { getValidGitHubToken } from '@/lib/tokens'
-import { fetchRepoIntelData } from '@/lib/repo-intel'
+import { fetchRepoCommunityFileSignals, fetchRepoIntelData } from '@/lib/repo-intel'
 import { analyzeRepoIntel } from '@/lib/ai-repo-intel'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
@@ -45,6 +45,15 @@ function rowToIntel(row: RepoInsightRow): RepoIntel {
   }
 }
 
+function communityFilesChanged(
+  current: RepoIntel['metrics']['hasCommunityFiles'],
+  next: RepoIntel['metrics']['hasCommunityFiles'],
+) {
+  return Object.entries(next).some(([key, value]) => {
+    return current[key as keyof RepoIntel['metrics']['hasCommunityFiles']] !== value
+  })
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -78,7 +87,35 @@ export async function GET(request: Request) {
     if (cached && !refresh) {
       const age = Date.now() - new Date(cached.analyzed_at).getTime()
       if (age < CACHE_TTL_MS) {
-        return NextResponse.json({ intel: rowToIntel(cached as RepoInsightRow), cached: true })
+        const intel = rowToIntel(cached as RepoInsightRow)
+        const tokenResult = await getValidGitHubToken()
+        const token = tokenResult.error === 'expired'
+          ? undefined
+          : tokenResult.token ?? undefined
+
+        const hasCommunityFiles = await fetchRepoCommunityFileSignals(owner, repo, token)
+        const metrics = {
+          ...intel.metrics,
+          hasCommunityFiles: {
+            ...intel.metrics.hasCommunityFiles,
+            ...hasCommunityFiles,
+          },
+        }
+
+        if (communityFilesChanged(intel.metrics.hasCommunityFiles, metrics.hasCommunityFiles)) {
+          await adminClient
+            .from('repo_insights')
+            .update({ metrics })
+            .eq('repo_full_name', repoFullName)
+        }
+
+        return NextResponse.json({
+          intel: {
+            ...intel,
+            metrics,
+          },
+          cached: true,
+        })
       }
     }
 
