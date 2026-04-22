@@ -34,6 +34,7 @@ interface GHPR {
   merged_at: string | null
   created_at: string
   closed_at: string | null
+  updated_at: string
   review_comments: number
 }
 
@@ -44,8 +45,13 @@ interface GHContributor {
 
 interface GHCommunityProfile {
   files: {
+    readme?: { url: string } | null
+    license?: { url: string } | null
     contributing: { url: string } | null
     code_of_conduct: { url: string } | null
+    issue_template?: { url: string } | null
+    pull_request_template?: { url: string } | null
+    security_policy?: { url: string } | null
   }
 }
 
@@ -64,6 +70,12 @@ interface GHCommit {
 
 interface GHRelease {
   published_at: string
+  prerelease?: boolean
+  draft?: boolean
+}
+
+interface GHContentItem {
+  path?: string
 }
 
 interface RecentCommitStats {
@@ -71,6 +83,23 @@ interface RecentCommitStats {
   commits30d: number
   commits90d: number
   activeCommitAuthors90d: number
+}
+
+interface ReleaseStats {
+  latestReleaseDate: string | null
+  releases6mo: number
+  releases12mo: number
+  releaseCadenceDays: number | null
+}
+
+interface SupplementalCommunityFiles {
+  readme: boolean
+  license: boolean
+  contributingGuide: boolean
+  codeOfConduct: boolean
+  securityPolicy: boolean
+  issueTemplate: boolean
+  pullRequestTemplate: boolean
 }
 
 // ─── Fetchers ─────────────────────────────────────────────────────────────────
@@ -116,6 +145,39 @@ async function fetchPRs(owner: string, repo: string, token: string | undefined):
     ),
   ])
   return [...open, ...closed]
+}
+
+async function fetchStaleOpenPRCount(owner: string, repo: string, token: string | undefined): Promise<number | null> {
+  const now = new Date().toISOString()
+  let staleCount = 0
+
+  try {
+    for (let page = 1; page <= 10; page++) {
+      const openPRs = await ghGet<GHPR[]>(
+        `/repos/${owner}/${repo}/pulls?state=open&per_page=100&sort=updated&direction=asc&page=${page}`,
+        token,
+        []
+      )
+
+      if (openPRs.length === 0) break
+
+      let sawNonStalePR = false
+      for (const pr of openPRs) {
+        if (daysBetween(pr.updated_at, now) > 90) {
+          staleCount += 1
+        } else {
+          sawNonStalePR = true
+          break
+        }
+      }
+
+      if (sawNonStalePR || openPRs.length < 100) break
+    }
+  } catch {
+    return null
+  }
+
+  return staleCount
 }
 
 async function fetchContributors(owner: string, repo: string, token: string | undefined): Promise<GHContributor[]> {
@@ -212,6 +274,182 @@ async function fetchLatestReleaseDate(owner: string, repo: string, token: string
   }
 }
 
+async function fetchReleaseStats(owner: string, repo: string, token: string | undefined): Promise<ReleaseStats> {
+  try {
+    const releases: GHRelease[] = []
+    const twelveMonthsAgo = Date.now() - 365 * 24 * 60 * 60 * 1000
+
+    for (let page = 1; page <= 5; page++) {
+      const releasePage = await ghGet<GHRelease[]>(
+        `/repos/${owner}/${repo}/releases?per_page=100&page=${page}`,
+        token,
+        []
+      )
+      releases.push(...releasePage)
+
+      const stableReleasePage = releasePage.filter((release) => release.published_at && !release.draft && !release.prerelease)
+      const oldestStablePublishedAt = stableReleasePage
+        .map((release) => new Date(release.published_at).getTime())
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b)[0]
+
+      if (releasePage.length < 100 || (oldestStablePublishedAt !== undefined && oldestStablePublishedAt < twelveMonthsAgo)) {
+        break
+      }
+    }
+
+    const stableReleases = releases
+      .filter((release) => release.published_at && !release.draft && !release.prerelease)
+      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
+
+    const now = Date.now()
+    const sixMonthsMs = 183 * 24 * 60 * 60 * 1000
+    const twelveMonthsMs = 365 * 24 * 60 * 60 * 1000
+    const releases6mo = stableReleases.filter((release) => now - new Date(release.published_at).getTime() <= sixMonthsMs).length
+    const releases12mo = stableReleases.filter((release) => now - new Date(release.published_at).getTime() <= twelveMonthsMs).length
+
+    const recentIntervals = stableReleases
+      .slice(0, 6)
+      .map((release, index, list) => {
+        const next = list[index + 1]
+        if (!next) return null
+        return daysBetween(release.published_at, next.published_at)
+      })
+      .filter((interval): interval is number => interval !== null)
+
+    return {
+      latestReleaseDate: stableReleases[0]?.published_at ?? null,
+      releases6mo,
+      releases12mo,
+      releaseCadenceDays: median(recentIntervals),
+    }
+  } catch {
+    return {
+      latestReleaseDate: await fetchLatestReleaseDate(owner, repo, token),
+      releases6mo: 0,
+      releases12mo: 0,
+      releaseCadenceDays: null,
+    }
+  }
+}
+
+async function fetchSupplementalCommunityFiles(owner: string, repo: string, token: string | undefined): Promise<SupplementalCommunityFiles> {
+  const [rootPaths, githubPaths, docsPaths] = await Promise.all([
+    listDirectoryContentPaths(owner, repo, '', token),
+    listDirectoryContentPaths(owner, repo, '.github', token),
+    listDirectoryContentPaths(owner, repo, 'docs', token),
+  ])
+
+  const nestedPullRequestTemplateDirs: Promise<Set<string>>[] = []
+  if (rootPaths.has('pull_request_template')) {
+    nestedPullRequestTemplateDirs.push(listDirectoryContentPaths(owner, repo, 'PULL_REQUEST_TEMPLATE', token))
+  }
+  if (githubPaths.has('.github/pull_request_template')) {
+    nestedPullRequestTemplateDirs.push(listDirectoryContentPaths(owner, repo, '.github/PULL_REQUEST_TEMPLATE', token))
+  }
+
+  const nestedTemplatePaths = await Promise.all(nestedPullRequestTemplateDirs)
+  const allPaths = new Set<string>([
+    ...rootPaths,
+    ...githubPaths,
+    ...docsPaths,
+    ...nestedTemplatePaths.flatMap((paths) => [...paths]),
+  ])
+
+  const readme = [...rootPaths].some((path) => {
+    const fileName = path.substring(path.lastIndexOf('/') + 1)
+    return /^readme(?:\.[^.]+)?$/i.test(fileName)
+  })
+
+  return {
+    readme,
+    license: hasAnyPath(allPaths, ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'LICENCE.md', 'COPYING', 'COPYING.md']),
+    contributingGuide: hasAnyPath(allPaths, ['CONTRIBUTING.md', 'CONTRIBUTING', '.github/CONTRIBUTING.md', '.github/CONTRIBUTING', 'docs/CONTRIBUTING.md', 'docs/CONTRIBUTING']),
+    codeOfConduct: hasAnyPath(allPaths, ['CODE_OF_CONDUCT.md', 'CODE_OF_CONDUCT', '.github/CODE_OF_CONDUCT.md', '.github/CODE_OF_CONDUCT', 'docs/CODE_OF_CONDUCT.md', 'docs/CODE_OF_CONDUCT']),
+    securityPolicy: hasAnyPath(allPaths, ['SECURITY.md', 'SECURITY', '.github/SECURITY.md', '.github/SECURITY', 'docs/SECURITY.md', 'docs/SECURITY']),
+    issueTemplate: hasAnyPath(allPaths, ['ISSUE_TEMPLATE.md', 'ISSUE_TEMPLATE', '.github/ISSUE_TEMPLATE.md', '.github/ISSUE_TEMPLATE', 'docs/ISSUE_TEMPLATE.md', 'docs/ISSUE_TEMPLATE']),
+    pullRequestTemplate: hasAnyPath(allPaths, [
+      'PULL_REQUEST_TEMPLATE.md',
+      'pull_request_template.md',
+      'PULL_REQUEST_TEMPLATE',
+      '.github/PULL_REQUEST_TEMPLATE.md',
+      '.github/pull_request_template.md',
+      '.github/PULL_REQUEST_TEMPLATE',
+      'docs/PULL_REQUEST_TEMPLATE.md',
+      'docs/pull_request_template.md',
+      'PULL_REQUEST_TEMPLATE/pull_request_template.md',
+      '.github/PULL_REQUEST_TEMPLATE/pull_request_template.md',
+    ]),
+  }
+}
+
+async function listDirectoryContentPaths(
+  owner: string,
+  repo: string,
+  dir: string,
+  token: string | undefined,
+): Promise<Set<string>> {
+  const encodedDir = dir
+    ? `/${dir.split('/').map((segment) => encodeURIComponent(segment)).join('/')}`
+    : ''
+
+  try {
+    const payload = await ghGet<GHContentItem[] | GHContentItem>(
+      `/repos/${owner}/${repo}/contents${encodedDir}`,
+      token,
+      []
+    )
+    const items = Array.isArray(payload) ? payload : [payload]
+
+    return new Set(
+      items
+        .map((item) => item.path?.toLowerCase())
+        .filter((path): path is string => Boolean(path))
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+function hasAnyPath(paths: Set<string>, candidates: string[]): boolean {
+  return candidates.some((candidate) => paths.has(candidate.toLowerCase()))
+}
+
+function communityProfileHasFile(community: GHCommunityProfile | null, file: keyof GHCommunityProfile['files']): boolean {
+  return community?.files?.[file] !== null && community?.files?.[file] !== undefined
+}
+
+function mergeCommunityFileSignals(
+  community: GHCommunityProfile | null,
+  supplementalCommunityFiles: SupplementalCommunityFiles,
+  workflowCount: number,
+): RepoIntelMetrics['hasCommunityFiles'] {
+  return {
+    readme: communityProfileHasFile(community, 'readme') || supplementalCommunityFiles.readme,
+    license: communityProfileHasFile(community, 'license') || supplementalCommunityFiles.license,
+    contributingGuide: communityProfileHasFile(community, 'contributing') || supplementalCommunityFiles.contributingGuide,
+    codeOfConduct: communityProfileHasFile(community, 'code_of_conduct') || supplementalCommunityFiles.codeOfConduct,
+    issueTemplate: communityProfileHasFile(community, 'issue_template') || supplementalCommunityFiles.issueTemplate,
+    pullRequestTemplate: communityProfileHasFile(community, 'pull_request_template') || supplementalCommunityFiles.pullRequestTemplate,
+    securityPolicy: communityProfileHasFile(community, 'security_policy') || supplementalCommunityFiles.securityPolicy,
+    ci: workflowCount > 0,
+  }
+}
+
+export async function fetchRepoCommunityFileSignals(
+  owner: string,
+  repo: string,
+  token?: string,
+): Promise<RepoIntelMetrics['hasCommunityFiles']> {
+  const [community, supplementalCommunityFiles, workflowCount] = await Promise.all([
+    fetchCommunityProfile(owner, repo, token),
+    fetchSupplementalCommunityFiles(owner, repo, token),
+    fetchWorkflowCount(owner, repo, token),
+  ])
+
+  return mergeCommunityFileSignals(community, supplementalCommunityFiles, workflowCount)
+}
+
 async function fetchWorkflowCount(owner: string, repo: string, token: string | undefined): Promise<number> {
   try {
     const res = await ghGet<{ total_count: number }>(
@@ -275,9 +513,11 @@ function computeMaintenanceAssessment(input: {
   staleIssueCount: number
   prMergeRate: number
   avgPrMergeDays: number | null
+  stalePrCount: number | null
   commits30d: number
   commits90d: number
   activeCommitAuthors90d: number
+  releases12mo: number
   hasReleaseSignal: boolean
   hasIssueSignal: boolean
   hasPrSignal: boolean
@@ -317,9 +557,9 @@ function computeMaintenanceAssessment(input: {
 
   let prScore = 0
   if (input.hasPrSignal) {
-    if (input.prMergeRate >= 0.7 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 14)) {
+    if (input.prMergeRate >= 0.7 && input.stalePrCount !== null && input.stalePrCount <= 2 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 14)) {
       prScore = 18
-    } else if (input.prMergeRate >= 0.45 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 45)) {
+    } else if (input.prMergeRate >= 0.45 && input.stalePrCount !== null && input.stalePrCount <= 5 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 45)) {
       prScore = 13
     } else if (input.prMergeRate >= 0.2) {
       prScore = 7
@@ -328,8 +568,8 @@ function computeMaintenanceAssessment(input: {
 
   let releaseScore = 0
   if (input.hasReleaseSignal) {
-    if (input.daysSinceLastRelease !== null && input.daysSinceLastRelease <= 90) releaseScore = 10
-    else if (input.daysSinceLastRelease !== null && input.daysSinceLastRelease <= 365) releaseScore = 7
+    if (input.daysSinceLastRelease !== null && input.daysSinceLastRelease <= 90 && input.releases12mo >= 2) releaseScore = 10
+    else if (input.daysSinceLastRelease !== null && input.daysSinceLastRelease <= 365) releaseScore = input.releases12mo >= 1 ? 7 : 5
     else if (input.daysSinceLastRelease !== null && input.daysSinceLastRelease <= 730) releaseScore = 3
   }
 
@@ -365,13 +605,16 @@ function computeMaintenanceAssessment(input: {
   }
 
   if (input.hasPrSignal) {
-    reasons.push(`PR merge rate is ${Math.round(input.prMergeRate * 100)}%${input.avgPrMergeDays !== null ? ` with a ${Math.round(input.avgPrMergeDays)} day median merge time` : ''}.`)
+    const stalePrText = input.stalePrCount === null
+      ? 'stale open PR count is unknown'
+      : `${input.stalePrCount} stale open PR${input.stalePrCount === 1 ? '' : 's'}`
+    reasons.push(`PR merge rate is ${Math.round(input.prMergeRate * 100)}%${input.avgPrMergeDays !== null ? ` with a ${Math.round(input.avgPrMergeDays)} day median merge time` : ''}; ${stalePrText}.`)
   } else {
     reasons.push('PR activity is too sparse to score review throughput.')
   }
 
   if (input.hasReleaseSignal) {
-    reasons.push(`Latest GitHub release was ${formatReasonDays(input.daysSinceLastRelease)}.`)
+    reasons.push(`Latest GitHub release was ${formatReasonDays(input.daysSinceLastRelease)} with ${input.releases12mo} stable release${input.releases12mo === 1 ? '' : 's'} in the last year.`)
   }
 
   const confidence = Math.max(0.35, Math.min(0.95, 0.5 + knownOptionalSignals * 0.12 + (input.commits90d > 0 ? 0.09 : 0)))
@@ -396,8 +639,10 @@ function computeMetrics(
   prs: GHPR[],
   contributors: GHContributor[],
   community: GHCommunityProfile | null,
+  supplementalCommunityFiles: SupplementalCommunityFiles,
   commitStats: RecentCommitStats,
-  latestReleaseDate: string | null,
+  releaseStats: ReleaseStats,
+  stalePrCount: number | null,
   workflowCount: number,
 ): RepoIntelMetrics {
   const now = new Date().toISOString()
@@ -430,17 +675,22 @@ function computeMetrics(
     .filter(p => p.closed_at)
     .map(p => daysBetween(p.created_at, p.merged_at!))
   const avgPrMergeDays = median(prMergeTimes)
-
   // Keep legacy field populated while exposing true recent commit authors separately.
   const topContributorCount = Math.min(contributors.length, 25)
   const activeContributors90d = topContributorCount
+  const totalContributorCommits = contributors.reduce((sum, contributor) => sum + contributor.contributions, 0)
+  const sortedContributorCommits = contributors.map((contributor) => contributor.contributions).sort((a, b) => b - a)
+  const topContributorShare = totalContributorCommits > 0 ? (sortedContributorCommits[0] ?? 0) / totalContributorCommits : undefined
+  const topThreeContributorShare = totalContributorCommits > 0
+    ? sortedContributorCommits.slice(0, 3).reduce((sum, count) => sum + count, 0) / totalContributorCommits
+    : undefined
 
   // Days since last commit/release
   const daysSinceLastCommit = commitStats.latestCommitDate ? Math.floor(daysBetween(commitStats.latestCommitDate, now)) : null
-  const daysSinceLastRelease = latestReleaseDate ? Math.floor(daysBetween(latestReleaseDate, now)) : null
+  const daysSinceLastRelease = releaseStats.latestReleaseDate ? Math.floor(daysBetween(releaseStats.latestReleaseDate, now)) : null
   const hasIssueSignal = totalIssues > 0
   const hasPrSignal = closedPRs.length > 0
-  const hasReleaseSignal = latestReleaseDate !== null
+  const hasReleaseSignal = releaseStats.latestReleaseDate !== null
   const maintenanceAssessment = computeMaintenanceAssessment({
     daysSinceLastCommit,
     daysSinceLastRelease,
@@ -448,9 +698,11 @@ function computeMetrics(
     staleIssueCount,
     prMergeRate,
     avgPrMergeDays,
+    stalePrCount,
     commits30d: commitStats.commits30d,
     commits90d: commitStats.commits90d,
     activeCommitAuthors90d: commitStats.activeCommitAuthors90d,
+    releases12mo: releaseStats.releases12mo,
     hasReleaseSignal,
     hasIssueSignal,
     hasPrSignal,
@@ -463,19 +715,21 @@ function computeMetrics(
     staleIssueCount,
     prMergeRate,
     avgPrMergeDays,
+    stalePrCount,
     activeContributors90d,
     topContributorCount,
+    topContributorShare,
+    topThreeContributorShare,
     commits30d: commitStats.commits30d,
     commits90d: commitStats.commits90d,
     activeCommitAuthors90d: commitStats.activeCommitAuthors90d,
     daysSinceLastCommit,
     daysSinceLastRelease,
+    releases6mo: releaseStats.releases6mo,
+    releases12mo: releaseStats.releases12mo,
+    releaseCadenceDays: releaseStats.releaseCadenceDays,
     maintenanceAssessment,
-    hasCommunityFiles: {
-      contributingGuide: community?.files?.contributing !== null && community?.files?.contributing !== undefined,
-      codeOfConduct: community?.files?.code_of_conduct !== null && community?.files?.code_of_conduct !== undefined,
-      ci: workflowCount > 0,
-    },
+    hasCommunityFiles: mergeCommunityFileSignals(community, supplementalCommunityFiles, workflowCount),
   }
 }
 
@@ -501,14 +755,16 @@ export async function fetchRepoIntelData(
   repo: string,
   token?: string,
 ): Promise<RepoIntelRawData> {
-  const [issues, prs, contributors, community, commitStats, latestReleaseDate, workflowCount] =
+  const [issues, prs, contributors, community, supplementalCommunityFiles, commitStats, releaseStats, stalePrCount, workflowCount] =
     await Promise.all([
       fetchIssues(owner, repo, token),
       fetchPRs(owner, repo, token),
       fetchContributors(owner, repo, token),
       fetchCommunityProfile(owner, repo, token),
+      fetchSupplementalCommunityFiles(owner, repo, token),
       fetchRecentCommitStats(owner, repo, token),
-      fetchLatestReleaseDate(owner, repo, token),
+      fetchReleaseStats(owner, repo, token),
+      fetchStaleOpenPRCount(owner, repo, token),
       fetchWorkflowCount(owner, repo, token),
     ])
 
@@ -517,8 +773,10 @@ export async function fetchRepoIntelData(
     prs,
     contributors,
     community,
+    supplementalCommunityFiles,
     commitStats,
-    latestReleaseDate,
+    releaseStats,
+    stalePrCount,
     workflowCount,
   )
 
