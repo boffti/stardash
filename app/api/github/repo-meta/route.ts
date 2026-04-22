@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
   }
 
   const adminClient = createAdminClient()
-  const { data, error: dbError } = await adminClient
+  const { data: repoRow, error: dbError } = await adminClient
     .from('repos')
-    .select('github_repo_id')
+    .select('id, github_repo_id')
     .eq('full_name', `${owner}/${repo}`)
     .maybeSingle()
 
@@ -31,9 +31,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  if (!data) {
+  if (!repoRow) {
     return NextResponse.json({ githubRepoId: null })
   }
 
-  return NextResponse.json({ githubRepoId: data.github_repo_id })
+  const { data: userStarredRepo, error: userStarredRepoError } = await adminClient
+    .from('user_starred_repos')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('repo_id', repoRow.id)
+    .maybeSingle()
+
+  if (userStarredRepoError) {
+    return NextResponse.json({ error: 'DB error' }, { status: 500 })
+  }
+
+  if (!userStarredRepo) {
+    return NextResponse.json({ githubRepoId: null })
+  }
+
+  return NextResponse.json({ githubRepoId: repoRow.github_repo_id })
 }

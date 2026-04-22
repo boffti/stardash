@@ -109,7 +109,11 @@ function readLocalCache<T>(key: string, ttl: number): T | null {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return null
-    const { data, ts } = JSON.parse(raw)
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object") return null
+
+    const { data, ts } = parsed as { data?: unknown; ts?: unknown }
+    if (typeof ts !== "number" || !Number.isFinite(ts)) return null
     if (Date.now() - ts > ttl) return null
     return data as T
   } catch {
@@ -576,13 +580,14 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
   }, [owner, repo])
 
   const intelUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&_k=${refreshKey}${refreshKey > 0 ? '&refresh=true' : ''}`
-  const shouldFetchIntel = intelCacheHydrated && (refreshKey > 0 || !localIntelData)
+  const shouldFetchIntel = intelCacheHydrated
   const { data: intelData, isLoading, error } = useSWR<RepoIntelResponse>(
     shouldFetchIntel ? intelUrl : null,
     fetcher,
     {
       revalidateOnFocus: false,
       revalidateIfStale: false,
+      revalidateOnMount: true,
       revalidateOnReconnect: false,
       fallbackData: localIntelData ?? undefined,
       onSuccess(result) {
@@ -629,11 +634,12 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
   }, [repoMeta?.githubRepoId])
 
   const { data: healthData } = useSWR<Record<string, HealthEntry>>(
-    healthCacheHydrated && (!localHealthData || refreshKey > 0) ? healthUrl : null,
+    healthCacheHydrated && healthUrl ? healthUrl : null,
     fetcher,
     {
       revalidateOnFocus: false,
       revalidateIfStale: false,
+      revalidateOnMount: true,
       revalidateOnReconnect: false,
       fallbackData: localHealthData ?? undefined,
       onSuccess(result) {

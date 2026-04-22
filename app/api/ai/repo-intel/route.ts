@@ -88,32 +88,44 @@ export async function GET(request: Request) {
       const age = Date.now() - new Date(cached.analyzed_at).getTime()
       if (age < CACHE_TTL_MS) {
         const intel = rowToIntel(cached as RepoInsightRow)
-        const tokenResult = await getValidGitHubToken()
-        const token = tokenResult.error === 'expired'
-          ? undefined
-          : tokenResult.token ?? undefined
 
-        const hasCommunityFiles = await fetchRepoCommunityFileSignals(owner, repo, token)
-        const metrics = {
-          ...intel.metrics,
-          hasCommunityFiles: {
-            ...intel.metrics.hasCommunityFiles,
-            ...hasCommunityFiles,
-          },
-        }
+        after(async () => {
+          try {
+            const tokenResult = await getValidGitHubToken()
+            const token = tokenResult.error === 'expired'
+              ? undefined
+              : tokenResult.token ?? undefined
 
-        if (communityFilesChanged(intel.metrics.hasCommunityFiles, metrics.hasCommunityFiles)) {
-          await adminClient
-            .from('repo_insights')
-            .update({ metrics })
-            .eq('repo_full_name', repoFullName)
-        }
+            if (!token) return
+
+            const hasCommunityFiles = await fetchRepoCommunityFileSignals(owner, repo, token)
+            const metrics = {
+              ...intel.metrics,
+              hasCommunityFiles: {
+                ...intel.metrics.hasCommunityFiles,
+                ...hasCommunityFiles,
+              },
+            }
+
+            if (communityFilesChanged(intel.metrics.hasCommunityFiles, metrics.hasCommunityFiles)) {
+              await adminClient
+                .from('repo_insights')
+                .update({ metrics })
+                .eq('repo_full_name', repoFullName)
+            }
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                route: 'app/api/ai/repo-intel',
+                repoFullName,
+                backgroundTask: 'refreshRepoCommunityFileSignals',
+              },
+            })
+          }
+        })
 
         return NextResponse.json({
-          intel: {
-            ...intel,
-            metrics,
-          },
+          intel,
           cached: true,
         })
       }

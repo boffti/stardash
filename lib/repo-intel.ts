@@ -74,6 +74,10 @@ interface GHRelease {
   draft?: boolean
 }
 
+interface GHContentItem {
+  path?: string
+}
+
 interface RecentCommitStats {
   latestCommitDate: string | null
   commits30d: number
@@ -141,6 +145,39 @@ async function fetchPRs(owner: string, repo: string, token: string | undefined):
     ),
   ])
   return [...open, ...closed]
+}
+
+async function fetchStaleOpenPRCount(owner: string, repo: string, token: string | undefined): Promise<number> {
+  const now = new Date().toISOString()
+  let staleCount = 0
+
+  try {
+    for (let page = 1; page <= 10; page++) {
+      const openPRs = await ghGet<GHPR[]>(
+        `/repos/${owner}/${repo}/pulls?state=open&per_page=100&sort=updated&direction=asc&page=${page}`,
+        token,
+        []
+      )
+
+      if (openPRs.length === 0) break
+
+      let sawNonStalePR = false
+      for (const pr of openPRs) {
+        if (daysBetween(pr.updated_at, now) > 90) {
+          staleCount += 1
+        } else {
+          sawNonStalePR = true
+          break
+        }
+      }
+
+      if (sawNonStalePR || openPRs.length < 100) break
+    }
+  } catch {
+    return 0
+  }
+
+  return staleCount
 }
 
 async function fetchContributors(owner: string, repo: string, token: string | undefined): Promise<GHContributor[]> {
@@ -239,11 +276,28 @@ async function fetchLatestReleaseDate(owner: string, repo: string, token: string
 
 async function fetchReleaseStats(owner: string, repo: string, token: string | undefined): Promise<ReleaseStats> {
   try {
-    const releases = await ghGet<GHRelease[]>(
-      `/repos/${owner}/${repo}/releases?per_page=30`,
-      token,
-      []
-    )
+    const releases: GHRelease[] = []
+    const twelveMonthsAgo = Date.now() - 365 * 24 * 60 * 60 * 1000
+
+    for (let page = 1; page <= 5; page++) {
+      const releasePage = await ghGet<GHRelease[]>(
+        `/repos/${owner}/${repo}/releases?per_page=100&page=${page}`,
+        token,
+        []
+      )
+      releases.push(...releasePage)
+
+      const stableReleasePage = releasePage.filter((release) => release.published_at && !release.draft && !release.prerelease)
+      const oldestStablePublishedAt = stableReleasePage
+        .map((release) => new Date(release.published_at).getTime())
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b)[0]
+
+      if (releasePage.length < 100 || (oldestStablePublishedAt !== undefined && oldestStablePublishedAt < twelveMonthsAgo)) {
+        break
+      }
+    }
+
     const stableReleases = releases
       .filter((release) => release.published_at && !release.draft && !release.prerelease)
       .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
@@ -279,90 +333,42 @@ async function fetchReleaseStats(owner: string, repo: string, token: string | un
   }
 }
 
-async function contentExists(owner: string, repo: string, path: string, token: string | undefined): Promise<boolean> {
-  try {
-    await ghGet<unknown>(
-      `/repos/${owner}/${repo}/contents/${encodeURIComponent(path).replaceAll('%2F', '/')}`,
-      token
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function endpointExists(owner: string, repo: string, endpoint: 'readme' | 'license', token: string | undefined): Promise<boolean> {
-  try {
-    await ghGet<unknown>(
-      `/repos/${owner}/${repo}/${endpoint}`,
-      token
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function anyContentExists(owner: string, repo: string, paths: string[], token: string | undefined): Promise<boolean> {
-  const results = await Promise.all(paths.map((path) => contentExists(owner, repo, path, token)))
-  return results.some(Boolean)
-}
-
 async function fetchSupplementalCommunityFiles(owner: string, repo: string, token: string | undefined): Promise<SupplementalCommunityFiles> {
-  const [
+  const [rootPaths, githubPaths, docsPaths] = await Promise.all([
+    listDirectoryContentPaths(owner, repo, '', token),
+    listDirectoryContentPaths(owner, repo, '.github', token),
+    listDirectoryContentPaths(owner, repo, 'docs', token),
+  ])
+
+  const nestedPullRequestTemplateDirs: Promise<Set<string>>[] = []
+  if (rootPaths.has('pull_request_template')) {
+    nestedPullRequestTemplateDirs.push(listDirectoryContentPaths(owner, repo, 'PULL_REQUEST_TEMPLATE', token))
+  }
+  if (githubPaths.has('.github/pull_request_template')) {
+    nestedPullRequestTemplateDirs.push(listDirectoryContentPaths(owner, repo, '.github/PULL_REQUEST_TEMPLATE', token))
+  }
+
+  const nestedTemplatePaths = await Promise.all(nestedPullRequestTemplateDirs)
+  const allPaths = new Set<string>([
+    ...rootPaths,
+    ...githubPaths,
+    ...docsPaths,
+    ...nestedTemplatePaths.flatMap((paths) => [...paths]),
+  ])
+
+  const readme = [...rootPaths].some((path) => {
+    const fileName = path.substring(path.lastIndexOf('/') + 1)
+    return /^readme(?:\.[^.]+)?$/i.test(fileName)
+  })
+
+  return {
     readme,
-    licenseEndpoint,
-    licenseFile,
-    contributingGuide,
-    codeOfConduct,
-    securityPolicy,
-    issueTemplate,
-    pullRequestTemplate,
-  ] = await Promise.all([
-    endpointExists(owner, repo, 'readme', token),
-    endpointExists(owner, repo, 'license', token),
-    anyContentExists(owner, repo, [
-      'LICENSE',
-      'LICENSE.md',
-      'LICENSE.txt',
-      'LICENCE',
-      'LICENCE.md',
-      'COPYING',
-      'COPYING.md',
-    ], token),
-    anyContentExists(owner, repo, [
-      'CONTRIBUTING.md',
-      'CONTRIBUTING',
-      '.github/CONTRIBUTING.md',
-      '.github/CONTRIBUTING',
-      'docs/CONTRIBUTING.md',
-      'docs/CONTRIBUTING',
-    ], token),
-    anyContentExists(owner, repo, [
-      'CODE_OF_CONDUCT.md',
-      'CODE_OF_CONDUCT',
-      '.github/CODE_OF_CONDUCT.md',
-      '.github/CODE_OF_CONDUCT',
-      'docs/CODE_OF_CONDUCT.md',
-      'docs/CODE_OF_CONDUCT',
-    ], token),
-    anyContentExists(owner, repo, [
-      'SECURITY.md',
-      'SECURITY',
-      '.github/SECURITY.md',
-      '.github/SECURITY',
-      'docs/SECURITY.md',
-      'docs/SECURITY',
-    ], token),
-    anyContentExists(owner, repo, [
-      'ISSUE_TEMPLATE.md',
-      'ISSUE_TEMPLATE',
-      '.github/ISSUE_TEMPLATE.md',
-      '.github/ISSUE_TEMPLATE',
-      'docs/ISSUE_TEMPLATE.md',
-      'docs/ISSUE_TEMPLATE',
-    ], token),
-    anyContentExists(owner, repo, [
+    license: hasAnyPath(allPaths, ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'LICENCE.md', 'COPYING', 'COPYING.md']),
+    contributingGuide: hasAnyPath(allPaths, ['CONTRIBUTING.md', 'CONTRIBUTING', '.github/CONTRIBUTING.md', '.github/CONTRIBUTING', 'docs/CONTRIBUTING.md', 'docs/CONTRIBUTING']),
+    codeOfConduct: hasAnyPath(allPaths, ['CODE_OF_CONDUCT.md', 'CODE_OF_CONDUCT', '.github/CODE_OF_CONDUCT.md', '.github/CODE_OF_CONDUCT', 'docs/CODE_OF_CONDUCT.md', 'docs/CODE_OF_CONDUCT']),
+    securityPolicy: hasAnyPath(allPaths, ['SECURITY.md', 'SECURITY', '.github/SECURITY.md', '.github/SECURITY', 'docs/SECURITY.md', 'docs/SECURITY']),
+    issueTemplate: hasAnyPath(allPaths, ['ISSUE_TEMPLATE.md', 'ISSUE_TEMPLATE', '.github/ISSUE_TEMPLATE.md', '.github/ISSUE_TEMPLATE', 'docs/ISSUE_TEMPLATE.md', 'docs/ISSUE_TEMPLATE']),
+    pullRequestTemplate: hasAnyPath(allPaths, [
       'PULL_REQUEST_TEMPLATE.md',
       'pull_request_template.md',
       'PULL_REQUEST_TEMPLATE',
@@ -373,18 +379,40 @@ async function fetchSupplementalCommunityFiles(owner: string, repo: string, toke
       'docs/pull_request_template.md',
       'PULL_REQUEST_TEMPLATE/pull_request_template.md',
       '.github/PULL_REQUEST_TEMPLATE/pull_request_template.md',
-    ], token),
-  ])
-
-  return {
-    readme,
-    license: licenseEndpoint || licenseFile,
-    contributingGuide,
-    codeOfConduct,
-    securityPolicy,
-    issueTemplate,
-    pullRequestTemplate,
+    ]),
   }
+}
+
+async function listDirectoryContentPaths(
+  owner: string,
+  repo: string,
+  dir: string,
+  token: string | undefined,
+): Promise<Set<string>> {
+  const encodedDir = dir
+    ? `/${dir.split('/').map((segment) => encodeURIComponent(segment)).join('/')}`
+    : ''
+
+  try {
+    const payload = await ghGet<GHContentItem[] | GHContentItem>(
+      `/repos/${owner}/${repo}/contents${encodedDir}`,
+      token,
+      []
+    )
+    const items = Array.isArray(payload) ? payload : [payload]
+
+    return new Set(
+      items
+        .map((item) => item.path?.toLowerCase())
+        .filter((path): path is string => Boolean(path))
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+function hasAnyPath(paths: Set<string>, candidates: string[]): boolean {
+  return candidates.some((candidate) => paths.has(candidate.toLowerCase()))
 }
 
 function communityProfileHasFile(community: GHCommunityProfile | null, file: keyof GHCommunityProfile['files']): boolean {
@@ -611,6 +639,7 @@ function computeMetrics(
   supplementalCommunityFiles: SupplementalCommunityFiles,
   commitStats: RecentCommitStats,
   releaseStats: ReleaseStats,
+  stalePrCount: number,
   workflowCount: number,
 ): RepoIntelMetrics {
   const now = new Date().toISOString()
@@ -643,11 +672,6 @@ function computeMetrics(
     .filter(p => p.closed_at)
     .map(p => daysBetween(p.created_at, p.merged_at!))
   const avgPrMergeDays = median(prMergeTimes)
-  const stalePrCount = prs.filter(p => {
-    if (p.state !== 'open') return false
-    return daysBetween(p.updated_at, now) > 90
-  }).length
-
   // Keep legacy field populated while exposing true recent commit authors separately.
   const topContributorCount = Math.min(contributors.length, 25)
   const activeContributors90d = topContributorCount
@@ -728,7 +752,7 @@ export async function fetchRepoIntelData(
   repo: string,
   token?: string,
 ): Promise<RepoIntelRawData> {
-  const [issues, prs, contributors, community, supplementalCommunityFiles, commitStats, releaseStats, workflowCount] =
+  const [issues, prs, contributors, community, supplementalCommunityFiles, commitStats, releaseStats, stalePrCount, workflowCount] =
     await Promise.all([
       fetchIssues(owner, repo, token),
       fetchPRs(owner, repo, token),
@@ -737,6 +761,7 @@ export async function fetchRepoIntelData(
       fetchSupplementalCommunityFiles(owner, repo, token),
       fetchRecentCommitStats(owner, repo, token),
       fetchReleaseStats(owner, repo, token),
+      fetchStaleOpenPRCount(owner, repo, token),
       fetchWorkflowCount(owner, repo, token),
     ])
 
@@ -748,6 +773,7 @@ export async function fetchRepoIntelData(
     supplementalCommunityFiles,
     commitStats,
     releaseStats,
+    stalePrCount,
     workflowCount,
   )
 
