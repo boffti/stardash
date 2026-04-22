@@ -116,7 +116,7 @@ export interface RepoIntelMetrics {
   staleIssueCount: number
   prMergeRate: number             // 0–1
   avgPrMergeDays: number | null
-  stalePrCount?: number
+  stalePrCount?: number | null
   activeContributors90d: number   // Deprecated proxy kept for cached insight compatibility.
   topContributorCount?: number
   topContributorShare?: number

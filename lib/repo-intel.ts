@@ -147,7 +147,7 @@ async function fetchPRs(owner: string, repo: string, token: string | undefined):
   return [...open, ...closed]
 }
 
-async function fetchStaleOpenPRCount(owner: string, repo: string, token: string | undefined): Promise<number> {
+async function fetchStaleOpenPRCount(owner: string, repo: string, token: string | undefined): Promise<number | null> {
   const now = new Date().toISOString()
   let staleCount = 0
 
@@ -174,7 +174,7 @@ async function fetchStaleOpenPRCount(owner: string, repo: string, token: string 
       if (sawNonStalePR || openPRs.length < 100) break
     }
   } catch {
-    return 0
+    return null
   }
 
   return staleCount
@@ -513,7 +513,7 @@ function computeMaintenanceAssessment(input: {
   staleIssueCount: number
   prMergeRate: number
   avgPrMergeDays: number | null
-  stalePrCount: number
+  stalePrCount: number | null
   commits30d: number
   commits90d: number
   activeCommitAuthors90d: number
@@ -557,9 +557,9 @@ function computeMaintenanceAssessment(input: {
 
   let prScore = 0
   if (input.hasPrSignal) {
-    if (input.prMergeRate >= 0.7 && input.stalePrCount <= 2 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 14)) {
+    if (input.prMergeRate >= 0.7 && input.stalePrCount !== null && input.stalePrCount <= 2 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 14)) {
       prScore = 18
-    } else if (input.prMergeRate >= 0.45 && input.stalePrCount <= 5 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 45)) {
+    } else if (input.prMergeRate >= 0.45 && input.stalePrCount !== null && input.stalePrCount <= 5 && (input.avgPrMergeDays === null || input.avgPrMergeDays <= 45)) {
       prScore = 13
     } else if (input.prMergeRate >= 0.2) {
       prScore = 7
@@ -605,7 +605,10 @@ function computeMaintenanceAssessment(input: {
   }
 
   if (input.hasPrSignal) {
-    reasons.push(`PR merge rate is ${Math.round(input.prMergeRate * 100)}%${input.avgPrMergeDays !== null ? ` with a ${Math.round(input.avgPrMergeDays)} day median merge time` : ''}; ${input.stalePrCount} stale open PR${input.stalePrCount === 1 ? '' : 's'} were sampled.`)
+    const stalePrText = input.stalePrCount === null
+      ? 'stale open PR count is unknown'
+      : `${input.stalePrCount} stale open PR${input.stalePrCount === 1 ? '' : 's'}`
+    reasons.push(`PR merge rate is ${Math.round(input.prMergeRate * 100)}%${input.avgPrMergeDays !== null ? ` with a ${Math.round(input.avgPrMergeDays)} day median merge time` : ''}; ${stalePrText}.`)
   } else {
     reasons.push('PR activity is too sparse to score review throughput.')
   }
@@ -639,7 +642,7 @@ function computeMetrics(
   supplementalCommunityFiles: SupplementalCommunityFiles,
   commitStats: RecentCommitStats,
   releaseStats: ReleaseStats,
-  stalePrCount: number,
+  stalePrCount: number | null,
   workflowCount: number,
 ): RepoIntelMetrics {
   const now = new Date().toISOString()

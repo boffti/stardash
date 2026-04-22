@@ -467,8 +467,9 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
   const metrics = intel.metrics
   const topThreeShare = metrics.topThreeContributorShare
   const releaseCount = metrics.releases12mo ?? 0
-  const stalePrCount = metrics.stalePrCount ?? 0
-  const staleWorkCount = metrics.staleIssueCount + stalePrCount
+  const stalePrCount = metrics.stalePrCount
+  const stalePrCountKnown = stalePrCount !== undefined && stalePrCount !== null
+  const staleWorkCount = metrics.staleIssueCount + (stalePrCount ?? 0)
   const commits90d = metrics.commits90d ?? 0
   const concentrationLabel =
     topThreeShare === undefined ? "Unknown"
@@ -520,9 +521,9 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
           <EvidenceSignal
             icon={AlertCircle}
             label="Stale work"
-            value={`${staleWorkCount} items`}
-            detail={`${metrics.staleIssueCount} stale issues / ${stalePrCount} stale PRs`}
-            tone={toneForStaleWork(staleWorkCount)}
+            value={stalePrCountKnown ? `${staleWorkCount} items` : `${metrics.staleIssueCount}+ items`}
+            detail={`${metrics.staleIssueCount} stale issues / ${stalePrCountKnown ? stalePrCount : "unknown"} stale PRs`}
+            tone={stalePrCountKnown ? toneForStaleWork(staleWorkCount) : "neutral"}
           />
         </div>
 
