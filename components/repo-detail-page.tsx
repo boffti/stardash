@@ -10,6 +10,7 @@ import {
   ChevronLeft, AlertTriangle, Zap, RefreshCw, ChevronDown, ChevronUp,
   Bot, ArrowRight,
 } from "lucide-react"
+import Link from "next/link"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -1032,7 +1033,19 @@ export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPagePr
 
             {/* Right: Intel + Organize */}
             <div className="space-y-4 sticky top-6 self-start">
-              <SectionCard title="Intel" icon={Zap} collapsible defaultOpen>
+              <SectionCard
+                title="Intel"
+                icon={Zap}
+                collapsible
+                defaultOpen
+                action={
+                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" asChild onClick={e => e.stopPropagation()}>
+                    <Link href={`/intel/${repo.owner}/${repo.name}`}>
+                      <ExternalLink className="h-3 w-3" />Full report
+                    </Link>
+                  </Button>
+                }
+              >
                 <IntelSection owner={repo.owner} repoName={repo.name} />
               </SectionCard>
 

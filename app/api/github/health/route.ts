@@ -106,8 +106,8 @@ export async function GET(request: NextRequest) {
       throw snapshotsError
     }
 
-    // Calculate trending status for each repo
-    const trendingMap = new Map<number, boolean>()
+    type StarVelocityLabel = 'on-fire' | 'heating-up' | 'steady' | 'cooling'
+    interface StarVelocity { growth7d: number; growth30d: number; label: StarVelocityLabel }
 
     // Group snapshots by repo
     const snapshotsByRepo = new Map<number, { count: number; date: string }[]>()
@@ -121,17 +121,51 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Calculate if trending (doubled in 30 days)
-    for (const [repoId, repoSnapshots] of snapshotsByRepo) {
-      if (repoSnapshots.length >= 2) {
-        const oldest = repoSnapshots[0]
-        const newest = repoSnapshots[repoSnapshots.length - 1]
+    const trendingMap = new Map<number, boolean>()
+    const velocityMap = new Map<number, StarVelocity>()
 
-        // Check if doubled (and had at least 10 stars to avoid noise)
-        if (oldest.count >= 10 && newest.count >= oldest.count * 2) {
-          trendingMap.set(repoId, true)
+    for (const [repoId, repoSnapshots] of snapshotsByRepo) {
+      if (repoSnapshots.length < 2) continue
+
+      const oldest = repoSnapshots[0]
+      const newest = repoSnapshots[repoSnapshots.length - 1]
+
+      if (oldest.count < 10) continue
+
+      const growth30d = newest.count - oldest.count
+
+      const sevenDaysAgo = new Date(thirtyDaysAgo)
+      sevenDaysAgo.setDate(thirtyDaysAgo.getDate() + 23) // 30 - 7 = 23 days into the window
+
+      const sevenDaySnap = repoSnapshots
+        .filter(s => new Date(s.date) <= sevenDaysAgo)
+        .at(-1)
+
+      let label: StarVelocityLabel = 'steady'
+
+      if (sevenDaySnap) {
+        const growth7d = newest.count - sevenDaySnap.count
+        const daysInEarlierWindow = Math.max(
+          1,
+          (sevenDaysAgo.getTime() - new Date(oldest.date).getTime()) / (1000 * 60 * 60 * 24)
+        )
+        const spd7 = growth7d / 7
+        const spd8_30 = (sevenDaySnap.count - oldest.count) / daysInEarlierWindow
+
+        if (spd8_30 > 0) {
+          if (spd7 > spd8_30 * 3) label = 'on-fire'
+          else if (spd7 > spd8_30 * 1.5) label = 'heating-up'
+          else if (spd7 < spd8_30 * 0.5) label = 'cooling'
+        } else if (growth7d > 10) {
+          label = 'heating-up'
         }
+
+        velocityMap.set(repoId, { growth7d, growth30d, label })
+      } else {
+        velocityMap.set(repoId, { growth7d: 0, growth30d, label: 'steady' })
       }
+
+      trendingMap.set(repoId, label === 'on-fire' || label === 'heating-up')
     }
 
     // Fetch latest releases for each repo
@@ -146,7 +180,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Build response
-    const result: Record<string, { isTrending: boolean; latestRelease: ReleaseInfo | null }> = {}
+    const result: Record<string, {
+      isTrending: boolean
+      latestRelease: ReleaseInfo | null
+      starVelocity: StarVelocity | null
+    }> = {}
 
     for (const repo of repos) {
       const release = releaseMap.get(repo.github_repo_id)
@@ -161,6 +199,7 @@ export async function GET(request: NextRequest) {
       result[repo.github_repo_id] = {
         isTrending: trendingMap.get(repo.github_repo_id) || false,
         latestRelease: hasNewRelease ? (release ?? null) : null,
+        starVelocity: velocityMap.get(repo.github_repo_id) ?? null,
       }
     }
 

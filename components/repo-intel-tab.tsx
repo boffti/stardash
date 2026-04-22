@@ -5,10 +5,11 @@ import useSWR from "swr"
 import {
   AlertTriangle, AlertCircle, Loader2, RefreshCw, Zap,
   CheckCircle2, Activity, Clock, XCircle,
-  Heart, Minus,
+  Heart, Minus, ExternalLink,
   ShieldCheck, TrendingUp, FlaskConical,
   FileCode2, BookOpen, Shield,
 } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -522,22 +523,30 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           {data?.cached === false ? 'Fresh · ' : 'Cached · '}
           Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
         </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                variant="ghost" size="sm"
-                onClick={handleRefresh}
-                disabled={isIntelLimited}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <RefreshCw className="h-3 w-3" />
-                Refresh
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{intelTooltip}</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-1">
+          <Button asChild variant="ghost" size="sm" className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            <Link href={`/intel/${owner}/${name}`}>
+              <ExternalLink className="h-3 w-3" />
+              Full report
+            </Link>
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={handleRefresh}
+                  disabled={isIntelLimited}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Refresh
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{intelTooltip}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
     </div>

@@ -131,6 +131,13 @@ export interface RepoIntelMetrics {
   }
 }
 
+export interface IntelSubScores {
+  maintenance: number  // 0–100
+  activity: number     // 0–100
+  community: number    // 0–100
+  trust: number        // 0–100 (100 = low risk / high trust)
+}
+
 export interface RepoIntel {
   id: string
   repoFullName: string

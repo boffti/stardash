@@ -22,7 +22,11 @@ import {
   TrendingDown,
   Zap,
   AlertTriangle,
+  Wrench,
+  Shield,
 } from "lucide-react"
+import Link from "next/link"
+import { computeSubScores } from "@/lib/intel-sub-scores"
 import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -30,9 +34,11 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { RepoDetailPanel } from "@/components/repo-detail-panel"
 import { ReadmeViewer } from "@/components/readme-viewer"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -186,7 +192,7 @@ function IntelMetric({ icon: Icon, label, value, detail, toneClass }: {
   toneClass?: string
 }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border/50 bg-muted/15 px-3 py-2">
+    <div className="min-w-0 rounded-md border border-border/50 bg-muted/15 px-3 py-2">
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <Icon className={cn("h-3 w-3 shrink-0", toneClass)} />
         <span className="truncate">{label}</span>
@@ -206,46 +212,134 @@ function StatPill({ icon: Icon, value, label, colorClass }: {
   colorClass: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-xl border border-border/50 bg-card/60 px-4 py-3 text-center">
-      <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", colorClass)}>
-        <Icon className="h-4 w-4" />
+    <div className="rounded-lg border border-border/60 bg-card">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md", colorClass)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-lg font-semibold tabular-nums leading-none text-foreground">{value}</div>
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">{label}</div>
+        </div>
       </div>
-      <div className="text-xl font-bold tabular-nums text-foreground">{value}</div>
-      <div className="text-[11px] leading-tight text-muted-foreground">{label}</div>
     </div>
   )
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
-      <div className="relative">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/20">
-          <Brain className="h-7 w-7 text-muted-foreground/40" />
+    <Empty className="min-h-80 border border-border/60 bg-card">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Brain />
+        </EmptyMedia>
+        <EmptyTitle>No intel collected yet</EmptyTitle>
+        <EmptyDescription>
+          Open a repository, run an Intel analysis, and your reports will appear here.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard">
+            <Zap className="h-3.5 w-3.5" />
+            Dashboard
+          </Link>
+        </Button>
+      </EmptyContent>
+    </Empty>
+  )
+}
+
+function NoFilteredResults({ onClear }: { onClear: () => void }) {
+  return (
+    <Empty className="min-h-64 border border-border/60 bg-card">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Search />
+        </EmptyMedia>
+        <EmptyTitle>No matching reports</EmptyTitle>
+        <EmptyDescription>
+          No repositories match the current Intel filters.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button variant="outline" size="sm" onClick={onClear}>
+          Clear filters
+        </Button>
+      </EmptyContent>
+    </Empty>
+  )
+}
+
+function IntelSectionCard({
+  title,
+  icon: Icon,
+  children,
+  action,
+}: {
+  title: string
+  icon: React.ElementType
+  children: React.ReactNode
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
+      <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm font-medium">{title}</span>
         </div>
-        <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-muted/60 text-[10px] text-muted-foreground">
-          0
-        </div>
+        {action}
       </div>
-      <div className="space-y-1">
-        <h3 className="font-semibold tracking-tight text-foreground">No intel collected yet</h3>
-        <p className="max-w-xs text-sm text-muted-foreground">
-          Open any repo from your dashboard, click the <span className="font-medium text-foreground">Intel</span> tab, and run an AI analysis.
-        </p>
-      </div>
-      <Button asChild variant="outline" size="sm" className="gap-2">
-        <a href="/dashboard">
-          <Zap className="h-3.5 w-3.5" />
-          Go to Dashboard
-        </a>
-      </Button>
+      <div className="px-4 py-4">{children}</div>
     </div>
   )
 }
 
-function IntelCard({ intel, index, onOpenRepo }: {
+function IntelListSkeleton() {
+  return (
+    <IntelSectionCard title="Reports" icon={Brain}>
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-lg border border-border/60 bg-background/40 p-4">
+            <div className="flex gap-3">
+              <Skeleton className="size-12 rounded-full" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-44" />
+                    <Skeleton className="h-3 w-64 max-w-full" />
+                  </div>
+                  <Skeleton className="h-6 w-32" />
+                </div>
+                <Skeleton className="mt-4 h-4 w-full" />
+                <Skeleton className="mt-2 h-4 w-4/5" />
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <Skeleton key={j} className="h-14 rounded-md" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </IntelSectionCard>
+  )
+}
+
+function IntelErrorState() {
+  return (
+    <Alert variant="destructive">
+      <AlertCircle />
+      <AlertTitle>Failed to load intel</AlertTitle>
+      <AlertDescription>Please refresh and try again.</AlertDescription>
+    </Alert>
+  )
+}
+
+function IntelCard({ intel, onOpenRepo }: {
   intel: RepoIntel
-  index: number
   onOpenRepo: (repoFullName: string) => void
 }) {
   const [owner, repo] = intel.repoFullName.split("/")
@@ -270,17 +364,10 @@ function IntelCard({ intel, index, onOpenRepo }: {
     : undefined
 
   const painPoints = intel.topPainPoints ?? []
-  const animDelay = `${index * 60}ms`
 
   return (
-    <Card
-      className={cn(
-        "group overflow-hidden border-border bg-card py-0 transition-all duration-200",
-        "hover:border-muted-foreground/30 hover:bg-card/80",
-      )}
-      style={{ animationDelay: animDelay, animation: "fadeSlideIn 0.35s ease both" }}
-    >
-      <CardContent className="p-4">
+    <div className="group overflow-hidden rounded-lg border border-border/60 bg-card transition-colors hover:border-muted-foreground/30">
+      <div className="p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="flex min-w-0 flex-1 gap-3">
             <ScoreDial score={intel.healthScore} size={48} />
@@ -343,9 +430,46 @@ function IntelCard({ intel, index, onOpenRepo }: {
             )}
           </div>
 
-          <div className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground/60">
-            <Sparkles className="h-3 w-3" />
-            <span>Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}</span>
+          {/* Sub-scores row */}
+          {(() => {
+            const sub = computeSubScores(intel.metrics)
+            const subItems = [
+              { label: 'Maint', score: sub.maintenance, icon: Wrench },
+              { label: 'Activity', score: sub.activity, icon: Activity },
+              { label: 'Community', score: sub.community, icon: Users },
+              { label: 'Trust', score: sub.trust, icon: Shield },
+            ]
+            return (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                {subItems.map(({ label, score, icon: Icon }) => {
+                  const c = score >= 70 ? 'text-emerald-600 dark:text-emerald-400'
+                          : score >= 40 ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                  return (
+                    <div key={label} className="flex items-center gap-1 text-[11px]">
+                      <Icon className={cn("h-3 w-3", c)} />
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className={cn("font-semibold tabular-nums", c)}>{score}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+              <Sparkles className="h-3 w-3" />
+              <span>Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}</span>
+            </div>
+            <Link
+              href={`/intel/${owner}/${repo}`}
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              onClick={e => e.stopPropagation()}
+            >
+              Full report
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
         </div>
 
@@ -376,8 +500,8 @@ function IntelCard({ intel, index, onOpenRepo }: {
             </AccordionItem>
           </Accordion>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -928,17 +1052,9 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
           hideNavActions
         />
 
-        {/* Animation keyframes */}
-        <style>{`
-          @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-
         <main className="flex-1 p-6">
-          <section className="mb-8 space-y-4">
-            <div className="space-y-1">
+          <section className="mb-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-semibold tracking-tight">Repo Intel</h1>
               <p className="text-sm text-muted-foreground">AI-powered health briefs for your starred repos</p>
             </div>
@@ -968,68 +1084,55 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
             {isTokenExpired && <TokenExpiredBanner onReconnect={handleReconnect} />}
 
             {isLoading ? (
-              <div className="flex flex-col gap-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-36 animate-pulse rounded-2xl border border-border/40 bg-muted/15"
-                    style={{ animationDelay: `${i * 80}ms` }}
-                  />
-                ))}
-              </div>
+              <IntelListSkeleton />
             ) : error ? (
               <div className="flex flex-col gap-3">
                 {isTokenExpired ? (
                   allIntel.length === 0 ? (
                     <EmptyState />
                   ) : filtered.length === 0 ? (
-                    <div className="py-16 text-center">
-                      <p className="text-sm text-muted-foreground">No repos match your current filters.</p>
-                      <button
-                        onClick={() => { setSearch(""); setVerdictFilter("all") }}
-                        className="mt-2 text-xs text-primary hover:underline"
-                      >
-                        Clear filters
-                      </button>
-                    </div>
+                    <NoFilteredResults onClear={clearIntelFilters} />
                   ) : (
-                    <div className="flex flex-col gap-3">
-                      <p className="text-[11px] text-muted-foreground/70">
-                        Showing {filtered.length} of {allIntel.length} analyzed {allIntel.length === 1 ? "repo" : "repos"}
-                      </p>
-                      {filtered.map((intel, idx) => (
-                        <IntelCard key={intel.id} intel={intel} index={idx} onOpenRepo={handleOpenRepo} />
-                      ))}
-                    </div>
+                    <IntelSectionCard
+                      title="Reports"
+                      icon={Brain}
+                      action={
+                        <span className="text-[11px] text-muted-foreground">
+                          {filtered.length} of {allIntel.length}
+                        </span>
+                      }
+                    >
+                      <div className="flex flex-col gap-3">
+                        {filtered.map((intel) => (
+                          <IntelCard key={intel.id} intel={intel} onOpenRepo={handleOpenRepo} />
+                        ))}
+                      </div>
+                    </IntelSectionCard>
                   )
                 ) : (
-                  <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    Failed to load intel. Please refresh and try again.
-                  </div>
+                  <IntelErrorState />
                 )}
               </div>
             ) : allIntel.length === 0 ? (
               <EmptyState />
             ) : filtered.length === 0 ? (
-              <div className="py-16 text-center">
-                <p className="text-sm text-muted-foreground">No repos match your current filters.</p>
-                <button
-                  onClick={() => { setSearch(""); setVerdictFilter("all") }}
-                  className="mt-2 text-xs text-primary hover:underline"
-                >
-                  Clear filters
-                </button>
-              </div>
+              <NoFilteredResults onClear={clearIntelFilters} />
             ) : (
-              <div className="flex flex-col gap-3">
-                <p className="text-[11px] text-muted-foreground/70">
-                  Showing {filtered.length} of {allIntel.length} analyzed {allIntel.length === 1 ? "repo" : "repos"}
-                </p>
-                {filtered.map((intel, idx) => (
-                  <IntelCard key={intel.id} intel={intel} index={idx} onOpenRepo={handleOpenRepo} />
-                ))}
-              </div>
+              <IntelSectionCard
+                title="Reports"
+                icon={Brain}
+                action={
+                  <span className="text-[11px] text-muted-foreground">
+                    {filtered.length} of {allIntel.length} analyzed
+                  </span>
+                }
+              >
+                <div className="flex flex-col gap-3">
+                  {filtered.map((intel) => (
+                    <IntelCard key={intel.id} intel={intel} onOpenRepo={handleOpenRepo} />
+                  ))}
+                </div>
+              </IntelSectionCard>
             )}
           </div>
         </main>

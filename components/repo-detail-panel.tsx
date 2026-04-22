@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover"
+import Link from "next/link"
 import { RepoIntelTab } from "@/components/repo-intel-tab"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { StarredRepo, STATUS_LABELS, RepoStatus, Collection, Tag } from "@/lib/types"
@@ -266,30 +267,43 @@ export function RepoDetailPanel({
             </div>
 
             {/* Tab bar */}
-            <div className="mt-5 flex gap-1 p-1 rounded-lg bg-muted/40 border border-border/50">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={cn(
-                  "flex-1 text-xs font-medium py-1.5 rounded-md transition-all",
-                  activeTab === 'overview'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+            <div className="mt-5 flex items-center gap-2">
+              <div className="flex flex-1 gap-1 p-1 rounded-lg bg-muted/40 border border-border/50">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={cn(
+                    "flex-1 text-xs font-medium py-1.5 rounded-md transition-all",
+                    activeTab === 'overview'
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('intel')}
+                  className={cn(
+                    "flex-1 text-xs font-medium py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5",
+                    activeTab === 'intel'
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <span>⚡</span>
+                  Intel
+                </button>
+              </div>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 shrink-0 rounded-lg border border-border/50 bg-muted/40 p-0 text-muted-foreground hover:text-foreground"
+                title="Open full intel report"
               >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('intel')}
-                className={cn(
-                  "flex-1 text-xs font-medium py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5",
-                  activeTab === 'intel'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <span>⚡</span>
-                Intel
-              </button>
+                <Link href={`/intel/${repo.owner}/${repo.name}`}>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
             </div>
 
             {activeTab === 'intel' ? (

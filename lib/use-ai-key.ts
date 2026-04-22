@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 export type AIProvider = 'openrouter' | 'openai' | 'anthropic'
 
@@ -10,32 +10,57 @@ export interface AIKeyConfig {
 }
 
 const STORAGE_KEY = 'stardash-ai-key'
+const STORAGE_EVENT = 'stardash-ai-key-updated'
 
-function readFromStorage(): AIKeyConfig | null {
+let cachedRaw: string | null | undefined
+let cachedConfig: AIKeyConfig | null = null
+
+function parseStoredConfig(raw: string | null): AIKeyConfig | null {
+  if (!raw) return null
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
     return JSON.parse(raw) as AIKeyConfig
   } catch {
     return null
   }
 }
 
+function readFromStorage(): AIKeyConfig | null {
+  if (typeof window === 'undefined') return null
+
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (raw === cachedRaw) return cachedConfig
+
+  cachedRaw = raw
+  cachedConfig = parseStoredConfig(raw)
+  return cachedConfig
+}
+
+function subscribeToStorage(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange)
+  window.addEventListener(STORAGE_EVENT, onStoreChange)
+
+  return () => {
+    window.removeEventListener('storage', onStoreChange)
+    window.removeEventListener(STORAGE_EVENT, onStoreChange)
+  }
+}
+
+function emitStorageChange() {
+  window.dispatchEvent(new Event(STORAGE_EVENT))
+}
+
 export function useAIKey() {
-  const [config, setConfig] = useState<AIKeyConfig | null>(() => {
-    if (typeof window === 'undefined') return null
-    return readFromStorage()
-  })
+  const config = useSyncExternalStore(subscribeToStorage, readFromStorage, () => null)
 
   const save = useCallback((provider: AIProvider, key: string) => {
     const next: AIKeyConfig = { provider, key }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setConfig(next)
+    emitStorageChange()
   }, [])
 
   const clear = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
-    setConfig(null)
+    emitStorageChange()
   }, [])
 
   const getHeaders = useCallback((): Record<string, string> => {
