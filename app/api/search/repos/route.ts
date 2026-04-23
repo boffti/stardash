@@ -12,6 +12,7 @@ import {
   DISCOVER_SEARCH_CACHE_VERSION,
   normalizeDiscoverSearchQuery,
 } from '@/lib/search-cache'
+import { checkAndIncrementWeeklyLimit } from '@/lib/ai-weekly-limit'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 
 export const maxDuration = 60
@@ -181,6 +182,9 @@ async function getCachedDiscoverSearch({
   }
 }
 
+// Max unsaved search rows per user. Saved (pinned) searches are exempt.
+const MAX_CACHED_SEARCHES_PER_USER = 50
+
 async function saveDiscoverSearch({
   supabase,
   userId,
@@ -206,6 +210,22 @@ async function saveDiscoverSearch({
       .eq('normalized_query', normalizedQuery)
       .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
       .maybeSingle()
+
+    // If this is a brand-new query, check the per-user row cap before inserting.
+    // Existing rows (same normalized query) are always updated regardless of count.
+    if (!existing) {
+      const { count } = await supabase
+        .from('discover_searches')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
+
+      if ((count ?? 0) >= MAX_CACHED_SEARCHES_PER_USER) {
+        // Cap reached — skip persisting this new search to prevent unbounded growth.
+        console.info(`[search-cache] skipping save for user ${userId}: row cap (${MAX_CACHED_SEARCHES_PER_USER}) reached`)
+        return null
+      }
+    }
 
     const now = new Date().toISOString()
     const { data, error } = await supabase
@@ -507,6 +527,19 @@ function streamSearchPipeline({
           return
         }
 
+        // Enforce weekly/daily limit only when using system key (no cache hit above)
+        if (!modelConfig.isUserKey) {
+          const limitResult = await checkAndIncrementWeeklyLimit(user.id, 'search')
+          if (!limitResult.allowed) {
+            const msg = limitResult.limitType === 'daily'
+              ? 'Daily AI search limit reached. Try again tomorrow.'
+              : 'Weekly AI search limit reached. Try again next week.'
+            emit({ type: 'error', error: msg, elapsedMs: elapsedSince(startedAt) })
+            controller.close()
+            return
+          }
+        }
+
         const pipelineEvents: SearchPipelineEvent[] = []
         const emitAndCollect: EmitSearchPipelineEvent = (event) => {
           pipelineEvents.push(event)
@@ -583,6 +616,20 @@ export async function POST(request: Request) {
         cached: true,
         cachedAt: cached.cached_at,
       })
+    }
+
+    // Enforce weekly/daily limit only when using system key (cache hits are always free)
+    if (!modelConfig.isUserKey) {
+      const limitResult = await checkAndIncrementWeeklyLimit(user.id, 'search')
+      if (!limitResult.allowed) {
+        const msg = limitResult.limitType === 'daily'
+          ? 'Daily AI search limit reached. Try again tomorrow.'
+          : 'Weekly AI search limit reached. Try again next week.'
+        return NextResponse.json(
+          { error: msg, remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
+          { status: 429 },
+        )
+      }
     }
 
     const pipelineEvents: SearchPipelineEvent[] = []

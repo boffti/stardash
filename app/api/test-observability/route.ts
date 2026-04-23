@@ -1,12 +1,15 @@
 import * as Sentry from "@sentry/nextjs";
 import { Langfuse } from "langfuse";
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
+// This endpoint fires live Sentry events and Langfuse traces.
+// Guard it with CRON_SECRET so it is never callable from the public browser —
+// use `curl -H "Authorization: Bearer <CRON_SECRET>" <url>` for local testing.
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   // 1. Send a test event to Sentry

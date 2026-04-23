@@ -49,8 +49,11 @@ export async function POST(request: Request) {
     if (!modelConfig.isUserKey) {
       limitResult = await checkAndIncrementWeeklyLimit(user.id, 'brief')
       if (!limitResult.allowed) {
+        const msg = limitResult.limitType === 'daily'
+          ? 'Daily AI brief limit reached. Try again tomorrow.'
+          : 'Weekly AI brief limit reached. Try again next week.'
         return NextResponse.json(
-          { error: 'Weekly AI brief limit reached', remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
+          { error: msg, remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
           { status: 429 },
         )
       }

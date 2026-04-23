@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
+
+// 60 issue fetches per user per minute — generous for normal use but blocks
+// automated scraping that would exhaust the GitHub API quota.
+const ISSUE_RATE_LIMIT = 60
+const ISSUE_RATE_WINDOW_MS = 60_000
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +27,14 @@ export async function GET(request: NextRequest) {
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const rl = checkRateLimit(`${user.id}:issue`, ISSUE_RATE_LIMIT, ISSUE_RATE_WINDOW_MS)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many issue requests. Please slow down.' },
+        { status: 429, headers: getRateLimitHeaders(rl) },
+      )
     }
 
     const tokenResult = await getValidGitHubToken()
@@ -55,13 +69,16 @@ export async function GET(request: NextRequest) {
       comments: number
     }
 
-    return NextResponse.json({
-      body: issue.body,
-      author: issue.user?.login ?? null,
-      authorAvatar: issue.user?.avatar_url ?? null,
-      createdAt: issue.created_at,
-      comments: issue.comments,
-    })
+    return NextResponse.json(
+      {
+        body: issue.body,
+        author: issue.user?.login ?? null,
+        authorAvatar: issue.user?.avatar_url ?? null,
+        createdAt: issue.created_at,
+        comments: issue.comments,
+      },
+      { headers: getRateLimitHeaders(rl) },
+    )
   } catch {
     return NextResponse.json({ error: 'Failed to fetch issue' }, { status: 500 })
   }

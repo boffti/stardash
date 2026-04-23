@@ -371,7 +371,7 @@ function BriefPanel({
   )
 }
 
-async function scanRepo(repo: StarredRepo, force = false): Promise<OpportunitiesResponse> {
+async function scanRepo(repo: StarredRepo): Promise<OpportunitiesResponse> {
   const response = await fetch("/api/github/contribution-opportunities", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -380,7 +380,6 @@ async function scanRepo(repo: StarredRepo, force = false): Promise<Opportunities
       maxRepos: 5,
       maxIssuesPerRepo: 500,
       minScore: 0,
-      force,
       preferences: {
         languages: repo.language ? [repo.language] : [],
         difficulty: "all",
@@ -480,7 +479,7 @@ export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContr
 
   const handleScanAgain = async () => {
     if (!repo) return
-    const result = await scanRepo(repo, true)
+    const result = await scanRepo(repo)
     writeCachedRepoScan(userId, fullName, result)
     await mutate(result, { revalidate: false })
   }
