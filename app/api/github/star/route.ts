@@ -4,6 +4,11 @@ import { getValidGitHubToken } from '@/lib/tokens'
 import { starRepo, unstarRepo } from '@/lib/github'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
+import { checkRateLimit } from '@/lib/rate-limit'
+
+// Max 10 star/unstar actions per user per minute to protect GitHub API quota
+const STAR_RATE_LIMIT = 10
+const STAR_RATE_WINDOW_MS = 60_000
 
 export async function POST(request: Request) {
   try {
@@ -11,6 +16,14 @@ export async function POST(request: Request) {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const rl = checkRateLimit(`${user.id}:star`, STAR_RATE_LIMIT, STAR_RATE_WINDOW_MS)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many star/unstar requests. Please slow down.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+      )
     }
 
     const { owner, repo, githubRepoId, collectionIds, tagIds } = await request.json()
@@ -73,6 +86,14 @@ export async function DELETE(request: Request) {
 
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const rl = checkRateLimit(`${user.id}:star`, STAR_RATE_LIMIT, STAR_RATE_WINDOW_MS)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many star/unstar requests. Please slow down.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+      )
     }
 
     const { owner, repo, githubRepoId } = await request.json()

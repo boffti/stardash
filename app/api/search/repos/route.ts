@@ -182,6 +182,9 @@ async function getCachedDiscoverSearch({
   }
 }
 
+// Max unsaved search rows per user. Saved (pinned) searches are exempt.
+const MAX_CACHED_SEARCHES_PER_USER = 50
+
 async function saveDiscoverSearch({
   supabase,
   userId,
@@ -207,6 +210,22 @@ async function saveDiscoverSearch({
       .eq('normalized_query', normalizedQuery)
       .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
       .maybeSingle()
+
+    // If this is a brand-new query, check the per-user row cap before inserting.
+    // Existing rows (same normalized query) are always updated regardless of count.
+    if (!existing) {
+      const { count } = await supabase
+        .from('discover_searches')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
+
+      if ((count ?? 0) >= MAX_CACHED_SEARCHES_PER_USER) {
+        // Cap reached — skip persisting this new search to prevent unbounded growth.
+        console.info(`[search-cache] skipping save for user ${userId}: row cap (${MAX_CACHED_SEARCHES_PER_USER}) reached`)
+        return null
+      }
+    }
 
     const now = new Date().toISOString()
     const { data, error } = await supabase

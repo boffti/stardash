@@ -3,6 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchRepoReadme } from '@/lib/github'
 import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+
+// Only uncached (first-time) README fetches count toward this limit.
+// 50 live GitHub fetches per user per hour is generous for manual browsing
+// but prevents a user with 5,000 repos from triggering 5,000 API calls in a burst.
+const README_RATE_LIMIT = 50
+const README_RATE_WINDOW_MS = 60 * 60_000 // 1 hour
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,6 +56,15 @@ export async function GET(request: NextRequest) {
 
     if (cachedRepo?.readme) {
       return NextResponse.json({ readme: cachedRepo.readme })
+    }
+
+    // Cache miss — this will hit the GitHub API. Apply per-user rate limit.
+    const rl = checkRateLimit(`${user.id}:readme`, README_RATE_LIMIT, README_RATE_WINDOW_MS)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { readme: null, error: 'README fetch limit reached. Try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+      )
     }
 
     const tokenResult = await getValidGitHubToken()

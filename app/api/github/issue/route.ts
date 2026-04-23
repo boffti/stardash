@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+
+// 60 issue fetches per user per minute — generous for normal use but blocks
+// automated scraping that would exhaust the GitHub API quota.
+const ISSUE_RATE_LIMIT = 60
+const ISSUE_RATE_WINDOW_MS = 60_000
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +27,14 @@ export async function GET(request: NextRequest) {
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const rl = checkRateLimit(`${user.id}:issue`, ISSUE_RATE_LIMIT, ISSUE_RATE_WINDOW_MS)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many issue requests. Please slow down.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+      )
     }
 
     const tokenResult = await getValidGitHubToken()
