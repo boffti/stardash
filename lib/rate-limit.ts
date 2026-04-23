@@ -15,8 +15,24 @@ const store = new Map<string, Entry>()
 
 export interface RateLimitResult {
   allowed: boolean
+  limit: number
   remaining: number
   retryAfterSeconds: number
+}
+
+/**
+ * Returns standard rate-limit headers for inclusion in API responses.
+ * Add to both 200 (allowed) and 429 (denied) responses for consistency.
+ */
+export function getRateLimitHeaders(rl: RateLimitResult): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': String(rl.limit),
+    'X-RateLimit-Remaining': String(rl.remaining),
+  }
+  if (!rl.allowed) {
+    headers['Retry-After'] = String(rl.retryAfterSeconds)
+  }
+  return headers
 }
 
 /**
@@ -38,12 +54,20 @@ export function checkRateLimit(
   // Drop timestamps outside the current window
   const recent = entry.timestamps.filter((t) => t > windowStart)
 
+  // Evict fully-expired entries on access to limit Map growth.
+  // Keys for users who stop making requests will linger until the next access;
+  // for truly dormant keys the Map is bounded by serverless instance lifetime.
+  if (recent.length === 0 && store.has(key)) {
+    store.delete(key)
+  }
+
   if (recent.length >= maxRequests) {
     // Earliest timestamp in the window determines when quota refills
     const retryAfterMs = recent[0] + windowMs - now
     store.set(key, { timestamps: recent })
     return {
       allowed: false,
+      limit: maxRequests,
       remaining: 0,
       retryAfterSeconds: Math.ceil(retryAfterMs / 1000),
     }
@@ -54,6 +78,7 @@ export function checkRateLimit(
 
   return {
     allowed: true,
+    limit: maxRequests,
     remaining: maxRequests - recent.length,
     retryAfterSeconds: 0,
   }

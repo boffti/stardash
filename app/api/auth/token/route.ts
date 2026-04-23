@@ -50,10 +50,14 @@ export async function GET() {
       )
     }
 
-    // Return cached validation result if still fresh (avoids a GitHub API call)
+    // Return cached validation result if still fresh (avoids a GitHub API call).
+    // Delete expired entries on read so they don't linger indefinitely.
     const cached = validationCache.get(user.id)
-    if (cached && Date.now() < cached.expiresAt) {
-      return NextResponse.json({ valid: true, source: cached.source, cached: true })
+    if (cached) {
+      if (Date.now() < cached.expiresAt) {
+        return NextResponse.json({ valid: true, source: cached.source, cached: true })
+      }
+      validationCache.delete(user.id)
     }
 
     const githubResponse = await fetch('https://api.github.com/user', {

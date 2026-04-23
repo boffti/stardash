@@ -107,14 +107,23 @@ export async function POST(request: Request) {
         )
       }
 
-      // Increment single-repo scan counter
-      await adminSupabase
+      // Increment single-repo scan counter — fail closed so a DB error never
+      // silently bypasses the daily cap and allows an uncounted scan.
+      const { error: counterError } = await adminSupabase
         .from('profiles')
         .update({
           single_repo_scan_day_start: isNewDay ? new Date(now).toISOString() : profile!.single_repo_scan_day_start,
           single_repo_scan_day_count: dayCount + 1,
         })
         .eq('id', user.id)
+
+      if (counterError) {
+        console.error('[contribution-opportunities] failed to increment scan counter:', counterError)
+        return NextResponse.json(
+          { error: 'Failed to record scan. Please try again.' },
+          { status: 500 },
+        )
+      }
     } else {
       // ── 5-minute cooldown for broad (multi-repo) scans ────────────────────
       if (profile?.last_contribution_scan_at) {

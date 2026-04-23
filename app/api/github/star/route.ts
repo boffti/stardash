@@ -4,7 +4,7 @@ import { getValidGitHubToken } from '@/lib/tokens'
 import { starRepo, unstarRepo } from '@/lib/github'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 
 // Max 10 star/unstar actions per user per minute to protect GitHub API quota
 const STAR_RATE_LIMIT = 10
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (!rl.allowed) {
       return NextResponse.json(
         { error: 'Too many star/unstar requests. Please slow down.' },
-        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+        { status: 429, headers: getRateLimitHeaders(rl) },
       )
     }
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: getRateLimitHeaders(rl) })
   } catch (err) {
     Sentry.captureException(err)
     console.error('Star error:', err)
@@ -92,7 +92,7 @@ export async function DELETE(request: Request) {
     if (!rl.allowed) {
       return NextResponse.json(
         { error: 'Too many star/unstar requests. Please slow down.' },
-        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+        { status: 429, headers: getRateLimitHeaders(rl) },
       )
     }
 
@@ -144,7 +144,7 @@ export async function DELETE(request: Request) {
         .eq('id', userRepoRow.id)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: getRateLimitHeaders(rl) })
   } catch (err) {
     Sentry.captureException(err)
     console.error('Unstar error:', err)

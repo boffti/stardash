@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchRepoReadme } from '@/lib/github'
 import { getValidGitHubToken } from '@/lib/tokens'
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 
 // Only uncached (first-time) README fetches count toward this limit.
 // 50 live GitHub fetches per user per hour is generous for manual browsing
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     if (!rl.allowed) {
       return NextResponse.json(
         { readme: null, error: 'README fetch limit reached. Try again later.' },
-        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } },
+        { status: 429, headers: getRateLimitHeaders(rl) },
       )
     }
 
@@ -96,10 +96,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      readme: result.content,
-      error: result.error === 'server' ? 'Failed to fetch README' : undefined,
-    })
+    return NextResponse.json(
+      { readme: result.content, error: result.error === 'server' ? 'Failed to fetch README' : undefined },
+      { headers: getRateLimitHeaders(rl) },
+    )
   } catch (error) {
     console.error('[github/readme] error:', error)
     return NextResponse.json(
