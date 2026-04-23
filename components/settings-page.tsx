@@ -2,7 +2,6 @@
 
 import { type ReactNode, useMemo, useState } from "react"
 import useSWR from "swr"
-import type { User } from "@supabase/supabase-js"
 import { FolderOpen, Layers3, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -40,10 +39,7 @@ import { AppPageHeader } from "@/components/app-page-header"
 import { Separator } from "@/components/ui/separator"
 import { AIKeySettings } from "@/components/ai-key-settings"
 import { cn } from "@/lib/utils"
-
-interface SettingsPageProps {
-  user: User
-}
+import { useUser } from "@/components/providers/user-provider"
 
 const TAG_PALETTE = [
   "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ec4899",
@@ -396,7 +392,8 @@ function TagEditor({
   )
 }
 
-export function SettingsPage({ user }: SettingsPageProps) {
+export function SettingsPage() {
+  const { user } = useUser()
   const supabase = createClient()
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false)
   const [createTagOpen, setCreateTagOpen] = useState(false)
@@ -489,7 +486,6 @@ export function SettingsPage({ user }: SettingsPageProps) {
         <SidebarInset className="overflow-x-hidden">
           <AppPageHeader
             lastSynced={null}
-            user={user}
             hideNavActions
             actions={
               <>

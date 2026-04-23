@@ -12,7 +12,6 @@ import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
-import type { User } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
 import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, List, StarOff, LogIn, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -41,6 +40,7 @@ import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Colle
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
+import { useUser } from "@/components/providers/user-provider"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { useAIKey } from "@/lib/use-ai-key"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
@@ -56,14 +56,11 @@ import {
   useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core"
 
-interface DashboardProps {
-  user: User | null
-}
-
 const VIEW_MODE_KEY = "stardash_view_mode"
 const MAX_HEALTH_REPOS_PER_VIEW = 50
 
-export function Dashboard({ user }: DashboardProps) {
+export function Dashboard() {
+  const { user, reauthenticate } = useUser()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -471,10 +468,7 @@ export function Dashboard({ user }: DashboardProps) {
   }
 
   const handleReconnect = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-    router.refresh()
+    await reauthenticate()
   }
 
   const isTokenExpired = Boolean(
@@ -837,7 +831,6 @@ export function Dashboard({ user }: DashboardProps) {
           onHealthFilterChange={setHealthFilter}
           languages={languages}
           lastSynced={lastSynced}
-          user={user}
           onRefresh={isTokenExpired ? undefined : () => handleRefresh("dashboard-navbar-refresh")}
           isRefreshing={isRefreshing || isLoading}
           onCategorize={handleCategorize}

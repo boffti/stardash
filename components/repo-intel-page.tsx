@@ -11,7 +11,6 @@ import {
   BookOpen, FileCode2, ShieldCheck, Sparkles,
   Star, GitFork, Scale, Globe, GitCommit, GitPullRequest,
 } from "lucide-react"
-import type { User } from "@supabase/supabase-js"
 import type { RepoIntel, StarredRepo, UserMetadata } from "@/lib/types"
 import { STATUS_LABELS } from "@/lib/types"
 import { computeSubScores } from "@/lib/intel-sub-scores"
@@ -26,13 +25,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { useUser } from "@/components/providers/user-provider"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Props {
   owner: string
   repo: string
-  user: User | null
 }
 
 type StarVelocityLabel = 'on-fire' | 'heating-up' | 'steady' | 'cooling'
@@ -557,7 +556,8 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function RepoIntelPage({ owner, repo, user }: Props) {
+export function RepoIntelPage({ owner, repo }: Props) {
+  const { user } = useUser()
   const [refreshKey, setRefreshKey] = useState(0)
   const [intelCacheHydrated, setIntelCacheHydrated] = useState(false)
   const [localIntelData, setLocalIntelData] = useState<RepoIntelResponse | null>(null)
@@ -721,7 +721,6 @@ export function RepoIntelPage({ owner, repo, user }: Props) {
       <SidebarInset>
         <AppPageHeader
           lastSynced={null}
-          user={user}
           hideNavActions
           actions={
             <>

@@ -21,7 +21,6 @@ import {
   Star,
   X,
 } from "lucide-react"
-import type { User } from "@supabase/supabase-js"
 import { AppSidebar } from "@/components/app-sidebar"
 import { IssueViewer } from "@/components/issue-viewer"
 import { GitHubIcon } from "@/components/icons/github-icon"
@@ -44,9 +43,9 @@ import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { LANGUAGE_COLORS } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
+import { useUser } from "@/components/providers/user-provider"
 
 interface RepoContributionsPageProps {
-  user: User | null
   owner: string
   repo: string
 }
@@ -392,7 +391,8 @@ async function scanRepo(repo: StarredRepo): Promise<OpportunitiesResponse> {
   return result
 }
 
-export function RepoContributionsPage({ user, owner, repo: repoName }: RepoContributionsPageProps) {
+export function RepoContributionsPage({ owner, repo: repoName }: RepoContributionsPageProps) {
+  const { user } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
   const autoBriefId = searchParams.get("brief")

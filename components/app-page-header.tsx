@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic"
 import React, { useState } from "react"
 import { Menu, RefreshCw, Search, Sparkles, User as UserIcon } from "lucide-react"
-import type { User } from "@supabase/supabase-js"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -34,7 +33,6 @@ interface AppPageHeaderProps {
   mobileControls?: React.ReactNode
   actions?: React.ReactNode
   lastSynced: string | null
-  user: User | null
   onCategorize?: () => void
   isCategorizing?: boolean
   categorizeLimit?: { remaining: number | null; nextAllowedAt: string | null }
@@ -52,7 +50,6 @@ export function AppPageHeader({
   mobileControls,
   actions,
   lastSynced,
-  user,
   onCategorize,
   isCategorizing = false,
   categorizeLimit,
@@ -175,7 +172,7 @@ export function AppPageHeader({
               </button>
             </>
           )}
-          <UserMenu user={user} lastSynced={lastSynced} />
+          <UserMenu lastSynced={lastSynced} />
         </div>
       </header>
 

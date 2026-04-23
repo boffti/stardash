@@ -2,13 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { useRouter } from "next/navigation"
 import { useAIKey } from "@/lib/use-ai-key"
-import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatDistanceToNow } from "date-fns"
-import type { User } from "@supabase/supabase-js"
 import {
   AlertCircle,
   Bot,
@@ -64,10 +61,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-
-interface ContributionDashboardProps {
-  user: User | null
-}
+import { useUser } from "@/components/providers/user-provider"
 
 interface OpportunitiesResponse {
   opportunities: ContributionOpportunity[]
@@ -433,8 +427,8 @@ function OpportunityCard({
   )
 }
 
-export function ContributionDashboard({ user }: ContributionDashboardProps) {
-  const router = useRouter()
+export function ContributionDashboard() {
+  const { user, reauthenticate } = useUser()
   const { data, error, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
@@ -613,10 +607,7 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
   }
 
   const handleReconnect = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-    router.refresh()
+    await reauthenticate()
   }
 
   const isTokenExpired = Boolean(
@@ -731,7 +722,6 @@ export function ContributionDashboard({ user }: ContributionDashboardProps) {
       <SidebarInset className="overflow-x-hidden">
         <AppPageHeader
           lastSynced={lastSynced}
-          user={user}
           onRefresh={isTokenExpired ? undefined : handleRefreshRepos}
           isRefreshing={isRefreshing}
           searchLabel="Search opportunities..."
