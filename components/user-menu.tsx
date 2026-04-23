@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -20,10 +18,9 @@ import {
   DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { useUser } from '@/components/providers/user-provider'
 
 interface UserMenuProps {
-  user: SupabaseUser | null
   lastSynced?: string | null
 }
 
@@ -48,22 +45,15 @@ function formatCompactSyncLabel(lastSynced: string) {
     .replace('almost ', '~')
 }
 
-export function UserMenu({ user, lastSynced }: UserMenuProps) {
+export function UserMenu({ lastSynced }: UserMenuProps) {
+  const { user, signOut } = useUser()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const router = useRouter()
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
-
-  const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
 
   const username = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || 'User'
   const avatarUrl = user?.user_metadata?.avatar_url
@@ -151,7 +141,7 @@ export function UserMenu({ user, lastSynced }: UserMenuProps) {
           </DropdownMenuPortal>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+        <DropdownMenuItem onClick={signOut} className="text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           Sign Out
         </DropdownMenuItem>

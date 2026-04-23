@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
-import type { User } from "@supabase/supabase-js"
 import {
   History,
   RefreshCw,
@@ -23,12 +22,10 @@ import { useRecentlyViewed, trackRecentlyViewedRepo } from "@/lib/recently-viewe
 import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { AppPageHeader } from "@/components/app-page-header"
 import { RepoCommandPalette } from "@/components/repo-command-palette"
+import { useUser } from "@/components/providers/user-provider"
 
-interface RecentlyViewedDashboardProps {
-  user: User | null
-}
-
-export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) {
+export function RecentlyViewedDashboard() {
+  const { user } = useUser()
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
@@ -159,7 +156,6 @@ export function RecentlyViewedDashboard({ user }: RecentlyViewedDashboardProps) 
           searchLabel="Search recently viewed repos"
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           lastSynced={lastSynced}
-          user={user}
           onRefresh={() => handleRefresh("recently-viewed-navbar-refresh")}
           isRefreshing={isRefreshing}
         />

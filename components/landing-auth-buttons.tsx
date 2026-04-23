@@ -17,7 +17,7 @@ export function LandingAuthButtons() {
       provider: 'github',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: 'read:user user:email',
+        scopes: 'read:user user:email public_repo read:org notifications',
       },
     })
     // OAuth redirect takes over; reset in case it fails

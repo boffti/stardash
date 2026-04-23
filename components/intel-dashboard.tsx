@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
-import type { User } from "@supabase/supabase-js"
 import {
   Brain,
   Clock,
@@ -27,7 +25,6 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { computeSubScores } from "@/lib/intel-sub-scores"
-import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -75,10 +72,7 @@ import { useStarredRepos } from "@/lib/use-starred-repos"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import type { RepoIntel, StarredRepo, UserMetadata } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-interface IntelDashboardProps {
-  user: User | null
-}
+import { useUser } from "@/components/providers/user-provider"
 
 type SortField = "health_score" | "analyzed_at" | "name"
 type SortDir = "asc" | "desc"
@@ -786,8 +780,8 @@ function IntelCommandPalette({
   )
 }
 
-export function IntelDashboard({ user }: IntelDashboardProps) {
-  const router = useRouter()
+export function IntelDashboard() {
+  const { user, reauthenticate } = useUser()
   const [sortField, setSortField] = useState<SortField>("health_score")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>("all")
@@ -865,10 +859,7 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
   }
 
   const handleReconnect = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-    router.refresh()
+    await reauthenticate()
   }
 
   const isTokenExpired = Boolean(
@@ -1047,7 +1038,6 @@ export function IntelDashboard({ user }: IntelDashboardProps) {
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           desktopControls={filterControls}
           mobileControls={mobileFilterControls}
-          user={user}
           lastSynced={null}
           hideNavActions
         />

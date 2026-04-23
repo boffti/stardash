@@ -64,6 +64,14 @@ export async function signOut() {
   redirect('/')
 }
 
+export async function reauthenticate() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  const cookieStore = await cookies()
+  cookieStore.delete(GH_TOKEN_COOKIE)
+  redirect('/auth/login')
+}
+
 export async function requireAuth() {
   const user = await getUser()
 

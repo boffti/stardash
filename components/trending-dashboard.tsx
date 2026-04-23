@@ -2,17 +2,14 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
-import { useRouter } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { TrendingSection } from "./trending-section"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { TrendingEmptyState } from "./trending-empty-state"
-import type { User } from "@supabase/supabase-js"
 import { Loader2, AlertCircle, RefreshCw, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { formatDistanceToNow } from "date-fns"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
@@ -22,13 +19,10 @@ import { useStarredRepos } from "@/lib/use-starred-repos"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import { AppPageHeader } from "@/components/app-page-header"
 import { RepoCommandPalette } from "@/components/repo-command-palette"
+import { useUser } from "@/components/providers/user-provider"
 
-interface TrendingDashboardProps {
-  user: User | null
-}
-
-export function TrendingDashboard({ user }: TrendingDashboardProps) {
-  const router = useRouter()
+export function TrendingDashboard() {
+  const { user, reauthenticate } = useUser()
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
@@ -101,10 +95,7 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
   }
 
   const handleReconnect = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-    router.refresh()
+    await reauthenticate()
   }
 
   const isTokenExpired = Boolean(
@@ -175,7 +166,6 @@ export function TrendingDashboard({ user }: TrendingDashboardProps) {
           searchLabel="Search trending repos and actions"
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           lastSynced={lastSynced}
-          user={user}
           onRefresh={isTokenExpired ? undefined : () => handleRefresh("trending-navbar-refresh")}
           isRefreshing={isRefreshing}
           hideNavActions

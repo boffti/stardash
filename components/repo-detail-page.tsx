@@ -40,11 +40,10 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import type { User } from "@supabase/supabase-js"
 import type { ContributionOpportunity } from "@/lib/contribution-opportunities"
+import { useUser } from "@/components/providers/user-provider"
 
 interface RepoDetailPageProps {
-  user: User | null
   owner: string
   repo: string
 }
@@ -603,7 +602,8 @@ function OrganizeSection({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export function RepoDetailPage({ user, owner, repo: repoName }: RepoDetailPageProps) {
+export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
+  const { user } = useUser()
   const router = useRouter()
   const supabase = createClient()
   const [copied, setCopied] = useState(false)

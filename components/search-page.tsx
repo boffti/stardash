@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react"
 import useSWR from "swr"
-import type { User } from "@supabase/supabase-js"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
@@ -25,12 +24,10 @@ import type { DiscoverSavedSearch } from "@/lib/search-cache"
 import type { UserMetadata } from "@/lib/types"
 import type { SearchPipelineEvent, SearchRepo } from "@/app/api/search/repos/route"
 import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
+import { useUser } from "@/components/providers/user-provider"
 
-interface SearchPageProps {
-  user: User | null
-}
-
-export function SearchPage({ user }: SearchPageProps) {
+export function SearchPage() {
+  const { user } = useUser()
   const [searchResults, setSearchResults] = useState<SearchRepo[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasResults, setHasResults] = useState(false)
@@ -273,7 +270,6 @@ export function SearchPage({ user }: SearchPageProps) {
       />
       <SidebarInset>
         <AppPageHeader
-          user={user}
           lastSynced={null}
           hideNavActions
         />

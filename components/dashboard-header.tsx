@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { User } from "@supabase/supabase-js"
 import { AppPageHeader } from "@/components/app-page-header"
 import type { RepoHealthFilter } from "@/lib/repo-health"
 
@@ -21,7 +20,6 @@ interface DashboardHeaderProps {
   onHealthFilterChange: (filter: RepoHealthFilter | null) => void
   languages: string[]
   lastSynced: string | null
-  user: User | null
   onRefresh?: () => void | Promise<unknown>
   isRefreshing?: boolean
   onCategorize?: () => void
@@ -40,7 +38,6 @@ export function DashboardHeader({
   onHealthFilterChange,
   languages,
   lastSynced,
-  user,
   onRefresh,
   isRefreshing = false,
   onCategorize,
@@ -159,7 +156,6 @@ export function DashboardHeader({
       desktopControls={filterControls}
       mobileControls={mobileFilterControls}
       lastSynced={lastSynced}
-      user={user}
       onCategorize={onCategorize}
       isCategorizing={isCategorizing}
       categorizeLimit={categorizeLimit}

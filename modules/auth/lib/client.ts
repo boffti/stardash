@@ -10,7 +10,7 @@ export async function signInWithGitHub() {
     provider: 'github',
     options: {
       redirectTo: `${window.location.origin}/auth/callback`,
-      scopes: 'read:user user:email',
+      scopes: 'read:user user:email public_repo read:org notifications',
     },
   })
   return { data, error }

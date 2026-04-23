@@ -158,7 +158,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                       provider: 'github',
                       options: {
                         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
-                        scopes: 'read:user user:email',
+                        scopes: 'read:user user:email public_repo read:org notifications',
                       },
                     })
                   }}
