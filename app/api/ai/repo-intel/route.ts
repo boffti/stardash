@@ -162,8 +162,11 @@ export async function GET(request: Request) {
             nextAllowedAt: limitResult.nextAllowedAt,
           })
         }
+        const msg = limitResult.limitType === 'daily'
+          ? 'Daily AI limit reached. Try again tomorrow.'
+          : 'Weekly AI limit reached. Try again next week.'
         return NextResponse.json(
-          { error: 'Weekly AI limit reached. Try again next week.', remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
+          { error: msg, remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
           { status: 429 }
         )
       }

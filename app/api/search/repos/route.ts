@@ -12,6 +12,7 @@ import {
   DISCOVER_SEARCH_CACHE_VERSION,
   normalizeDiscoverSearchQuery,
 } from '@/lib/search-cache'
+import { checkAndIncrementWeeklyLimit } from '@/lib/ai-weekly-limit'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 
 export const maxDuration = 60
@@ -507,6 +508,19 @@ function streamSearchPipeline({
           return
         }
 
+        // Enforce weekly/daily limit only when using system key (no cache hit above)
+        if (!modelConfig.isUserKey) {
+          const limitResult = await checkAndIncrementWeeklyLimit(user.id, 'search')
+          if (!limitResult.allowed) {
+            const msg = limitResult.limitType === 'daily'
+              ? 'Daily AI search limit reached. Try again tomorrow.'
+              : 'Weekly AI search limit reached. Try again next week.'
+            emit({ type: 'error', error: msg, elapsedMs: elapsedSince(startedAt) })
+            controller.close()
+            return
+          }
+        }
+
         const pipelineEvents: SearchPipelineEvent[] = []
         const emitAndCollect: EmitSearchPipelineEvent = (event) => {
           pipelineEvents.push(event)
@@ -583,6 +597,20 @@ export async function POST(request: Request) {
         cached: true,
         cachedAt: cached.cached_at,
       })
+    }
+
+    // Enforce weekly/daily limit only when using system key (cache hits are always free)
+    if (!modelConfig.isUserKey) {
+      const limitResult = await checkAndIncrementWeeklyLimit(user.id, 'search')
+      if (!limitResult.allowed) {
+        const msg = limitResult.limitType === 'daily'
+          ? 'Daily AI search limit reached. Try again tomorrow.'
+          : 'Weekly AI search limit reached. Try again next week.'
+        return NextResponse.json(
+          { error: msg, remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
+          { status: 429 },
+        )
+      }
     }
 
     const pipelineEvents: SearchPipelineEvent[] = []

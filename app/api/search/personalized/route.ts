@@ -6,6 +6,8 @@ import { after } from 'next/server'
 import { getValidGitHubToken } from '@/lib/tokens'
 import { getAIModel, getProviderOptions } from '@/lib/ai-provider'
 import { langfuseSpanProcessor } from '@/instrumentation'
+import { createClient } from '@/lib/supabase/server'
+import { checkAndUpdatePersonalizedSearchLimit } from '@/lib/ai-weekly-limit'
 import type { SearchRepo } from '../repos/route'
 
 export const maxDuration = 60
@@ -46,16 +48,37 @@ async function searchGitHub(query: string, token: string | null) {
 
 export async function POST(request: Request) {
   try {
+    // Auth check — this route uses the system AI key so must be authenticated
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { repos: repoSample } = await request.json() as { repos: RepoSample[] }
 
     if (!repoSample?.length) {
       return NextResponse.json({ themes: [] })
     }
 
+    const modelConfig = getAIModel(request)
+
+    // Enforce 24-hour cooldown per user when using system key
+    if (!modelConfig.isUserKey) {
+      const limitResult = await checkAndUpdatePersonalizedSearchLimit(user.id)
+      if (!limitResult.allowed) {
+        return NextResponse.json(
+          {
+            error: 'Personalized search is available once per day. Try again later.',
+            nextAllowedAt: limitResult.nextAllowedAt,
+          },
+          { status: 429 },
+        )
+      }
+    }
+
     // GitHub token is optional — degrade gracefully if missing
     const { token } = await getValidGitHubToken()
-
-    const modelConfig = getAIModel(request)
 
     const sample = repoSample.slice(0, 100)
     const sampleText = sample.map(r =>
