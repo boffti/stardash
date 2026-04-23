@@ -141,7 +141,7 @@ export function AppPageHeader({
                   ? "Analyzing…"
                   : isCategorizeLimited && categorizeLimit?.nextAllowedAt
                   ? `Used this week. Resets ${new Date(categorizeLimit.nextAllowedAt).toLocaleDateString()}`
-                  : "AI categorize (1× per week)"
+                  : "AI categorize"
                 return (
                   <Tooltip>
                     <TooltipTrigger asChild>
