@@ -67,7 +67,7 @@
     "framer-motion": "^12.38.0",
     "input-otp": "1.4.2",
     "langfuse": "^3.38.6",
-    "lucide-react": "^1.8.0",
+    "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
     "next": "16.2.3",
     "next-themes": "^0.4.6",
