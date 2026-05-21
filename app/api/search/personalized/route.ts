@@ -55,7 +55,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { repos: repoSample } = await request.json() as { repos: RepoSample[] }
+    const { repos: repoSample, starredIds: rawStarredIds } = await request.json() as {
+      repos: RepoSample[]
+      starredIds?: number[]
+    }
+
+    // Build a fast Set of starred GitHub repo IDs so we can filter them out of results
+    const starredIdSet = new Set<number>(Array.isArray(rawStarredIds) ? rawStarredIds : [])
 
     if (!repoSample?.length) {
       return NextResponse.json({ themes: [] })
@@ -107,34 +113,37 @@ Focus on genuinely useful adjacent tools, not obvious overlaps with what they al
     const themeResults = await Promise.all(
       themeSearch.themes.map(async theme => {
         const items = await searchGitHub(theme.searchQuery, token)
-        const repos: SearchRepo[] = items.map((item: {
-          id: number
-          full_name: string
-          name: string
-          owner: { login: string; avatar_url: string }
-          description: string | null
-          stargazers_count: number
-          forks_count: number
-          language: string | null
-          topics: string[]
-          pushed_at: string
-          html_url: string
-        }) => ({
-          id: item.id,
-          fullName: item.full_name,
-          name: item.name,
-          owner: item.owner.login,
-          avatarUrl: item.owner.avatar_url,
-          description: item.description,
-          stargazersCount: item.stargazers_count,
-          forksCount: item.forks_count,
-          language: item.language,
-          topics: item.topics ?? [],
-          pushedAt: item.pushed_at,
-          htmlUrl: item.html_url,
-          evidence: [],
-          relevanceScore: 0,
-        }))
+        const repos: SearchRepo[] = items
+          // Filter out repos the user has already starred
+          .filter((item: { id: number }) => !starredIdSet.has(item.id))
+          .map((item: {
+            id: number
+            full_name: string
+            name: string
+            owner: { login: string; avatar_url: string }
+            description: string | null
+            stargazers_count: number
+            forks_count: number
+            language: string | null
+            topics: string[]
+            pushed_at: string
+            html_url: string
+          }) => ({
+            id: item.id,
+            fullName: item.full_name,
+            name: item.name,
+            owner: item.owner.login,
+            avatarUrl: item.owner.avatar_url,
+            description: item.description,
+            stargazersCount: item.stargazers_count,
+            forksCount: item.forks_count,
+            language: item.language,
+            topics: item.topics ?? [],
+            pushedAt: item.pushed_at,
+            htmlUrl: item.html_url,
+            evidence: [],
+            relevanceScore: 0,
+          }))
         return {
           theme: theme.theme,
           description: theme.description,

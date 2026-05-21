@@ -115,10 +115,14 @@ export function SearchPage() {
     personalizingRef.current = true
     startTransition(() => setIsPersonalizing(true))
 
+    // Build an array of numeric GitHub repo IDs so the server can filter
+    // already-starred repos from personalized discovery results.
+    const starredIds = repos.map(r => parseInt(r.id, 10)).filter(id => !isNaN(id))
+
     fetch("/api/search/personalized", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getHeaders() },
-      body: JSON.stringify({ repos: sample }),
+      body: JSON.stringify({ repos: sample, starredIds }),
     })
       .then(async r => {
         const data = await r.json()
@@ -158,6 +162,34 @@ export function SearchPage() {
       }
     }
 
+    // Send a minimal star-data snapshot so the server can derive user context
+    // and a context hash. Only include fields the server actually reads —
+    // private user metadata (notes, tags, collections, isPinned) is omitted.
+    const starDataSnapshot = (starData?.repos ?? []).slice(0, 200).map(r => ({
+      id: r.id,
+      owner: r.owner,
+      name: r.name,
+      fullName: r.fullName,
+      description: r.description ?? "",
+      language: r.language,
+      topics: r.topics,
+      stargazersCount: r.stargazersCount,
+      forksCount: r.forksCount,
+      pushedAt: r.pushedAt,
+      starredAt: r.starredAt,
+      avatarUrl: r.avatarUrl,
+      status: r.status,
+      isPinned: false,
+      notes: "",
+      tags: [],
+      collections: [],
+      readme: null,
+      languageColor: null,
+      homepage: null,
+      license: null,
+      openIssuesCount: 0,
+    }))
+
     try {
       const res = await fetch("/api/search/repos", {
         method: "POST",
@@ -167,7 +199,7 @@ export function SearchPage() {
           "x-search-pipeline": "stream",
           ...getHeaders(),
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, starData: starDataSnapshot }),
       })
       if (!res.ok) {
         const data = await res.json()
