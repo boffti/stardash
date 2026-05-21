@@ -341,15 +341,15 @@ export function AppSidebar({
               <SidebarGroupContent>
                 <SidebarMenu>
                   {isLoading && collections.length === 0 && (
-                    <div className="space-y-1 px-2 py-1">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <SidebarMenuItem key={i}>
+                        <SidebarMenuButton disabled className="pointer-events-none">
                           <Skeleton className="h-4 w-4 rounded shrink-0" />
                           <Skeleton className="h-3 flex-1 rounded" />
                           <Skeleton className="h-4 w-5 rounded ml-auto" />
-                        </div>
-                      ))}
-                    </div>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))
                   )}
                   {!isLoading && collections.length === 0 && (
                     <CollectionsEmptyState onAICategorize={onAICategorize} />
@@ -420,14 +420,16 @@ export function AppSidebar({
             <CollapsibleContent>
               <SidebarGroupContent>
                 {isLoading && tags.length === 0 ? (
-                  <div className="space-y-1 px-2 py-1">
+                  <SidebarMenu>
                     {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-2 px-2 py-1.5">
-                        <Skeleton className="h-3 w-3 rounded-full shrink-0" />
-                        <Skeleton className="h-3 flex-1 rounded" style={{ width: `${50 + i * 10}%` }} />
-                      </div>
+                      <SidebarMenuItem key={i}>
+                        <SidebarMenuButton disabled className="pointer-events-none">
+                          <Skeleton className="h-3 w-3 rounded-full shrink-0" />
+                          <Skeleton className="h-3 rounded" style={{ width: `${50 + i * 10}%` }} />
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     ))}
-                  </div>
+                  </SidebarMenu>
                 ) : tags.length === 0 ? (
                   <TagsEmptyState />
                 ) : (
