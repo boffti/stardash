@@ -116,7 +116,19 @@ async function ghGet<T>(path: string, token: string | undefined, fallbackOn404?:
   const res = await fetch(`${GITHUB_API}${path}`, { headers: HEADERS(token) })
   if (!res.ok) {
     if (res.status === 404 && fallbackOn404 !== undefined) return fallbackOn404
-    if (res.status === 403 || res.status === 429) throw new GitHubRateLimitError(res.status, path)
+
+    // 429 is always a rate-limit. 403 can also be rate-limit, but GitHub uses
+    // it for other conditions (bad scope, SSO enforcement, abuse detection) too.
+    // Only treat 403 as a rate-limit when the rate-limit headers confirm it.
+    if (res.status === 429) throw new GitHubRateLimitError(res.status, path)
+    if (res.status === 403) {
+      const remaining = res.headers.get('x-ratelimit-remaining')
+      const retryAfter = res.headers.get('retry-after')
+      if (remaining === '0' || retryAfter !== null) {
+        throw new GitHubRateLimitError(res.status, path)
+      }
+    }
+
     throw new Error(`GitHub API ${res.status}: ${path}`)
   }
   return res.json() as Promise<T>
@@ -203,7 +215,11 @@ async function fetchStaleOpenPRCount(owner: string, repo: string, token: string 
     }
 
     return total
-  } catch {
+  } catch (error) {
+    // Surface rate-limit errors so the API route can return a proper 429.
+    // For any other failure (network hiccup, unexpected shape) fall back to
+    // null so the rest of the analysis can still proceed.
+    if (error instanceof GitHubRateLimitError) throw error
     return null
   }
 }
@@ -810,8 +826,9 @@ export async function fetchRepoIntelData(
 
   // Build a representative issue sample for the AI:
   // - Up to 25 most-recently-updated open issues (unresolved pain points)
-  // - Up to 10 most-recently-closed issues (recently resolved signals)
-  // This gives the model a balanced view of ongoing and fixed problems.
+  // - Up to 10 most-recently-updated closed issues (recently resolved signals)
+  // Both sets are drawn from issues sorted by updated_at desc (GitHub default).
+  // agedays reflects time since creation, not time since close/update.
   const now = new Date().toISOString()
   const openSamples: IssueSample[] = issues
     .filter(i => i.state === 'open')

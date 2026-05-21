@@ -28,6 +28,9 @@ export async function GET() {
         .from('user_starred_repos')
         .select('repos(full_name)')
         .eq('user_id', user.id)
+        // Stable ordering is required for correct offset-based pagination —
+        // without it PostgREST may return duplicates or skip rows between pages.
+        .order('repo_id', { ascending: true })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
       if (starredError) {
@@ -47,23 +50,31 @@ export async function GET() {
       return NextResponse.json({ intel: [] })
     }
 
-    // Fan out chunked .in() queries in parallel so no single query exceeds
-    // CHUNK_SIZE items, then merge and sort client-side.
+    // Fan out chunked .in() queries with bounded concurrency so no single
+    // query exceeds CHUNK_SIZE items and we don't burst the DB with hundreds
+    // of simultaneous requests for users with very large starred-repo lists.
     const adminClient = createAdminClient()
     const chunks: string[][] = []
     for (let i = 0; i < fullNames.length; i += CHUNK_SIZE) {
       chunks.push(fullNames.slice(i, i + CHUNK_SIZE))
     }
 
-    const chunkResults = await Promise.all(
-      chunks.map(chunk =>
-        adminClient
-          .from('repo_insights')
-          .select('*')
-          .in('repo_full_name', chunk)
-          .order('health_score', { ascending: false })
+    const CONCURRENCY = 4
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chunkResults: Array<{ data: any[] | null; error: any }> = []
+    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+      const batch = chunks.slice(i, i + CONCURRENCY)
+      const batchResults = await Promise.all(
+        batch.map(chunk =>
+          adminClient
+            .from('repo_insights')
+            .select('*')
+            .in('repo_full_name', chunk)
+            .order('health_score', { ascending: false })
+        )
       )
-    )
+      chunkResults.push(...batchResults)
+    }
 
     const allInsights: RepoInsightRow[] = []
     for (const { data, error } of chunkResults) {
@@ -74,8 +85,8 @@ export async function GET() {
       allInsights.push(...((data ?? []) as RepoInsightRow[]))
     }
 
-    // Re-sort after merging chunks
-    allInsights.sort((a, b) => b.health_score - a.health_score)
+    // Re-sort after merging chunks (treat null health_score as 0)
+    allInsights.sort((a, b) => (b.health_score ?? 0) - (a.health_score ?? 0))
 
     return NextResponse.json({ intel: allInsights.map(row => rowToIntel(row)) })
   } catch (err) {
