@@ -169,3 +169,17 @@ html {
     scrollbar-color: var(--border) transparent;
   }
 }
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+    width: 40%;
+  }
+  50% {
+    width: 70%;
+  }
+  100% {
+    transform: translateX(260%);
+    width: 40%;
+  }
+}

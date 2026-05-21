@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils"
 import { CreateCollectionModal } from "./create-collection-modal"
 import { CreateTagModal } from "./create-tag-modal"
 import { useRecentlyViewed } from "@/lib/recently-viewed"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const TAGS_VISIBLE_DEFAULT = 10
 
@@ -133,6 +134,7 @@ interface AppSidebarProps {
   onAICategorize?: () => void
   onCreateCollection?: (name: string, emoji: string, color: string) => Promise<void>
   onCreateTag?: (label: string) => Promise<void>
+  isLoading?: boolean
 }
 
 export function AppSidebar({
@@ -151,6 +153,7 @@ export function AppSidebar({
   onAICategorize,
   onCreateCollection,
   onCreateTag,
+  isLoading = false,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const [collectionsOpen, setCollectionsOpen] = useState(true)
@@ -211,14 +214,20 @@ export function AppSidebar({
                   >
                     <Star className="h-4 w-4" />
                     <span>All Stars</span>
-                    <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                    {isLoading
+                      ? <Skeleton className="ml-auto h-4 w-6 rounded" />
+                      : <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                    }
                   </SidebarMenuButton>
                 ) : (
                   <SidebarMenuButton asChild isActive={false}>
                     <Link href="/dashboard">
                       <Star className="h-4 w-4" />
                       <span>All Stars</span>
-                      <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                      {isLoading
+                        ? <Skeleton className="ml-auto h-4 w-6 rounded" />
+                        : <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                      }
                     </Link>
                   </SidebarMenuButton>
                 )}
@@ -331,7 +340,18 @@ export function AppSidebar({
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {collections.length === 0 && (
+                  {isLoading && collections.length === 0 && (
+                    <div className="space-y-1 px-2 py-1">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+                          <Skeleton className="h-4 w-4 rounded shrink-0" />
+                          <Skeleton className="h-3 flex-1 rounded" />
+                          <Skeleton className="h-4 w-5 rounded ml-auto" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!isLoading && collections.length === 0 && (
                     <CollectionsEmptyState onAICategorize={onAICategorize} />
                   )}
                   {collections.map((collection) => (
@@ -399,7 +419,16 @@ export function AppSidebar({
             </div>
             <CollapsibleContent>
               <SidebarGroupContent>
-                {tags.length === 0 ? (
+                {isLoading && tags.length === 0 ? (
+                  <div className="space-y-1 px-2 py-1">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+                        <Skeleton className="h-3 w-3 rounded-full shrink-0" />
+                        <Skeleton className="h-3 flex-1 rounded" style={{ width: `${50 + i * 10}%` }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : tags.length === 0 ? (
                   <TagsEmptyState />
                 ) : (
                   <>

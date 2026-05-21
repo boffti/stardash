@@ -7,13 +7,13 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { DashboardCommandPalette } from "./dashboard-command-palette"
 import { DashboardHeader } from "./dashboard-header"
-import { RepoGrid } from "./repo-grid"
+import { RepoGrid, RepoGridSkeleton } from "./repo-grid"
 import { RepoList } from "./repo-list"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
 import { Badge } from "@/components/ui/badge"
-import { X, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, List, StarOff, LogIn, Star } from "lucide-react"
+import { X, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, List, StarOff, LogIn, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -818,8 +818,15 @@ export function Dashboard() {
         onAICategorize={handleCategorize}
         onCreateCollection={handleCollectionCreate}
         onCreateTag={handleTagCreateSimple}
+        isLoading={isLoading && !hasRepoData}
       />
       <SidebarInset>
+        {/* Top loading progress bar */}
+        {(isLoading || isRefreshing) && (
+          <div className="absolute top-0 left-0 right-0 z-50 h-0.5 overflow-hidden">
+            <div className="h-full bg-primary/70 animate-[loading-bar_1.8s_ease-in-out_infinite]" />
+          </div>
+        )}
         <DashboardHeader
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -873,20 +880,25 @@ export function Dashboard() {
           {/* Token expiry banner — always at top when expired and cached data exists */}
           {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
 
-          {/* Loading State — initial sync, no cached data */}
+          {/* Skeleton loading state — shown immediately while fetching, no cached data */}
           {isLoading && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-32 gap-6">
-              <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
-                <Star className="h-9 w-9 text-muted-foreground/40" />
-                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-2 ring-background">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                </span>
+            <>
+              {/* Skeleton toolbar row */}
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-0.5 rounded-md bg-secondary p-0.5">
+                    <div className="h-7 w-7 rounded-sm bg-muted/60 animate-pulse" />
+                    <div className="h-7 w-7 rounded-sm bg-muted/40 animate-pulse" />
+                  </div>
+                  <div className="h-4 w-48 rounded bg-muted animate-pulse" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+                  <div className="h-8 w-20 rounded-md bg-muted animate-pulse" />
+                </div>
               </div>
-              <div className="text-center space-y-1.5">
-                <p className="font-medium text-foreground">Syncing your starred repositories</p>
-                <p className="text-sm text-muted-foreground">Fetching from GitHub — this may take a moment for large collections.</p>
-              </div>
-            </div>
+              <RepoGridSkeleton count={12} />
+            </>
           )}
 
           {/* Full-page error only when no cached data — token error shows reconnect CTA, others show retry */}
