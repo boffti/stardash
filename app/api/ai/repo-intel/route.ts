@@ -4,46 +4,17 @@ import { NextResponse } from 'next/server'
 import { after } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { getValidGitHubToken } from '@/lib/tokens'
-import { fetchRepoCommunityFileSignals, fetchRepoIntelData } from '@/lib/repo-intel'
+import { fetchRepoCommunityFileSignals, fetchRepoIntelData, GitHubRateLimitError } from '@/lib/repo-intel'
 import { analyzeRepoIntel } from '@/lib/ai-repo-intel'
 import { langfuseSpanProcessor } from '@/instrumentation'
 import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
 import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from '@/lib/ai-weekly-limit'
 import type { RepoIntel } from '@/lib/types'
+import { type RepoInsightRow, rowToIntel } from '@/lib/repo-insight-row'
 
 export const maxDuration = 60
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
-
-interface RepoInsightRow {
-  id: string
-  repo_full_name: string
-  analyzed_at: string
-  health_score: number
-  maintenance_verdict: string
-  community_sentiment: string
-  adoption_readiness: string
-  top_pain_points: string[]
-  summary: string
-  recommendation: string
-  metrics: RepoIntel['metrics']
-}
-
-function rowToIntel(row: RepoInsightRow): RepoIntel {
-  return {
-    id: row.id,
-    repoFullName: row.repo_full_name,
-    analyzedAt: row.analyzed_at,
-    healthScore: row.health_score,
-    maintenanceVerdict: row.maintenance_verdict as RepoIntel['maintenanceVerdict'],
-    communitySentiment: row.community_sentiment as RepoIntel['communitySentiment'],
-    adoptionReadiness: row.adoption_readiness as RepoIntel['adoptionReadiness'],
-    topPainPoints: row.top_pain_points ?? [],
-    summary: row.summary,
-    recommendation: row.recommendation,
-    metrics: row.metrics,
-  }
-}
 
 function communityFilesChanged(
   current: RepoIntel['metrics']['hasCommunityFiles'],
@@ -224,6 +195,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ intel: rowToIntel(upserted as RepoInsightRow), cached: false, remaining: limitResult?.remaining ?? null })
   } catch (err) {
+    if (err instanceof GitHubRateLimitError) {
+      return NextResponse.json(
+        { error: 'GitHub API rate limit reached. Please wait a few minutes and try again.' },
+        { status: 429 }
+      )
+    }
     Sentry.captureException(err)
     console.error('[repo-intel] error:', err)
     return NextResponse.json(
