@@ -6,6 +6,14 @@ import type {
 } from './types'
 
 const GITHUB_API = 'https://api.github.com'
+
+/** Thrown when the GitHub API responds with 403 or 429 (rate-limit exceeded). */
+export class GitHubRateLimitError extends Error {
+  constructor(public readonly status: number, path: string) {
+    super(`GitHub API rate limit hit (HTTP ${status}): ${path}`)
+    this.name = 'GitHubRateLimitError'
+  }
+}
 const HEADERS = (token?: string) => {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
@@ -108,6 +116,19 @@ async function ghGet<T>(path: string, token: string | undefined, fallbackOn404?:
   const res = await fetch(`${GITHUB_API}${path}`, { headers: HEADERS(token) })
   if (!res.ok) {
     if (res.status === 404 && fallbackOn404 !== undefined) return fallbackOn404
+
+    // 429 is always a rate-limit. 403 can also be rate-limit, but GitHub uses
+    // it for other conditions (bad scope, SSO enforcement, abuse detection) too.
+    // Only treat 403 as a rate-limit when the rate-limit headers confirm it.
+    if (res.status === 429) throw new GitHubRateLimitError(res.status, path)
+    if (res.status === 403) {
+      const remaining = res.headers.get('x-ratelimit-remaining')
+      const retryAfter = res.headers.get('retry-after')
+      if (remaining === '0' || retryAfter !== null) {
+        throw new GitHubRateLimitError(res.status, path)
+      }
+    }
+
     throw new Error(`GitHub API ${res.status}: ${path}`)
   }
   return res.json() as Promise<T>
@@ -149,35 +170,58 @@ async function fetchPRs(owner: string, repo: string, token: string | undefined):
 
 async function fetchStaleOpenPRCount(owner: string, repo: string, token: string | undefined): Promise<number | null> {
   const now = new Date().toISOString()
-  let staleCount = 0
+  // Cap at 3 pages (300 PRs) — enough signal for any practical repo.
+  // Fetch the first page alone, then decide if we need more.
+  const MAX_PAGES = 3
 
   try {
-    for (let page = 1; page <= 10; page++) {
-      const openPRs = await ghGet<GHPR[]>(
-        `/repos/${owner}/${repo}/pulls?state=open&per_page=100&sort=updated&direction=asc&page=${page}`,
-        token,
-        []
-      )
+    const page1 = await ghGet<GHPR[]>(
+      `/repos/${owner}/${repo}/pulls?state=open&per_page=100&sort=updated&direction=asc&page=1`,
+      token,
+      []
+    )
 
-      if (openPRs.length === 0) break
+    if (page1.length === 0) return 0
 
-      let sawNonStalePR = false
-      for (const pr of openPRs) {
-        if (daysBetween(pr.updated_at, now) > 90) {
-          staleCount += 1
-        } else {
-          sawNonStalePR = true
-          break
-        }
+    // If the first page already has non-stale PRs, we're done.
+    const countStaleInPage = (prs: GHPR[]) => {
+      let count = 0
+      for (const pr of prs) {
+        if (daysBetween(pr.updated_at, now) > 90) count += 1
+        else break // sorted by updated asc, so first non-stale = we're done
       }
-
-      if (sawNonStalePR || openPRs.length < 100) break
+      return { count, allStale: count === prs.length && prs.length === 100 }
     }
-  } catch {
+
+    const { count: count1, allStale: allStale1 } = countStaleInPage(page1)
+    if (!allStale1) return count1
+
+    // Fetch remaining pages in parallel (up to MAX_PAGES total)
+    const remainingPages = await Promise.all(
+      Array.from({ length: MAX_PAGES - 1 }, (_, i) =>
+        ghGet<GHPR[]>(
+          `/repos/${owner}/${repo}/pulls?state=open&per_page=100&sort=updated&direction=asc&page=${i + 2}`,
+          token,
+          []
+        )
+      )
+    )
+
+    let total = count1
+    for (const page of remainingPages) {
+      const { count } = countStaleInPage(page)
+      total += count
+      if (page.length < 100) break
+    }
+
+    return total
+  } catch (error) {
+    // Surface rate-limit errors so the API route can return a proper 429.
+    // For any other failure (network hiccup, unexpected shape) fall back to
+    // null so the rest of the analysis can still proceed.
+    if (error instanceof GitHubRateLimitError) throw error
     return null
   }
-
-  return staleCount
 }
 
 async function fetchContributors(owner: string, repo: string, token: string | undefined): Promise<GHContributor[]> {
@@ -665,14 +709,14 @@ function computeMetrics(
   const medianIssueCloseDays = median(issueResponseTimes)
   const avgIssueResponseDays = medianIssueCloseDays
 
-  // PR merge rate
+  // PR merge rate: merged (closed with merged_at set) / all definitively closed PRs
   const closedPRs = prs.filter(p => p.state === 'closed')
-  const mergedPRs = prs.filter(p => p.merged_at !== null)
+  const mergedPRs = closedPRs.filter(p => p.merged_at !== null)
   const prMergeRate = closedPRs.length > 0 ? mergedPRs.length / closedPRs.length : 0
 
-  // Avg PR merge time
+  // Avg PR merge time: use merged_at as the end timestamp, not closed_at
   const prMergeTimes = mergedPRs
-    .filter(p => p.closed_at)
+    .filter(p => p.merged_at)
     .map(p => daysBetween(p.created_at, p.merged_at!))
   const avgPrMergeDays = median(prMergeTimes)
   // Keep legacy field populated while exposing true recent commit authors separately.
@@ -780,16 +824,23 @@ export async function fetchRepoIntelData(
     workflowCount,
   )
 
-  // Build a sample of recent open issues for the AI to synthesize pain points
+  // Build a representative issue sample for the AI:
+  // - Up to 25 most-recently-updated open issues (unresolved pain points)
+  // - Up to 10 most-recently-updated closed issues (recently resolved signals)
+  // Both sets are drawn from issues sorted by updated_at desc (GitHub default).
+  // agedays reflects time since creation, not time since close/update.
   const now = new Date().toISOString()
-  const issueSamples: IssueSample[] = issues
+  const openSamples: IssueSample[] = issues
     .filter(i => i.state === 'open')
-    .slice(0, 30)
-    .map(i => ({
-      title: i.title,
-      agedays: Math.floor(daysBetween(i.created_at, now)),
-      comments: i.comments,
-    }))
+    .slice(0, 25)
+    .map(i => ({ title: i.title, agedays: Math.floor(daysBetween(i.created_at, now)), comments: i.comments }))
+
+  const closedSamples: IssueSample[] = issues
+    .filter(i => i.state === 'closed')
+    .slice(0, 10)
+    .map(i => ({ title: `[resolved] ${i.title}`, agedays: Math.floor(daysBetween(i.created_at, now)), comments: i.comments }))
+
+  const issueSamples: IssueSample[] = [...openSamples, ...closedSamples]
 
   return {
     metrics,

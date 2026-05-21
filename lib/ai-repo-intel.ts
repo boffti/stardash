@@ -152,8 +152,16 @@ export async function analyzeRepoIntel(
     prompt,
   })
 
+  // Anchor the AI's health score to the deterministic maintenance score so the
+  // two signals can't diverge. The blend weights the deterministic score at 60%
+  // and the AI's qualitative read at 40%, then clamps to 0–100.
+  const anchoredHealthScore = Math.max(
+    0,
+    Math.min(100, Math.round(object.healthScore * 0.4 + maintenanceAssessment.score * 0.6)),
+  )
+
   return {
-    healthScore: object.healthScore,
+    healthScore: anchoredHealthScore,
     maintenanceVerdict: maintenanceAssessment.verdict,
     communitySentiment: object.communitySentiment as CommunitySentiment,
     adoptionReadiness: object.adoptionReadiness as AdoptionReadiness,
