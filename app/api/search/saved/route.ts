@@ -8,6 +8,7 @@ interface DiscoverSearchSummaryRow {
   id: string
   query: string
   normalized_query: string
+  context_hash: string | null
   result_count: number
   cached_at: string
   last_run_at: string
@@ -21,6 +22,7 @@ function mapSearch(row: DiscoverSearchSummaryRow): DiscoverSavedSearch {
     id: row.id,
     query: row.query,
     normalizedQuery: row.normalized_query,
+    contextHash: row.context_hash,
     resultCount: row.result_count,
     cachedAt: row.cached_at,
     lastRunAt: row.last_run_at,
@@ -40,7 +42,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from('discover_searches')
-      .select('id, query, normalized_query, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved')
+      .select('id, query, normalized_query, context_hash, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved')
       .eq('user_id', user.id)
       .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
       .order('is_saved', { ascending: false })

@@ -9,6 +9,7 @@ export interface DiscoverSavedSearch {
   id: string
   query: string
   normalizedQuery: string
+  contextHash: string | null
   resultCount: number
   cachedAt: string
   lastRunAt: string
@@ -67,6 +68,77 @@ export function buildPersonalizedSearchRepoSignature(repos: StarredRepo[]) {
     .join("|")
 
   return `${sample.length}:${hashString(source)}`
+}
+
+// ---------------------------------------------------------------------------
+// User context utilities for context-aware query expansion and cache keying
+// ---------------------------------------------------------------------------
+
+/**
+ * Derives the top languages, topics, and collection names from the user's
+ * starred repos to inject into the AI query expansion prompt. Keeps output
+ * compact so it fits cleanly in the prompt.
+ */
+export function buildUserContextSummary(repos: StarredRepo[]): string {
+  const langCounts: Record<string, number> = {}
+  const topicCounts: Record<string, number> = {}
+
+  for (const repo of repos) {
+    if (repo.language) langCounts[repo.language] = (langCounts[repo.language] ?? 0) + 1
+    for (const t of repo.topics.slice(0, 5)) {
+      topicCounts[t] = (topicCounts[t] ?? 0) + 1
+    }
+  }
+
+  const topLangs = Object.entries(langCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([l]) => l)
+
+  const topTopics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([t]) => t)
+
+  const parts: string[] = []
+  if (topLangs.length) parts.push(`Languages: ${topLangs.join(", ")}`)
+  if (topTopics.length) parts.push(`Frequent topics: ${topTopics.join(", ")}`)
+
+  return parts.join(" | ")
+}
+
+/**
+ * Produces a short stable hash that captures the user's current interest
+ * profile (top languages + topics). Used as an additional dimension in the
+ * discover_searches cache key so that results are invalidated when interests
+ * materially change — not just on TTL expiry.
+ */
+export function buildStarContextHash(repos: StarredRepo[]): string {
+  if (!repos.length) return "empty"
+
+  const langCounts: Record<string, number> = {}
+  const topicCounts: Record<string, number> = {}
+
+  for (const repo of repos) {
+    if (repo.language) langCounts[repo.language] = (langCounts[repo.language] ?? 0) + 1
+    for (const t of repo.topics.slice(0, 5)) {
+      topicCounts[t] = (topicCounts[t] ?? 0) + 1
+    }
+  }
+
+  const topLangs = Object.entries(langCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([l]) => l)
+    .join(",")
+
+  const topTopics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([t]) => t)
+    .join(",")
+
+  return hashString(`${topLangs}|${topTopics}|${repos.length}`)
 }
 
 export function getCachedPersonalizedSearch(

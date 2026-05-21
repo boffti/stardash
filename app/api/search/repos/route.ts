@@ -11,7 +11,10 @@ import {
   DISCOVER_SEARCH_CACHE_TTL_DAYS,
   DISCOVER_SEARCH_CACHE_VERSION,
   normalizeDiscoverSearchQuery,
+  buildUserContextSummary,
+  buildStarContextHash,
 } from '@/lib/search-cache'
+import type { StarredRepo } from '@/lib/types'
 import { checkAndIncrementWeeklyLimit } from '@/lib/ai-weekly-limit'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 
@@ -87,6 +90,15 @@ const QueryExpansionSchema = z.object({
   ),
 })
 
+// Pass 1: fast coarse scoring — no evidence required, just scores
+const CoarseRankingSchema = z.object({
+  scores: z.array(z.object({
+    fullName: z.string().describe('Exact full_name of the repo (owner/repo)'),
+    relevanceScore: z.number().min(0).max(10).describe('How well this repo matches the original intent (0-10)'),
+  })),
+})
+
+// Pass 2: deep scoring for shortlisted candidates — includes evidence bullets
 const ReRankingSchema = z.object({
   rankedRepos: z.array(z.object({
     fullName: z.string().describe('Exact full_name of the repo (owner/repo)'),
@@ -97,17 +109,19 @@ const ReRankingSchema = z.object({
   })),
 })
 
-async function searchGitHub(query: string, token: string | null): Promise<GitHubSearchItem[]> {
-  const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=20`
+async function searchGitHub(
+  query: string,
+  token: string | null,
+  sort: 'stars' | 'updated' = 'stars',
+): Promise<GitHubSearchItem[]> {
+  const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=${sort}&order=desc&per_page=20`
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   }
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(url, {
-    headers,
-  })
+  const res = await fetch(url, { headers })
   if (!res.ok) return []
   const data = await res.json()
   return data.items ?? []
@@ -119,6 +133,7 @@ interface DiscoverSearchRow {
   id: string
   query: string
   normalized_query: string
+  context_hash: string | null
   results: SearchRepo[]
   pipeline_events: SearchPipelineEvent[]
   result_count: number
@@ -148,15 +163,17 @@ async function getCachedDiscoverSearch({
   supabase,
   userId,
   normalizedQuery,
+  contextHash,
 }: {
   supabase: SupabaseClient
   userId: string
   normalizedQuery: string
+  contextHash: string | null
 }): Promise<DiscoverSearchRow | null> {
   try {
     const { data, error } = await supabase
       .from('discover_searches')
-      .select('id, query, normalized_query, results, pipeline_events, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved')
+      .select('id, query, normalized_query, context_hash, results, pipeline_events, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved')
       .eq('user_id', userId)
       .eq('normalized_query', normalizedQuery)
       .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
@@ -165,8 +182,16 @@ async function getCachedDiscoverSearch({
     if (error || !data) return null
 
     const row = data as DiscoverSearchRow
-    const isFresh = new Date(row.expires_at).getTime() > Date.now()
-    if (!row.is_saved && !isFresh) return null
+
+    // Saved searches are always returned (user explicitly pinned them).
+    // For non-saved rows: check TTL freshness AND context hash match.
+    // A mismatched context_hash means the user's interest profile changed —
+    // treat as stale and re-run so they get personalised-to-now results.
+    if (!row.is_saved) {
+      const isFresh = new Date(row.expires_at).getTime() > Date.now()
+      if (!isFresh) return null
+      if (contextHash && row.context_hash && row.context_hash !== contextHash) return null
+    }
     if (!Array.isArray(row.results)) return null
 
     await supabase
@@ -190,6 +215,7 @@ async function saveDiscoverSearch({
   userId,
   query,
   normalizedQuery,
+  contextHash,
   repos,
   pipelineEvents,
   modelConfig,
@@ -198,6 +224,7 @@ async function saveDiscoverSearch({
   userId: string
   query: string
   normalizedQuery: string
+  contextHash: string | null
   repos: SearchRepo[]
   pipelineEvents: SearchPipelineEvent[]
   modelConfig: AIModelConfig
@@ -234,6 +261,7 @@ async function saveDiscoverSearch({
         user_id: userId,
         query,
         normalized_query: normalizedQuery,
+        context_hash: contextHash,
         results: repos,
         pipeline_events: pipelineEvents,
         result_count: repos.length,
@@ -277,12 +305,14 @@ function repoToSearchRepo(item: GitHubSearchItem, rank?: { evidence: string[]; r
 
 async function runSearchPipeline({
   query,
+  userContext,
   token,
   modelConfig,
   startedAt,
   emit,
 }: {
   query: string
+  userContext: string
   token: string | null
   modelConfig: AIModelConfig
   startedAt: number
@@ -307,17 +337,22 @@ async function runSearchPipeline({
     elapsedMs: elapsedSince(startedAt),
   })
 
+  const userContextSection = userContext
+    ? `\nUser context (their existing interests — generate queries for things they haven't explored yet):\n${userContext}\n`
+    : ''
+
   const { object: expansion } = await generateObject({
     model: modelConfig.model,
     schema: QueryExpansionSchema,
     prompt: `You are a GitHub search expert. Given a developer's search intent, generate 3-5 targeted GitHub search queries using GitHub search syntax.
-
+${userContextSection}
 Intent: "${query}"
 
 Rules:
 - Use GitHub operators: stars:>N, language:X, topic:X, in:name, in:description, is:public
-- Vary the queries to cover different interpretations
-- Focus on finding high-quality, production-ready repos
+- Vary the queries to cover different interpretations and adjacent angles
+- Focus on finding high-quality, production-ready repos the user has NOT already explored
+- Make at least one query favour recently-active repos (use pushed:>2024-01-01 or similar)
 - Example for "prod-ready CLI frameworks": ["topic:cli stars:>500 is:public", "cli framework production language:go stars:>200", "topic:cli-app stars:>300 pushed:>2024-01-01"]`,
     experimental_telemetry: { isEnabled: true, functionId: 'search-query-expansion' },
     providerOptions: getProviderOptions(modelConfig.provider),
@@ -340,11 +375,19 @@ Rules:
     title: 'Searching GitHub',
     detail: 'Running the expanded queries in parallel against GitHub repository search.',
     elapsedMs: elapsedSince(startedAt),
-    meta: { queryCount: expansion.queries.length },
+    meta: { queryCount: expansion.queries.length + 1 },
   })
 
+  // Run all AI-generated queries (sort by stars) plus one extra "sort=updated"
+  // variant on the first query to surface recently-active hidden gems.
+  const updatedVariantQuery = expansion.queries[0]
+  const allSearches: Array<{ query: string; sort: 'stars' | 'updated' }> = [
+    ...expansion.queries.map(q => ({ query: q, sort: 'stars' as const })),
+    { query: updatedVariantQuery, sort: 'updated' as const },
+  ]
+
   const searchResults = await Promise.all(
-    expansion.queries.map(q => searchGitHub(q, token))
+    allSearches.map(({ query: q, sort }) => searchGitHub(q, token, sort))
   )
   const rawCandidateCount = searchResults.reduce((sum, items) => sum + items.length, 0)
 
@@ -363,20 +406,44 @@ Rules:
     id: 'dedupe',
     status: 'running',
     title: 'Deduplicating candidates',
-    detail: 'Merging overlapping query results before AI reranking.',
+    detail: 'Merging overlapping query results, tracking cross-query consensus.',
     elapsedMs: elapsedSince(startedAt),
   })
 
-  const seen = new Set<string>()
-  const merged: GitHubSearchItem[] = []
-  for (const items of searchResults) {
-    for (const item of items) {
-      if (!seen.has(item.full_name)) {
-        seen.add(item.full_name)
-        merged.push(item)
+  // Weighted dedup: track how many queries each repo appeared in (queryHits)
+  // and its best rank across those queries (bestRank). Both are passed to the
+  // reranker so cross-query consensus boosts relevance signals.
+  interface MergedCandidate {
+    item: GitHubSearchItem
+    queryHits: number
+    bestRank: number
+    readme: string | null
+  }
+  const seenMap = new Map<string, MergedCandidate>()
+
+  for (const [qi, items] of searchResults.entries()) {
+    for (const [rank, item] of items.entries()) {
+      const existing = seenMap.get(item.full_name)
+      if (existing) {
+        existing.queryHits++
+        existing.bestRank = Math.min(existing.bestRank, rank)
+      } else {
+        // Attach readme excerpt if item has it (GitHub search API doesn't return
+        // readme — leave null here; will be enriched in deep-rank pass if available)
+        seenMap.set(item.full_name, { item, queryHits: 1, bestRank: rank, readme: null })
       }
+      // Suppress unused variable warning
+      void qi
     }
   }
+
+  const merged = Array.from(seenMap.values())
+
+  // Sort by consensus signal for the coarse pass prompt: multi-hit repos first,
+  // then by best rank within same hit count
+  merged.sort((a, b) =>
+    b.queryHits !== a.queryHits ? b.queryHits - a.queryHits : a.bestRank - b.bestRank
+  )
 
   emit?.({
     type: 'step',
@@ -405,39 +472,95 @@ Rules:
     type: 'step',
     id: 'rerank',
     status: 'running',
-    title: 'AI reranking',
-    detail: 'AI is scoring each repository and writing short evidence notes.',
+    title: 'AI reranking (pass 1 of 2)',
+    detail: `Coarse-scoring ${merged.length} candidates to shortlist the top 30.`,
     elapsedMs: elapsedSince(startedAt),
     meta: { uniqueCount: merged.length },
   })
 
-  const repoSummaries = merged.map(r => ({
+  // ---- PASS 1: coarse score all candidates (no evidence, fast) ----
+  const coarseSummaries = merged.map(({ item: r, queryHits, bestRank }) => ({
     fullName: r.full_name,
     description: r.description ?? '',
     language: r.language ?? '',
     topics: r.topics.slice(0, 5).join(', '),
     stars: r.stargazers_count,
     pushedAt: r.pushed_at,
+    // Explicit consensus signals for the model
+    appearedInQueries: queryHits,
+    bestPositionAcrossQueries: bestRank + 1, // 1-indexed for readability
+  }))
+
+  const { object: coarseRanking } = await generateObject({
+    model: modelConfig.model,
+    schema: CoarseRankingSchema,
+    prompt: `You are ranking GitHub repos for a developer's search intent.
+
+Original intent: "${query}"
+
+Additional signals per repo:
+- "appearedInQueries": how many different search queries returned this repo (higher = stronger consensus match)
+- "bestPositionAcrossQueries": the best rank position across all queries (lower = stronger match)
+
+Repos to score (${merged.length} total):
+${JSON.stringify(coarseSummaries, null, 2)}
+
+Score each repo 0-10 based on relevance to the intent. Boost repos with high appearedInQueries.
+Include ALL repos.`,
+    experimental_telemetry: { isEnabled: true, functionId: 'search-coarse-ranking' },
+    providerOptions: getProviderOptions(modelConfig.provider),
+  })
+
+  // Shortlist top 30 from coarse pass
+  const coarseScoreMap = new Map(coarseRanking.scores.map(s => [s.fullName, s.relevanceScore]))
+  const shortlisted = merged
+    .map(candidate => ({ ...candidate, coarseScore: coarseScoreMap.get(candidate.item.full_name) ?? 0 }))
+    .sort((a, b) => b.coarseScore - a.coarseScore)
+    .slice(0, 30)
+
+  emit?.({
+    type: 'step',
+    id: 'rerank',
+    status: 'running',
+    title: 'AI reranking (pass 2 of 2)',
+    detail: `Deep-scoring top ${shortlisted.length} candidates with full context and writing evidence notes.`,
+    elapsedMs: elapsedSince(startedAt),
+    meta: { shortlistedCount: shortlisted.length },
+  })
+
+  // ---- PASS 2: deep score shortlisted 30 with enriched metadata + evidence ----
+  const deepSummaries = shortlisted.map(({ item: r, queryHits, bestRank }) => ({
+    fullName: r.full_name,
+    description: r.description ?? '',
+    language: r.language ?? '',
+    topics: r.topics.slice(0, 8).join(', '),
+    stars: r.stargazers_count,
+    forks: r.forks_count,
+    pushedAt: r.pushed_at,
+    appearedInQueries: queryHits,
+    bestPositionAcrossQueries: bestRank + 1,
   }))
 
   const { object: ranking } = await generateObject({
     model: modelConfig.model,
     schema: ReRankingSchema,
-    prompt: `You are ranking GitHub repos for a developer's search intent.
+    prompt: `You are deeply ranking a shortlisted set of GitHub repos for a developer's search intent.
 
 Original intent: "${query}"
 
-Repos to rank (${merged.length} total):
-${JSON.stringify(repoSummaries, null, 2)}
+These are the top candidates after a coarse scoring pass. Score them carefully.
+
+Repos (${shortlisted.length} total):
+${JSON.stringify(deepSummaries, null, 2)}
 
 For each repo, provide:
-1. relevanceScore (0-10): how well it matches the intent
+1. relevanceScore (0-10): how well it matches the intent. Boost repos with high appearedInQueries.
 2. evidence: exactly 3 short bullets explaining WHY it matches. Be specific and factual.
    Good: "12k stars · actively maintained", "Go CLI framework · prod-ready", "Matches: framework intent"
    Bad: "good repo", "relevant", "matches query"
 
-Include ALL repos in your response. Sort by relevanceScore descending.`,
-    experimental_telemetry: { isEnabled: true, functionId: 'search-reranking' },
+Include ALL ${shortlisted.length} repos in your response. Sort by relevanceScore descending.`,
+    experimental_telemetry: { isEnabled: true, functionId: 'search-deep-reranking' },
     providerOptions: getProviderOptions(modelConfig.provider),
   })
 
@@ -446,7 +569,7 @@ Include ALL repos in your response. Sort by relevanceScore descending.`,
     id: 'rerank',
     status: 'completed',
     title: 'Ranked repositories',
-    detail: `AI returned relevance scores for ${ranking.rankedRepos.length} repositories.`,
+    detail: `AI returned deep relevance scores for ${ranking.rankedRepos.length} repositories.`,
     elapsedMs: elapsedSince(startedAt),
     meta: { rankedCount: ranking.rankedRepos.length },
   })
@@ -461,8 +584,8 @@ Include ALL repos in your response. Sort by relevanceScore descending.`,
   })
 
   const rankMap = new Map(ranking.rankedRepos.map(r => [r.fullName, r]))
-  const repos: SearchRepo[] = merged
-    .map(item => repoToSearchRepo(item, rankMap.get(item.full_name)))
+  const repos: SearchRepo[] = shortlisted
+    .map(({ item }) => repoToSearchRepo(item, rankMap.get(item.full_name)))
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, 24)
 
@@ -482,6 +605,8 @@ Include ALL repos in your response. Sort by relevanceScore descending.`,
 function streamSearchPipeline({
   query,
   normalizedQuery,
+  userContext,
+  contextHash,
   user,
   supabase,
   token,
@@ -489,6 +614,8 @@ function streamSearchPipeline({
 }: {
   query: string
   normalizedQuery: string
+  userContext: string
+  contextHash: string | null
   user: User
   supabase: SupabaseClient
   token: string | null
@@ -504,7 +631,7 @@ function streamSearchPipeline({
       }
 
       try {
-        const cached = await getCachedDiscoverSearch({ supabase, userId: user.id, normalizedQuery })
+        const cached = await getCachedDiscoverSearch({ supabase, userId: user.id, normalizedQuery, contextHash })
         if (cached) {
           emit({
             type: 'step',
@@ -545,12 +672,13 @@ function streamSearchPipeline({
           pipelineEvents.push(event)
           emit(event)
         }
-        const repos = await runSearchPipeline({ query, token, modelConfig, startedAt, emit: emitAndCollect })
+        const repos = await runSearchPipeline({ query, userContext, token, modelConfig, startedAt, emit: emitAndCollect })
         const searchId = await saveDiscoverSearch({
           supabase,
           userId: user.id,
           query,
           normalizedQuery,
+          contextHash,
           repos,
           pipelineEvents,
           modelConfig,
@@ -589,11 +717,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { query } = await request.json()
+    const body = await request.json()
+    const { query, starData: rawStarData } = body as { query: unknown; starData?: StarredRepo[] }
     const normalizedQuery = typeof query === 'string' ? normalizeDiscoverSearchQuery(query) : ''
     if (!normalizedQuery) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 })
     }
+
+    // Derive user context from the optional star data the client sends
+    const starData: StarredRepo[] = Array.isArray(rawStarData) ? rawStarData : []
+    const userContext = starData.length ? buildUserContextSummary(starData) : ''
+    const contextHash = starData.length ? buildStarContextHash(starData) : null
 
     // GitHub's repository search endpoint can return public results without a
     // user token. Keep the Supabase user check above, but do not fail Discover
@@ -605,10 +739,10 @@ export async function POST(request: Request) {
       || request.headers.get('x-search-pipeline') === 'stream'
 
     if (wantsPipelineStream) {
-      return streamSearchPipeline({ query: query.trim(), normalizedQuery, user, supabase, token, modelConfig })
+      return streamSearchPipeline({ query: (query as string).trim(), normalizedQuery, userContext, contextHash, user, supabase, token, modelConfig })
     }
 
-    const cached = await getCachedDiscoverSearch({ supabase, userId: user.id, normalizedQuery })
+    const cached = await getCachedDiscoverSearch({ supabase, userId: user.id, normalizedQuery, contextHash })
     if (cached) {
       return NextResponse.json({
         repos: cached.results,
@@ -634,7 +768,8 @@ export async function POST(request: Request) {
 
     const pipelineEvents: SearchPipelineEvent[] = []
     const repos = await runSearchPipeline({
-      query: query.trim(),
+      query: (query as string).trim(),
+      userContext,
       token,
       modelConfig,
       startedAt,
@@ -643,8 +778,9 @@ export async function POST(request: Request) {
     const searchId = await saveDiscoverSearch({
       supabase,
       userId: user.id,
-      query: query.trim(),
+      query: (query as string).trim(),
       normalizedQuery,
+      contextHash,
       repos,
       pipelineEvents,
       modelConfig,
