@@ -115,7 +115,7 @@ export function SearchPage() {
     personalizingRef.current = true
     startTransition(() => setIsPersonalizing(true))
 
-    // Build a Set of numeric GitHub repo IDs so the server can filter
+    // Build an array of numeric GitHub repo IDs so the server can filter
     // already-starred repos from personalized discovery results.
     const starredIds = repos.map(r => parseInt(r.id, 10)).filter(id => !isNaN(id))
 
@@ -162,8 +162,9 @@ export function SearchPage() {
       }
     }
 
-    // Send a compact star-data snapshot so the server can derive user context
-    // and a context hash without a separate DB fetch.
+    // Send a minimal star-data snapshot so the server can derive user context
+    // and a context hash. Only include fields the server actually reads —
+    // private user metadata (notes, tags, collections, isPinned) is omitted.
     const starDataSnapshot = (starData?.repos ?? []).slice(0, 200).map(r => ({
       id: r.id,
       owner: r.owner,
@@ -178,10 +179,10 @@ export function SearchPage() {
       starredAt: r.starredAt,
       avatarUrl: r.avatarUrl,
       status: r.status,
-      isPinned: r.isPinned,
-      notes: r.notes,
-      tags: r.tags,
-      collections: r.collections,
+      isPinned: false,
+      notes: "",
+      tags: [],
+      collections: [],
       readme: null,
       languageColor: null,
       homepage: null,

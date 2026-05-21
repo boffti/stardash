@@ -85,7 +85,7 @@ export type SearchPipelineEvent =
   | SearchPipelineErrorEvent
 
 const QueryExpansionSchema = z.object({
-  queries: z.array(z.string()).describe(
+  queries: z.array(z.string()).min(1).describe(
     'GitHub search query strings using GitHub search syntax. Use operators like stars:>, language:, topic:, in:name,description'
   ),
 })
@@ -187,10 +187,12 @@ async function getCachedDiscoverSearch({
     // For non-saved rows: check TTL freshness AND context hash match.
     // A mismatched context_hash means the user's interest profile changed —
     // treat as stale and re-run so they get personalised-to-now results.
+    // We only invalidate when BOTH sides have a hash — legacy rows with
+    // context_hash = null are kept until TTL so they don't all bust at once.
     if (!row.is_saved) {
       const isFresh = new Date(row.expires_at).getTime() > Date.now()
       if (!isFresh) return null
-      if (contextHash && row.context_hash && row.context_hash !== contextHash) return null
+      if (contextHash !== null && row.context_hash !== null && row.context_hash !== contextHash) return null
     }
     if (!Array.isArray(row.results)) return null
 
@@ -380,10 +382,12 @@ Rules:
 
   // Run all AI-generated queries (sort by stars) plus one extra "sort=updated"
   // variant on the first query to surface recently-active hidden gems.
-  const updatedVariantQuery = expansion.queries[0]
+  // The schema enforces min(1) so queries[0] is always defined, but we guard
+  // defensively in case the model response is patched at runtime.
+  const firstQuery = expansion.queries[0] ?? ''
   const allSearches: Array<{ query: string; sort: 'stars' | 'updated' }> = [
     ...expansion.queries.map(q => ({ query: q, sort: 'stars' as const })),
-    { query: updatedVariantQuery, sort: 'updated' as const },
+    ...(firstQuery ? [{ query: firstQuery, sort: 'updated' as const }] : []),
   ]
 
   const searchResults = await Promise.all(
@@ -421,7 +425,7 @@ Rules:
   }
   const seenMap = new Map<string, MergedCandidate>()
 
-  for (const [qi, items] of searchResults.entries()) {
+  for (const items of searchResults) {
     for (const [rank, item] of items.entries()) {
       const existing = seenMap.get(item.full_name)
       if (existing) {
@@ -432,8 +436,6 @@ Rules:
         // readme — leave null here; will be enriched in deep-rank pass if available)
         seenMap.set(item.full_name, { item, queryHits: 1, bestRank: rank, readme: null })
       }
-      // Suppress unused variable warning
-      void qi
     }
   }
 

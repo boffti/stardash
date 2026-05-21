@@ -75,9 +75,9 @@ export function buildPersonalizedSearchRepoSignature(repos: StarredRepo[]) {
 // ---------------------------------------------------------------------------
 
 /**
- * Derives the top languages, topics, and collection names from the user's
- * starred repos to inject into the AI query expansion prompt. Keeps output
- * compact so it fits cleanly in the prompt.
+ * Derives the top languages and topics from the user's starred repos to inject
+ * into the AI query expansion prompt. Keeps output compact so it fits cleanly
+ * in the prompt.
  */
 export function buildUserContextSummary(repos: StarredRepo[]): string {
   const langCounts: Record<string, number> = {}
