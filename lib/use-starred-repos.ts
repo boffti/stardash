@@ -55,7 +55,9 @@ async function fetchStarredRepos(url: string, userId?: string, options: RefreshO
   const result = await response.json()
 
   if (!response.ok) {
-    throw new Error(result.error || "Failed to fetch starred repositories")
+    const err = new Error(result.error || "Failed to fetch starred repositories") as Error & { status?: number }
+    err.status = response.status
+    throw err
   }
 
   if (userId && result.repos) {

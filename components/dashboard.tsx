@@ -108,7 +108,16 @@ export function Dashboard() {
   // Fetch user metadata (tags, collections, repo assignments) from Supabase
   const { data: metadata, mutate: mutateMetadata } = useSWR<UserMetadata>(
     user?.id ? '/api/user/metadata' : null,
-    (url: string) => fetch(url).then(r => r.json()),
+    async (url: string) => {
+      const r = await fetch(url)
+      if (r.status === 401) {
+        // Session has expired — redirect to login
+        await reauthenticate()
+        throw new Error('Session expired')
+      }
+      if (!r.ok) throw new Error('Failed to fetch metadata')
+      return r.json()
+    },
     { revalidateOnFocus: false }
   )
 
@@ -475,6 +484,7 @@ export function Dashboard() {
     error?.message?.includes('token') ||
     error?.message?.includes('expired') ||
     error?.message?.includes('re-authenticate') ||
+    (error as (Error & { status?: number }) | undefined)?.status === 401 ||
     data?.error
   )
 
