@@ -81,7 +81,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
               {...listeners}
               {...attributes}
               onClick={e => e.stopPropagation()}
-              className="h-6 w-6 hidden group-hover:flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+              className="h-6 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
               aria-label="Drag to assign"
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
@@ -95,7 +95,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 hidden group-hover:flex"
+                  className="h-6 w-6 flex opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
