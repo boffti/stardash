@@ -1,57 +1,64 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { NextResponse } from 'next/server'
-import { after } from 'next/server'
-import * as Sentry from '@sentry/nextjs'
-import { getValidGitHubToken } from '@/lib/tokens'
-import { fetchRepoCommunityFileSignals, fetchRepoIntelData, GitHubRateLimitError } from '@/lib/repo-intel'
-import { analyzeRepoIntel } from '@/lib/ai-repo-intel'
-import { langfuseSpanProcessor } from '@/instrumentation'
-import { getAIModel, getProviderOptions, type AIModelConfig } from '@/lib/ai-provider'
-import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from '@/lib/ai-weekly-limit'
-import type { RepoIntel } from '@/lib/types'
-import { type RepoInsightRow, rowToIntel } from '@/lib/repo-insight-row'
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { NextResponse } from "next/server"
+import { after } from "next/server"
+import * as Sentry from "@sentry/nextjs"
+import { getValidGitHubToken } from "@/lib/tokens"
+import {
+  fetchRepoCommunityFileSignals,
+  fetchRepoIntelData,
+  GitHubRateLimitError,
+} from "@/lib/repo-intel"
+import { analyzeRepoIntel } from "@/lib/ai-repo-intel"
+import { langfuseSpanProcessor } from "@/instrumentation"
+import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
+import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from "@/lib/ai-weekly-limit"
+import type { RepoIntel } from "@/lib/types"
+import { type RepoInsightRow, rowToIntel } from "@/lib/repo-insight-row"
 
 export const maxDuration = 60
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 function communityFilesChanged(
-  current: RepoIntel['metrics']['hasCommunityFiles'],
-  next: RepoIntel['metrics']['hasCommunityFiles'],
+  current: RepoIntel["metrics"]["hasCommunityFiles"],
+  next: RepoIntel["metrics"]["hasCommunityFiles"],
 ) {
   return Object.entries(next).some(([key, value]) => {
-    return current[key as keyof RepoIntel['metrics']['hasCommunityFiles']] !== value
+    return current[key as keyof RepoIntel["metrics"]["hasCommunityFiles"]] !== value
   })
 }
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const owner = searchParams.get('owner')
-    const repo = searchParams.get('repo')
-    const refresh = searchParams.get('refresh') === 'true'
+    const owner = searchParams.get("owner")
+    const repo = searchParams.get("repo")
+    const refresh = searchParams.get("refresh") === "true"
 
     if (!owner || !repo) {
-      return NextResponse.json({ error: 'Missing owner or repo' }, { status: 400 })
+      return NextResponse.json({ error: "Missing owner or repo" }, { status: 400 })
     }
 
     const repoFullName = `${owner}/${repo}`
 
     // Auth check
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const adminClient = createAdminClient()
 
     // Check global cache
     const { data: cached } = await adminClient
-      .from('repo_insights')
-      .select('*')
-      .eq('repo_full_name', repoFullName)
+      .from("repo_insights")
+      .select("*")
+      .eq("repo_full_name", repoFullName)
       .maybeSingle()
 
     // Return fresh cached data without hitting rate limit
@@ -63,9 +70,8 @@ export async function GET(request: Request) {
         after(async () => {
           try {
             const tokenResult = await getValidGitHubToken()
-            const token = tokenResult.error === 'expired'
-              ? undefined
-              : tokenResult.token ?? undefined
+            const token =
+              tokenResult.error === "expired" ? undefined : (tokenResult.token ?? undefined)
 
             if (!token) return
 
@@ -80,16 +86,16 @@ export async function GET(request: Request) {
 
             if (communityFilesChanged(intel.metrics.hasCommunityFiles, metrics.hasCommunityFiles)) {
               await adminClient
-                .from('repo_insights')
+                .from("repo_insights")
                 .update({ metrics })
-                .eq('repo_full_name', repoFullName)
+                .eq("repo_full_name", repoFullName)
             }
           } catch (error) {
             Sentry.captureException(error, {
               tags: {
-                route: 'app/api/ai/repo-intel',
+                route: "app/api/ai/repo-intel",
                 repoFullName,
-                backgroundTask: 'refreshRepoCommunityFileSignals',
+                backgroundTask: "refreshRepoCommunityFileSignals",
               },
             })
           }
@@ -105,10 +111,10 @@ export async function GET(request: Request) {
     // Use a GitHub token when present, but allow public repositories to be analyzed
     // without one. Cached DB intel above never depends on GitHub auth.
     const { token, error: tokenError } = await getValidGitHubToken()
-    if (tokenError === 'expired') {
+    if (tokenError === "expired") {
       return NextResponse.json(
-        { error: 'GitHub token expired. Please sign out and sign in again.' },
-        { status: 401 }
+        { error: "GitHub token expired. Please sign out and sign in again." },
+        { status: 401 },
       )
     }
 
@@ -117,13 +123,13 @@ export async function GET(request: Request) {
     try {
       modelConfig = getAIModel(request)
     } catch {
-      return NextResponse.json({ error: 'AI service not configured' }, { status: 503 })
+      return NextResponse.json({ error: "AI service not configured" }, { status: 503 })
     }
 
     // Enforce per-user weekly limit only when using server key
     let limitResult: WeeklyLimitResult | undefined
     if (!modelConfig.isUserKey) {
-      limitResult = await checkAndIncrementWeeklyLimit(user.id, 'intel')
+      limitResult = await checkAndIncrementWeeklyLimit(user.id, "intel")
       if (!limitResult.allowed) {
         if (cached) {
           return NextResponse.json({
@@ -133,12 +139,13 @@ export async function GET(request: Request) {
             nextAllowedAt: limitResult.nextAllowedAt,
           })
         }
-        const msg = limitResult.limitType === 'daily'
-          ? 'Daily AI limit reached. Try again tomorrow.'
-          : 'Weekly AI limit reached. Try again next week.'
+        const msg =
+          limitResult.limitType === "daily"
+            ? "Daily AI limit reached. Try again tomorrow."
+            : "Weekly AI limit reached. Try again next week."
         return NextResponse.json(
           { error: msg, remaining: 0, nextAllowedAt: limitResult.nextAllowedAt },
-          { status: 429 }
+          { status: 429 },
         )
       }
     }
@@ -158,7 +165,7 @@ export async function GET(request: Request) {
 
     // Upsert to global cache
     const { data: upserted, error: upsertError } = await adminClient
-      .from('repo_insights')
+      .from("repo_insights")
       .upsert(
         {
           repo_full_name: repoFullName,
@@ -172,7 +179,7 @@ export async function GET(request: Request) {
           recommendation: analysis.recommendation,
           metrics: analysis.metrics,
         },
-        { onConflict: 'repo_full_name' }
+        { onConflict: "repo_full_name" },
       )
       .select()
       .single()
@@ -193,19 +200,23 @@ export async function GET(request: Request) {
       await langfuseSpanProcessor?.forceFlush()
     })
 
-    return NextResponse.json({ intel: rowToIntel(upserted as RepoInsightRow), cached: false, remaining: limitResult?.remaining ?? null })
+    return NextResponse.json({
+      intel: rowToIntel(upserted as RepoInsightRow),
+      cached: false,
+      remaining: limitResult?.remaining ?? null,
+    })
   } catch (err) {
     if (err instanceof GitHubRateLimitError) {
       return NextResponse.json(
-        { error: 'GitHub API rate limit reached. Please wait a few minutes and try again.' },
-        { status: 429 }
+        { error: "GitHub API rate limit reached. Please wait a few minutes and try again." },
+        { status: 429 },
       )
     }
     Sentry.captureException(err)
-    console.error('[repo-intel] error:', err)
+    console.error("[repo-intel] error:", err)
     return NextResponse.json(
-      { error: 'Failed to analyze repository. Please try again.' },
-      { status: 500 }
+      { error: "Failed to analyze repository. Please try again." },
+      { status: 500 },
     )
   }
 }

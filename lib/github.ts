@@ -1,4 +1,4 @@
-import { StarredRepo, LANGUAGE_COLORS } from './types'
+import { StarredRepo, LANGUAGE_COLORS } from "./types"
 
 interface GitHubRepo {
   id: number
@@ -32,17 +32,17 @@ interface StarredRepoResponse {
 export async function fetchStarredRepos(
   accessToken: string,
   page: number = 1,
-  perPage: number = 100
+  perPage: number = 100,
 ): Promise<{ repos: StarredRepo[]; hasMore: boolean }> {
   const response = await fetch(
     `https://api.github.com/user/starred?page=${page}&per_page=${perPage}`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github.star+json', // This header returns starred_at timestamp
-        'X-GitHub-Api-Version': '2022-11-28',
+        Accept: "application/vnd.github.star+json", // This header returns starred_at timestamp
+        "X-GitHub-Api-Version": "2022-11-28",
       },
-    }
+    },
   )
 
   if (!response.ok) {
@@ -50,9 +50,9 @@ export async function fetchStarredRepos(
   }
 
   const data: StarredRepoResponse[] = await response.json()
-  
+
   // Check if there are more pages
-  const linkHeader = response.headers.get('Link')
+  const linkHeader = response.headers.get("Link")
   const hasMore = linkHeader?.includes('rel="next"') ?? false
 
   const repos: StarredRepo[] = data.map((item) => ({
@@ -60,7 +60,7 @@ export async function fetchStarredRepos(
     owner: item.repo.owner.login,
     name: item.repo.name,
     fullName: item.repo.full_name,
-    description: item.repo.description || '',
+    description: item.repo.description || "",
     language: item.repo.language,
     languageColor: item.repo.language ? LANGUAGE_COLORS[item.repo.language] || null : null,
     topics: item.repo.topics || [],
@@ -107,21 +107,18 @@ export async function fetchAllStarredRepos(accessToken: string): Promise<Starred
 export async function fetchRepoStarCount(
   owner: string,
   repo: string,
-  accessToken?: string
+  accessToken?: string,
 ): Promise<number | null> {
   try {
     const headers: Record<string, string> = {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
     }
     if (accessToken) {
       headers.Authorization = `Bearer ${accessToken}`
     }
 
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}`,
-      { headers }
-    )
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers })
 
     if (!response.ok) {
       return null
@@ -146,21 +143,20 @@ export interface ReleaseInfo {
 export async function fetchRepoLatestRelease(
   owner: string,
   repo: string,
-  accessToken?: string
+  accessToken?: string,
 ): Promise<ReleaseInfo | null> {
   try {
     const headers: Record<string, string> = {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
     }
     if (accessToken) {
       headers.Authorization = `Bearer ${accessToken}`
     }
 
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/releases/latest`,
-      { headers }
-    )
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
+      headers,
+    })
 
     if (!response.ok) {
       return null
@@ -181,102 +177,93 @@ export async function fetchRepoLatestRelease(
 
 export interface ReadmeResult {
   content: string | null
-  error?: 'auth' | 'not_found' | 'server'
+  error?: "auth" | "not_found" | "server"
 }
 
-export async function unstarRepo(
-  accessToken: string,
-  owner: string,
-  repo: string
-): Promise<void> {
-  const response = await fetch(
-    `https://api.github.com/user/starred/${owner}/${repo}`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    }
-  )
+export async function unstarRepo(accessToken: string, owner: string, repo: string): Promise<void> {
+  const response = await fetch(`https://api.github.com/user/starred/${owner}/${repo}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  })
 
   // 204 = success, 404 = already unstarred (treat as success)
   if (!response.ok && response.status !== 404) {
-    const details = await response.text().catch(() => '')
-    throw new Error(details ? `GitHub API error: ${response.status} ${details}` : `GitHub API error: ${response.status}`)
+    const details = await response.text().catch(() => "")
+    throw new Error(
+      details
+        ? `GitHub API error: ${response.status} ${details}`
+        : `GitHub API error: ${response.status}`,
+    )
   }
 }
 
-export async function starRepo(
-  accessToken: string,
-  owner: string,
-  repo: string
-): Promise<void> {
-  const response = await fetch(
-    `https://api.github.com/user/starred/${owner}/${repo}`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Length': '0',
-      },
-    }
-  )
+export async function starRepo(accessToken: string, owner: string, repo: string): Promise<void> {
+  const response = await fetch(`https://api.github.com/user/starred/${owner}/${repo}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Length": "0",
+    },
+  })
 
   // 204 = success, 304 = already starred (treat as success)
   if (!response.ok && response.status !== 304) {
-    const details = await response.text().catch(() => '')
-    throw new Error(details ? `GitHub API error: ${response.status} ${details}` : `GitHub API error: ${response.status}`)
+    const details = await response.text().catch(() => "")
+    throw new Error(
+      details
+        ? `GitHub API error: ${response.status} ${details}`
+        : `GitHub API error: ${response.status}`,
+    )
   }
 }
 
 export async function fetchRepoReadme(
   accessToken: string | undefined,
   owner: string,
-  repo: string
+  repo: string,
 ): Promise<ReadmeResult> {
   try {
     const headers: Record<string, string> = {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
     }
 
     if (accessToken) {
       headers.Authorization = `Bearer ${accessToken}`
     }
 
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/readme`,
-      {
-        headers,
-      }
-    )
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+      headers,
+    })
 
     if (response.status === 401) {
-      return { content: null, error: 'auth' }
+      return { content: null, error: "auth" }
     }
 
     if (response.status === 404) {
-      return { content: null, error: 'not_found' }
+      return { content: null, error: "not_found" }
     }
 
     if (!response.ok) {
-      return { content: null, error: 'server' }
+      return { content: null, error: "server" }
     }
 
     const data = await response.json()
-    if (!data.content || data.encoding !== 'base64') {
+    if (!data.content || data.encoding !== "base64") {
       return { content: null }
     }
 
     // GitHub API base64-encodes content with newlines — strip them before decoding
     return {
-      content: Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+      content: Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf-8"),
     }
   } catch {
-    return { content: null, error: 'server' }
+    return { content: null, error: "server" }
   }
 }

@@ -45,7 +45,9 @@ export function DashboardHeader({
   categorizeLimit,
   onOpenCommandPalette,
 }: DashboardHeaderProps) {
-  const searchLabel = searchQuery ? `Search: ${searchQuery}` : "Search repositories, tags, and actions"
+  const searchLabel = searchQuery
+    ? `Search: ${searchQuery}`
+    : "Search repositories, tags, and actions"
   const desktopControlClassName =
     "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
   const mobileControlClassName =
@@ -72,7 +74,9 @@ export function DashboardHeader({
 
       <Select
         value={healthFilter ?? "all"}
-        onValueChange={(value) => onHealthFilterChange(value === "all" ? null : value as RepoHealthFilter)}
+        onValueChange={(value) =>
+          onHealthFilterChange(value === "all" ? null : (value as RepoHealthFilter))
+        }
       >
         <SelectTrigger className={`w-32 lg:w-36 ${desktopControlClassName}`}>
           <SelectValue placeholder="Health" />
@@ -121,7 +125,9 @@ export function DashboardHeader({
 
       <Select
         value={healthFilter ?? "all"}
-        onValueChange={(value) => onHealthFilterChange(value === "all" ? null : value as RepoHealthFilter)}
+        onValueChange={(value) =>
+          onHealthFilterChange(value === "all" ? null : (value as RepoHealthFilter))
+        }
       >
         <SelectTrigger className={`w-full ${mobileControlClassName}`}>
           <SelectValue placeholder="Health" />

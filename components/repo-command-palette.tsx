@@ -89,9 +89,9 @@ export function RepoCommandPalette({
 
   const visibleActions = useMemo(() => {
     if (!normalizedQuery) return actions
-    return actions.filter((action) => (
-      `${action.label} ${action.shortcut ?? ""}`.toLowerCase().includes(normalizedQuery)
-    ))
+    return actions.filter((action) =>
+      `${action.label} ${action.shortcut ?? ""}`.toLowerCase().includes(normalizedQuery),
+    )
   }, [actions, normalizedQuery])
 
   const visibleRepos = useMemo(() => {
@@ -136,7 +136,9 @@ export function RepoCommandPalette({
     if (!open) return
 
     const nextSelection =
-      orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
+      orderedItemMatches.find((item) => item.matchesQuery)?.value ??
+      orderedItemMatches[0]?.value ??
+      ""
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedValue(nextSelection)
@@ -171,11 +173,7 @@ export function RepoCommandPalette({
               </KbdGroup>
             </div>
           </div>
-          <CommandInput
-            value={query}
-            onValueChange={setQuery}
-            placeholder={placeholder}
-          />
+          <CommandInput value={query} onValueChange={setQuery} placeholder={placeholder} />
 
           <CommandList className="max-h-[min(72vh,680px)] px-2 py-2">
             {visibleActions.length > 0 && (
@@ -232,9 +230,7 @@ export function RepoCommandPalette({
               <div className="py-10">
                 <div className="space-y-2 text-center">
                   <p className="font-medium">No results for &quot;{query.trim()}&quot;</p>
-                  <p className="text-xs text-muted-foreground">
-                    {emptyHint}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{emptyHint}</p>
                 </div>
               </div>
             )}

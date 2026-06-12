@@ -44,170 +44,172 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
 
   return (
     <div ref={setNodeRef} className={cn("h-full", isDragging && "opacity-40")}>
-    <Card
-      className={cn(
-        "group relative cursor-pointer transition-all duration-200 h-full py-0 overflow-hidden",
-        "hover:border-muted-foreground/30 hover:bg-card/80",
-        "border-border bg-card"
-      )}
-      onClick={onClick}
-    >
-      <CardContent className="p-4 h-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Avatar className="h-6 w-6 shrink-0">
-              <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
-              <AvatarFallback className="text-xs">
-                {repo.owner[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground truncate">{repo.owner}</p>
-              <h3 className="font-mono font-medium text-sm truncate">{repo.name}</h3>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Health badges - visible by default, hide on hover */}
-            <div className="group-hover:hidden flex items-center gap-1">
-              <RepoHealthBadges repo={repo} size="sm" />
-            </div>
-            {repo.isPinned && (
-              <Pin className="h-3 w-3 text-accent fill-accent" />
-            )}
-            {/* Drag handle and menu - hidden by default, show on hover */}
-            <button
-              {...listeners}
-              {...attributes}
-              onClick={e => e.stopPropagation()}
-              className="h-6 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
-              aria-label="Drag to assign"
-            >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
-                <circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/>
-                <circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/>
-                <circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/>
-              </svg>
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 flex opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem>
-                  <StickyNote className="mr-2 h-4 w-4" />
-                  Add Note
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <FolderPlus className="mr-2 h-4 w-4" />
-                  Add to Collection
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Pin className="mr-2 h-4 w-4" />
-                  {repo.isPinned ? "Unpin" : "Pin"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onSelect={() => onRemoveStar?.(repo)}
-                >
-                  Remove Star
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Description - fixed height area */}
-        <div className="mt-3 flex-1 min-h-[2.75rem]">
-          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-            {repo.description || "No description available"}
-          </p>
-        </div>
-
-        {/* Tags + Topics */}
-        <div className="mt-3 min-h-5">
-          {(repo.tags.length > 0 || repo.topics.length > 0) && (
-            <div className="flex flex-wrap gap-1">
-              {repo.tags.slice(0, 3).map((tag) => (
-                <Badge
-                  key={tag.id}
-                  variant="outline"
-                  className="text-xs px-1.5 py-0 h-5 border-0"
-                  style={{
-                    backgroundColor: `${tag.color}20`,
-                    color: tag.color,
-                  }}
-                >
-                  {tag.label}
-                </Badge>
-              ))}
-              {repo.topics.slice(0, 3 - Math.min(repo.tags.length, 3)).map((topic) => (
-                <Badge
-                  key={topic}
-                  variant="secondary"
-                  className="text-xs px-1.5 py-0 h-5 font-normal"
-                >
-                  {topic}
-                </Badge>
-              ))}
-              {repo.tags.length + repo.topics.length > 3 && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 text-muted-foreground/50 border-border/40">
-                  +{repo.tags.length + repo.topics.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer - always at bottom */}
-        <div className="mt-4 pt-3 border-t border-border/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {repo.language && (
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: repo.languageColor || "#64748b" }}
-                  />
-                  <span>{repo.language}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3" />
-                <span>{formatNumber(repo.stargazersCount)}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <GitFork className="h-3 w-3" />
-                <span>{formatNumber(repo.forksCount)}</span>
+      <Card
+        className={cn(
+          "group relative cursor-pointer transition-all duration-200 h-full py-0 overflow-hidden",
+          "hover:border-muted-foreground/30 hover:bg-card/80",
+          "border-border bg-card",
+        )}
+        onClick={onClick}
+      >
+        <CardContent className="p-4 h-full flex flex-col">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar className="h-6 w-6 shrink-0">
+                <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
+                <AvatarFallback className="text-xs">{repo.owner[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">{repo.owner}</p>
+                <h3 className="font-mono font-medium text-sm truncate">{repo.name}</h3>
               </div>
             </div>
 
-            {statusConfig && (
-              <Badge
-                variant="outline"
-                className={cn("text-xs px-1.5 py-0 h-5", statusConfig.color)}
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Health badges - visible by default, hide on hover */}
+              <div className="group-hover:hidden flex items-center gap-1">
+                <RepoHealthBadges repo={repo} size="sm" />
+              </div>
+              {repo.isPinned && <Pin className="h-3 w-3 text-accent fill-accent" />}
+              {/* Drag handle and menu - hidden by default, show on hover */}
+              <button
+                {...listeners}
+                {...attributes}
+                onClick={(e) => e.stopPropagation()}
+                className="h-6 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+                aria-label="Drag to assign"
               >
-                {statusConfig.label}
-              </Badge>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
+                  <circle cx="5" cy="4" r="1.5" />
+                  <circle cx="11" cy="4" r="1.5" />
+                  <circle cx="5" cy="8" r="1.5" />
+                  <circle cx="11" cy="8" r="1.5" />
+                  <circle cx="5" cy="12" r="1.5" />
+                  <circle cx="11" cy="12" r="1.5" />
+                </svg>
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 flex opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem>
+                    <StickyNote className="mr-2 h-4 w-4" />
+                    Add Note
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FolderPlus className="mr-2 h-4 w-4" />
+                    Add to Collection
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Pin className="mr-2 h-4 w-4" />
+                    {repo.isPinned ? "Unpin" : "Pin"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onSelect={() => onRemoveStar?.(repo)}
+                  >
+                    Remove Star
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Description - fixed height area */}
+          <div className="mt-3 flex-1 min-h-[2.75rem]">
+            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+              {repo.description || "No description available"}
+            </p>
+          </div>
+
+          {/* Tags + Topics */}
+          <div className="mt-3 min-h-5">
+            {(repo.tags.length > 0 || repo.topics.length > 0) && (
+              <div className="flex flex-wrap gap-1">
+                {repo.tags.slice(0, 3).map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className="text-xs px-1.5 py-0 h-5 border-0"
+                    style={{
+                      backgroundColor: `${tag.color}20`,
+                      color: tag.color,
+                    }}
+                  >
+                    {tag.label}
+                  </Badge>
+                ))}
+                {repo.topics.slice(0, 3 - Math.min(repo.tags.length, 3)).map((topic) => (
+                  <Badge
+                    key={topic}
+                    variant="secondary"
+                    className="text-xs px-1.5 py-0 h-5 font-normal"
+                  >
+                    {topic}
+                  </Badge>
+                ))}
+                {repo.tags.length + repo.topics.length > 3 && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs px-1.5 py-0 h-5 text-muted-foreground/50 border-border/40"
+                  >
+                    +{repo.tags.length + repo.topics.length - 3}
+                  </Badge>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Last Updated */}
-          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground/60">
-            <Clock className="h-3 w-3" />
-            <span>Updated {timeString}</span>
+          {/* Footer - always at bottom */}
+          <div className="mt-4 pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {repo.language && (
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: repo.languageColor || "#64748b" }}
+                    />
+                    <span>{repo.language}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3" />
+                  <span>{formatNumber(repo.stargazersCount)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <GitFork className="h-3 w-3" />
+                  <span>{formatNumber(repo.forksCount)}</span>
+                </div>
+              </div>
+
+              {statusConfig && (
+                <Badge
+                  variant="outline"
+                  className={cn("text-xs px-1.5 py-0 h-5", statusConfig.color)}
+                >
+                  {statusConfig.label}
+                </Badge>
+              )}
+            </div>
+
+            {/* Last Updated */}
+            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground/60">
+              <Clock className="h-3 w-3" />
+              <span>Updated {timeString}</span>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
     </div>
   )
 }

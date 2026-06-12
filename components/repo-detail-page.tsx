@@ -4,11 +4,31 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
-  Star, GitFork, AlertCircle, Clock, ExternalLink,
-  X, Pin, FolderPlus, Tag as TagIcon, FileText, GitCommit,
-  Scale, Globe, Copy, Check, Plus, Loader2,
-  ChevronLeft, AlertTriangle, Zap, RefreshCw, ChevronDown, ChevronUp,
-  Bot, ArrowRight,
+  Star,
+  GitFork,
+  AlertCircle,
+  Clock,
+  ExternalLink,
+  X,
+  Pin,
+  FolderPlus,
+  Tag as TagIcon,
+  FileText,
+  GitCommit,
+  Scale,
+  Globe,
+  Copy,
+  Check,
+  Plus,
+  Loader2,
+  ChevronLeft,
+  AlertTriangle,
+  Zap,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Bot,
+  ArrowRight,
 } from "lucide-react"
 import Link from "next/link"
 import { GitHubIcon } from "@/components/icons/github-icon"
@@ -28,9 +48,15 @@ import { useStarredRepos } from "@/lib/use-starred-repos"
 import { setCachedRepos } from "@/lib/repo-cache"
 import { createClient } from "@/lib/supabase/client"
 import {
-  updateRepoStatus, updateRepoNotes, togglePin,
-  createTag, assignTag, removeTag,
-  createCollection, assignCollection, removeCollection,
+  updateRepoStatus,
+  updateRepoNotes,
+  togglePin,
+  createTag,
+  assignTag,
+  removeTag,
+  createCollection,
+  assignCollection,
+  removeCollection,
   pickTagColor,
 } from "@/lib/user-metadata"
 import { formatDistanceToNow, format } from "date-fns"
@@ -83,21 +109,22 @@ function SectionCard({
       <div
         className={cn(
           "flex items-center justify-between px-4 py-3 border-b border-border/40",
-          collapsible && "cursor-pointer hover:bg-muted/30 transition-colors"
+          collapsible && "cursor-pointer hover:bg-muted/30 transition-colors",
         )}
-        onClick={collapsible ? () => setOpen(o => !o) : undefined}
+        onClick={collapsible ? () => setOpen((o) => !o) : undefined}
       >
         <div className="flex items-center gap-2">
           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-medium">{title}</span>
         </div>
-        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {action}
-          {collapsible && (
-            open
-              ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-              : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
+          {collapsible &&
+            (open ? (
+              <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ))}
         </div>
       </div>
       {(!collapsible || open) && <div className="px-4 py-4">{children}</div>}
@@ -120,14 +147,16 @@ function ReadmeSection({
 }) {
   const shouldFetch = cachedReadme == null
   const { data, isLoading } = useSWR<{ readme: string | null; error?: string }>(
-    shouldFetch ? `/api/github/readme?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repoName)}` : null,
+    shouldFetch
+      ? `/api/github/readme?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repoName)}`
+      : null,
     async (url: string) => {
       const response = await fetch(url)
       const body = await response.json()
       if (!response.ok) throw new Error(body.error || "Failed to fetch README")
       return body
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false },
   )
 
   const content = cachedReadme ?? data?.readme
@@ -151,15 +180,12 @@ function ReadmeSection({
   }
 
   if (!content) {
-    return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
-        No README available.
-      </p>
-    )
+    return <p className="py-6 text-center text-sm text-muted-foreground">No README available.</p>
   }
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none
+    <div
+      className="prose prose-sm dark:prose-invert max-w-none
       prose-headings:font-semibold prose-headings:text-foreground prose-headings:mt-6 prose-headings:mb-3
       prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-2
       prose-code:text-accent prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
@@ -172,7 +198,8 @@ function ReadmeSection({
       prose-hr:border-border/40 prose-hr:my-6
       prose-table:text-sm prose-th:text-foreground prose-td:text-muted-foreground
       prose-h1:text-lg prose-h2:text-base prose-h3:text-sm
-    ">
+    "
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -180,7 +207,12 @@ function ReadmeSection({
           code({ className, children, ...props }: any) {
             const match = /language-(\w+)/.exec(className || "")
             const isInline = !match
-            if (isInline) return <code className={className} {...props}>{children}</code>
+            if (isInline)
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              )
             return (
               <SyntaxHighlighter
                 style={oneDark}
@@ -199,7 +231,11 @@ function ReadmeSection({
             return <img src={resolved} alt={alt ?? ""} className="rounded-lg max-w-full" />
           },
           a({ href, children }) {
-            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            )
           },
         }}
       >
@@ -231,20 +267,28 @@ function contributionCacheKey(userId: string, fullName: string) {
   return `${CONTRIBUTION_CACHE_PREFIX}-${userId}-${fullName}`
 }
 
-function readCachedRepoContributions(userId: string | undefined, fullName: string): RepoContributionResponse | undefined {
+function readCachedRepoContributions(
+  userId: string | undefined,
+  fullName: string,
+): RepoContributionResponse | undefined {
   if (!userId || typeof window === "undefined") return undefined
   try {
     const raw = window.localStorage.getItem(contributionCacheKey(userId, fullName))
     if (!raw) return undefined
     const cached = JSON.parse(raw) as RepoContributionResponse & { cachedAt: string }
-    if (Date.now() - new Date(cached.cachedAt).getTime() > CONTRIBUTION_CACHE_TTL_MS) return undefined
+    if (Date.now() - new Date(cached.cachedAt).getTime() > CONTRIBUTION_CACHE_TTL_MS)
+      return undefined
     return cached
   } catch {
     return undefined
   }
 }
 
-function writeCachedRepoContributions(userId: string | undefined, fullName: string, data: RepoContributionResponse) {
+function writeCachedRepoContributions(
+  userId: string | undefined,
+  fullName: string,
+  data: RepoContributionResponse,
+) {
   if (!userId || typeof window === "undefined") return
   try {
     window.localStorage.setItem(
@@ -256,10 +300,21 @@ function writeCachedRepoContributions(userId: string | undefined, fullName: stri
   }
 }
 
-function ContributionsSection({ repo, userId, variant = "rail" }: { repo: StarredRepo; userId?: string; variant?: "rail" | "spotlight" }) {
+function ContributionsSection({
+  repo,
+  userId,
+  variant = "rail",
+}: {
+  repo: StarredRepo
+  userId?: string
+  variant?: "rail" | "spotlight"
+}) {
   const fullName = repo.fullName
   const [showAll, setShowAll] = useState(false)
-  const fallbackData = useMemo(() => readCachedRepoContributions(userId, fullName), [fullName, userId])
+  const fallbackData = useMemo(
+    () => readCachedRepoContributions(userId, fullName),
+    [fullName, userId],
+  )
 
   const { data, isLoading, error } = useSWR<RepoContributionResponse>(
     userId ? ["repo-detail-contributions", fullName] : null,
@@ -310,7 +365,9 @@ function ContributionsSection({ repo, userId, variant = "rail" }: { repo: Starre
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
         <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
-          {error ? error.message : "No open issues ranked yet. Open the scanner to inspect this repo deeply."}
+          {error
+            ? error.message
+            : "No open issues ranked yet. Open the scanner to inspect this repo deeply."}
         </p>
         <Button size="sm" variant="outline" className="gap-1.5" asChild>
           <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
@@ -335,11 +392,13 @@ function ContributionsSection({ repo, userId, variant = "rail" }: { repo: Starre
               Ranked from the latest open issues in this repo, with fit signals and risk flags.
             </p>
           </div>
-          <Badge variant="outline" className="font-mono">{opportunities.length} ranked</Badge>
+          <Badge variant="outline" className="font-mono">
+            {opportunities.length} ranked
+          </Badge>
         </div>
       )}
       <div className={cn("grid gap-2", variant === "spotlight" && "md:grid-cols-2 xl:grid-cols-4")}>
-        {visible.map(opp => (
+        {visible.map((opp) => (
           <MiniContribCard key={opp.id} opp={opp} />
         ))}
       </div>
@@ -348,7 +407,7 @@ function ContributionsSection({ repo, userId, variant = "rail" }: { repo: Starre
           variant="ghost"
           size="sm"
           className="w-full text-xs text-muted-foreground"
-          onClick={() => setShowAll(s => !s)}
+          onClick={() => setShowAll((s) => !s)}
         >
           {showAll ? "Show fewer" : `Show ${opportunities.length - visibleLimit} more here`}
         </Button>
@@ -375,14 +434,21 @@ function MiniContribCard({ opp }: { opp: ContributionOpportunity }) {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium leading-snug line-clamp-2 flex-1">{opp.title}</p>
-        <span className={cn("text-xs font-mono shrink-0 font-semibold", scoreTone)}>{opp.score}%</span>
+        <span className={cn("text-xs font-mono shrink-0 font-semibold", scoreTone)}>
+          {opp.score}%
+        </span>
       </div>
       <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border/40 text-muted-foreground">
+        <Badge
+          variant="outline"
+          className="text-[10px] px-1.5 py-0 h-4 border-border/40 text-muted-foreground"
+        >
           {opp.difficulty}
         </Badge>
-        {opp.contributionTypes.slice(0, 1).map(t => (
-          <Badge key={t} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{t}</Badge>
+        {opp.contributionTypes.slice(0, 1).map((t) => (
+          <Badge key={t} variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+            {t}
+          </Badge>
         ))}
         <Bot className="h-3 w-3 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -406,9 +472,16 @@ interface OrganizeSectionProps {
 }
 
 function OrganizeSection({
-  repo, collections, tags,
-  onStatusChange, onPinToggle, onTagToggle, onTagCreate,
-  onCollectionToggle, onCollectionCreate, onNotesChange,
+  repo,
+  collections,
+  tags,
+  onStatusChange,
+  onPinToggle,
+  onTagToggle,
+  onTagCreate,
+  onCollectionToggle,
+  onCollectionCreate,
+  onNotesChange,
 }: OrganizeSectionProps) {
   const [notes, setNotes] = useState(repo.notes || "")
   const [savingNotes, setSavingNotes] = useState(false)
@@ -423,32 +496,47 @@ function OrganizeSection({
     const task = window.setTimeout(() => setNotes(repo.notes || ""), 0)
     return () => window.clearTimeout(task)
   }, [repo.id, repo.notes])
-  useEffect(() => () => { if (notesTimer.current) clearTimeout(notesTimer.current) }, [])
+  useEffect(
+    () => () => {
+      if (notesTimer.current) clearTimeout(notesTimer.current)
+    },
+    [],
+  )
 
   const handleNotesChange = (value: string) => {
     setNotes(value)
     if (notesTimer.current) clearTimeout(notesTimer.current)
     notesTimer.current = setTimeout(async () => {
-      setSavingNotes(true); await onNotesChange(value); setSavingNotes(false)
+      setSavingNotes(true)
+      await onNotesChange(value)
+      setSavingNotes(false)
     }, 800)
   }
 
   const flushNotes = async (value: string) => {
-    if (notesTimer.current) { clearTimeout(notesTimer.current); notesTimer.current = null }
-    setSavingNotes(true); await onNotesChange(value); setSavingNotes(false)
+    if (notesTimer.current) {
+      clearTimeout(notesTimer.current)
+      notesTimer.current = null
+    }
+    setSavingNotes(true)
+    await onNotesChange(value)
+    setSavingNotes(false)
   }
 
   const handleTagKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter" || !tagInput.trim()) return
     const label = tagInput.trim().toLowerCase()
-    const existing = tags.find(t => t.label === label)
+    const existing = tags.find((t) => t.label === label)
     if (existing) onTagToggle(existing.id)
     else onTagCreate(label)
-    setTagInput(""); setTagPopoverOpen(false)
+    setTagInput("")
+    setTagPopoverOpen(false)
   }
 
-  const filteredTags = tags.filter(t => !tagInput || t.label.toLowerCase().includes(tagInput.toLowerCase()))
-  const unassignedTags = filteredTags.filter(t => !repo.tags.some(rt => rt.id === t.id))
+  const filteredTags = tags.filter(
+    (t) => !tagInput || t.label.toLowerCase().includes(tagInput.toLowerCase()),
+  )
+  const unassignedTags = filteredTags.filter((t) => !repo.tags.some((rt) => rt.id === t.id))
 
   return (
     <div className="space-y-4">
@@ -461,7 +549,7 @@ function OrganizeSection({
             "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all",
             repo.isPinned
               ? "border-accent/40 bg-accent/10 text-accent"
-              : "border-border text-muted-foreground hover:border-muted-foreground"
+              : "border-border text-muted-foreground hover:border-muted-foreground",
           )}
         >
           <Pin className={cn("h-3 w-3", repo.isPinned && "fill-accent")} />
@@ -478,12 +566,12 @@ function OrganizeSection({
           {Object.entries(STATUS_LABELS).map(([key, { label, color }]) => (
             <button
               key={key}
-              onClick={() => onStatusChange(repo.status === key ? null : key as RepoStatus)}
+              onClick={() => onStatusChange(repo.status === key ? null : (key as RepoStatus))}
               className={cn(
                 "text-xs px-2.5 py-1 rounded-full border transition-all",
                 repo.status === key
                   ? color
-                  : "border-border text-muted-foreground hover:border-muted-foreground"
+                  : "border-border text-muted-foreground hover:border-muted-foreground",
               )}
             >
               {label}
@@ -498,42 +586,83 @@ function OrganizeSection({
       <div>
         <p className="text-xs text-muted-foreground mb-2">Collections</p>
         <div className="flex flex-wrap gap-1.5">
-          {repo.collections.map(colId => {
-            const col = collections.find(c => c.id === colId)
+          {repo.collections.map((colId) => {
+            const col = collections.find((c) => c.id === colId)
             if (!col) return null
             return (
-              <Badge key={colId} variant="secondary" className="gap-1 cursor-pointer pr-1 text-xs" onClick={() => onCollectionToggle(colId)}>
-                {col.emoji} {col.name}<X className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />
+              <Badge
+                key={colId}
+                variant="secondary"
+                className="gap-1 cursor-pointer pr-1 text-xs"
+                onClick={() => onCollectionToggle(colId)}
+              >
+                {col.emoji} {col.name}
+                <X className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />
               </Badge>
             )
           })}
           <Popover open={collectionPopoverOpen} onOpenChange={setCollectionPopoverOpen}>
             <PopoverTrigger asChild>
               <Badge variant="outline" className="cursor-pointer text-xs gap-1 hover:bg-muted">
-                <FolderPlus className="h-3 w-3" />Add
+                <FolderPlus className="h-3 w-3" />
+                Add
               </Badge>
             </PopoverTrigger>
             <PopoverContent className="w-60 p-2" align="start">
               <div className="space-y-0.5 max-h-44 overflow-y-auto">
-                {collections.filter(c => !repo.collections.includes(c.id)).map(col => (
-                  <button key={col.id} className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
-                    onClick={() => { onCollectionToggle(col.id); setCollectionPopoverOpen(false) }}>
-                    <span>{col.emoji}</span><span>{col.name}</span>
-                  </button>
-                ))}
-                {collections.filter(c => !repo.collections.includes(c.id)).length === 0 && (
-                  <p className="text-xs text-muted-foreground px-2 py-1">All collections assigned</p>
+                {collections
+                  .filter((c) => !repo.collections.includes(c.id))
+                  .map((col) => (
+                    <button
+                      key={col.id}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
+                      onClick={() => {
+                        onCollectionToggle(col.id)
+                        setCollectionPopoverOpen(false)
+                      }}
+                    >
+                      <span>{col.emoji}</span>
+                      <span>{col.name}</span>
+                    </button>
+                  ))}
+                {collections.filter((c) => !repo.collections.includes(c.id)).length === 0 && (
+                  <p className="text-xs text-muted-foreground px-2 py-1">
+                    All collections assigned
+                  </p>
                 )}
               </div>
               <Separator className="my-2" />
               <div className="flex gap-1.5">
-                <Input placeholder="📁" value={newCollectionEmoji} onChange={e => setNewCollectionEmoji(e.target.value)} className="w-12 text-center px-1" />
-                <Input placeholder="New collection" value={newCollectionName}
-                  onChange={e => setNewCollectionName(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && newCollectionName.trim()) { onCollectionCreate(newCollectionName.trim(), newCollectionEmoji, "#64748b"); setNewCollectionName(""); setNewCollectionEmoji("📁") } }}
-                  className="flex-1" />
-                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0"
-                  onClick={() => { if (!newCollectionName.trim()) return; onCollectionCreate(newCollectionName.trim(), newCollectionEmoji, "#64748b"); setNewCollectionName(""); setNewCollectionEmoji("📁") }}>
+                <Input
+                  placeholder="📁"
+                  value={newCollectionEmoji}
+                  onChange={(e) => setNewCollectionEmoji(e.target.value)}
+                  className="w-12 text-center px-1"
+                />
+                <Input
+                  placeholder="New collection"
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newCollectionName.trim()) {
+                      onCollectionCreate(newCollectionName.trim(), newCollectionEmoji, "#64748b")
+                      setNewCollectionName("")
+                      setNewCollectionEmoji("📁")
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => {
+                    if (!newCollectionName.trim()) return
+                    onCollectionCreate(newCollectionName.trim(), newCollectionEmoji, "#64748b")
+                    setNewCollectionName("")
+                    setNewCollectionEmoji("📁")
+                  }}
+                >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -546,35 +675,65 @@ function OrganizeSection({
       <div>
         <p className="text-xs text-muted-foreground mb-2">Tags</p>
         <div className="flex flex-wrap gap-1.5">
-          {repo.tags.map(tag => (
-            <Badge key={tag.id} variant="outline" className="text-xs border-0 gap-1 cursor-pointer pr-1"
+          {repo.tags.map((tag) => (
+            <Badge
+              key={tag.id}
+              variant="outline"
+              className="text-xs border-0 gap-1 cursor-pointer pr-1"
               style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-              onClick={() => onTagToggle(tag.id)}>
-              {tag.label}<X className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />
+              onClick={() => onTagToggle(tag.id)}
+            >
+              {tag.label}
+              <X className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />
             </Badge>
           ))}
           <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
             <PopoverTrigger asChild>
               <Badge variant="outline" className="cursor-pointer text-xs gap-1 hover:bg-muted">
-                <TagIcon className="h-3 w-3" />Add
+                <TagIcon className="h-3 w-3" />
+                Add
               </Badge>
             </PopoverTrigger>
             <PopoverContent className="w-52 p-2" align="start">
-              <Input autoFocus placeholder="Search or create tag…" value={tagInput}
-                onChange={e => setTagInput(e.target.value)} onKeyDown={handleTagKey} className="mb-2" />
+              <Input
+                autoFocus
+                placeholder="Search or create tag…"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKey}
+                className="mb-2"
+              />
               <div className="space-y-0.5 max-h-36 overflow-y-auto">
-                {unassignedTags.map(tag => (
-                  <button key={tag.id} className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
-                    onClick={() => { onTagToggle(tag.id); setTagPopoverOpen(false) }}>
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />{tag.label}
+                {unassignedTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
+                    onClick={() => {
+                      onTagToggle(tag.id)
+                      setTagPopoverOpen(false)
+                    }}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.label}
                   </button>
                 ))}
-                {tagInput.trim() && !tags.find(t => t.label === tagInput.trim().toLowerCase()) && (
-                  <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left text-muted-foreground"
-                    onClick={() => { onTagCreate(tagInput.trim()); setTagInput(""); setTagPopoverOpen(false) }}>
-                    <Plus className="h-3 w-3" />Create &quot;{tagInput.trim()}&quot;
-                  </button>
-                )}
+                {tagInput.trim() &&
+                  !tags.find((t) => t.label === tagInput.trim().toLowerCase()) && (
+                    <button
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left text-muted-foreground"
+                      onClick={() => {
+                        onTagCreate(tagInput.trim())
+                        setTagInput("")
+                        setTagPopoverOpen(false)
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                      Create &quot;{tagInput.trim()}&quot;
+                    </button>
+                  )}
                 {filteredTags.length === 0 && !tagInput.trim() && (
                   <p className="text-xs text-muted-foreground px-2 py-1">No tags yet.</p>
                 )}
@@ -590,10 +749,13 @@ function OrganizeSection({
           <p className="text-xs text-muted-foreground">Notes</p>
           {savingNotes && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
-        <Textarea placeholder="Add personal notes…" value={notes}
-          onChange={e => handleNotesChange(e.target.value)}
+        <Textarea
+          placeholder="Add personal notes…"
+          value={notes}
+          onChange={(e) => handleNotesChange(e.target.value)}
           onBlur={() => flushNotes(notes)}
-          className="min-h-[90px] resize-none text-sm" />
+          className="min-h-[90px] resize-none text-sm"
+        />
         <p className="text-[10px] text-muted-foreground mt-1">Saves automatically</p>
       </div>
     </div>
@@ -612,20 +774,20 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   const { data: reposData, isLoading: reposLoading, mutate: mutateRepos } = useStarredRepos(userId)
   const { data: metadata, mutate: mutateMetadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
-    (url: string) => fetch(url).then(r => r.json()),
-    { revalidateOnFocus: false }
+    (url: string) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false },
   )
 
-  const rawRepo = useMemo(() =>
-    reposData?.repos.find(r => r.fullName === `${owner}/${repoName}`) ?? null,
-    [reposData, owner, repoName]
+  const rawRepo = useMemo(
+    () => reposData?.repos.find((r) => r.fullName === `${owner}/${repoName}`) ?? null,
+    [reposData, owner, repoName],
   )
 
   const repo = useMemo((): StarredRepo | null => {
     if (!rawRepo) return null
     const dbMeta = metadata?.repoMeta[rawRepo.id]
     if (!dbMeta) return rawRepo
-    const dbTags = (metadata?.tags ?? []).filter(t => dbMeta.tagIds.includes(t.id))
+    const dbTags = (metadata?.tags ?? []).filter((t) => dbMeta.tagIds.includes(t.id))
     return {
       ...rawRepo,
       status: dbMeta.status ?? rawRepo.status,
@@ -639,21 +801,27 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   const collections = metadata?.collections ?? []
   const allTags = metadata?.tags ?? []
 
-  const handleReadmeLoaded = useCallback((readme: string) => {
-    if (!userId) return
+  const handleReadmeLoaded = useCallback(
+    (readme: string) => {
+      if (!userId) return
 
-    mutateRepos(prev => {
-      if (!prev) return prev
+      mutateRepos(
+        (prev) => {
+          if (!prev) return prev
 
-      const targetFullName = `${owner}/${repoName}`
-      const repos = prev.repos.map(item =>
-        item.fullName === targetFullName ? { ...item, readme } : item
+          const targetFullName = `${owner}/${repoName}`
+          const repos = prev.repos.map((item) =>
+            item.fullName === targetFullName ? { ...item, readme } : item,
+          )
+
+          setCachedRepos(userId, repos)
+          return { ...prev, repos }
+        },
+        { revalidate: false },
       )
-
-      setCachedRepos(userId, repos)
-      return { ...prev, repos }
-    }, { revalidate: false })
-  }, [mutateRepos, owner, repoName, userId])
+    },
+    [mutateRepos, owner, repoName, userId],
+  )
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -661,7 +829,13 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
     prev: UserMetadata | undefined,
     repoId: string,
     dbId: string,
-    overrides: Partial<{ status: RepoStatus | null; isPinned: boolean; notes: string | null; tagIds: string[]; collectionIds: string[] }> = {}
+    overrides: Partial<{
+      status: RepoStatus | null
+      isPinned: boolean
+      notes: string | null
+      tagIds: string[]
+      collectionIds: string[]
+    }> = {},
   ): UserMetadata => ({
     tags: prev?.tags ?? [],
     collections: prev?.collections ?? [],
@@ -684,7 +858,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
     const response = await fetch(`/api/user/repo-id?githubRepoId=${r.id}`)
     if (!response.ok) throw new Error("Repo metadata missing. Refresh your stars and try again.")
     const { dbId } = await response.json()
-    mutateMetadata(prev => buildRepoMetaEntry(prev, r.id, dbId), { revalidate: false })
+    mutateMetadata((prev) => buildRepoMetaEntry(prev, r.id, dbId), { revalidate: false })
     return dbId
   }
 
@@ -692,9 +866,14 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
     if (!repo) return
     try {
       const dbId = await getDbId(repo)
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { status }), {
+        revalidate: false,
+      })
       await updateRepoStatus(supabase, dbId, status)
-    } catch { mutateMetadata(); toast.error("Failed to update status") }
+    } catch {
+      mutateMetadata()
+      toast.error("Failed to update status")
+    }
   }
 
   const handlePinToggle = async () => {
@@ -702,9 +881,14 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
     try {
       const dbId = await getDbId(repo)
       const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), {
+        revalidate: false,
+      })
       await togglePin(supabase, dbId, isPinned)
-    } catch { mutateMetadata(); toast.error("Failed to update pin") }
+    } catch {
+      mutateMetadata()
+      toast.error("Failed to update pin")
+    }
   }
 
   const handleTagToggle = async (tagId: string) => {
@@ -713,11 +897,16 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       const dbId = await getDbId(repo)
       const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
       const isAssigned = current.includes(tagId)
-      const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
+      const newTagIds = isAssigned ? current.filter((id) => id !== tagId) : [...current, tagId]
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), {
+        revalidate: false,
+      })
       if (isAssigned) await removeTag(supabase, dbId, user.id, tagId)
       else await assignTag(supabase, dbId, user.id, tagId)
-    } catch { mutateMetadata(); toast.error("Failed to update tag") }
+    } catch {
+      mutateMetadata()
+      toast.error("Failed to update tag")
+    }
   }
 
   const handleTagCreate = async (label: string) => {
@@ -739,11 +928,19 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       const dbId = await getDbId(repo)
       const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
       const isAssigned = current.includes(collectionId)
-      const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds }), { revalidate: false })
+      const newCollectionIds = isAssigned
+        ? current.filter((id) => id !== collectionId)
+        : [...current, collectionId]
+      mutateMetadata(
+        (prev) => buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds }),
+        { revalidate: false },
+      )
       if (isAssigned) await removeCollection(supabase, dbId, user.id, collectionId)
       else await assignCollection(supabase, dbId, user.id, collectionId)
-    } catch { mutateMetadata(); toast.error("Failed to update collection") }
+    } catch {
+      mutateMetadata()
+      toast.error("Failed to update collection")
+    }
   }
 
   const handleCollectionCreate = async (name: string, emoji: string, color: string) => {
@@ -753,7 +950,9 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
-      toast.error(msg.includes("unique") ? "Collection already exists" : "Failed to create collection")
+      toast.error(
+        msg.includes("unique") ? "Collection already exists" : "Failed to create collection",
+      )
     }
   }
 
@@ -762,8 +961,12 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
     try {
       const dbId = await getDbId(repo)
       await updateRepoNotes(supabase, dbId, notes)
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), { revalidate: false })
-    } catch { toast.error("Failed to save notes") }
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), {
+        revalidate: false,
+      })
+    } catch {
+      toast.error("Failed to save notes")
+    }
   }
 
   const handleCopyClone = () => {
@@ -776,10 +979,17 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   // ── Loading / not found states ────────────────────────────────────────────
 
   const sidebarProps = {
-    collections, tags: allTags, selectedCollection: null, selectedTag: null,
-    showUncategorized: false, onSelectCollection: () => {}, onSelectTag: () => {},
-    onShowUncategorized: () => {}, totalStars: reposData?.repos.length ?? 0,
-    uncategorizedCount: 0, userId: user?.id,
+    collections,
+    tags: allTags,
+    selectedCollection: null,
+    selectedTag: null,
+    showUncategorized: false,
+    onSelectCollection: () => {},
+    onSelectTag: () => {},
+    onShowUncategorized: () => {},
+    totalStars: reposData?.repos.length ?? 0,
+    uncategorizedCount: 0,
+    userId: user?.id,
   }
 
   if (reposLoading && !reposData) {
@@ -815,10 +1025,13 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
             <AlertTriangle className="h-8 w-8 text-muted-foreground" />
             <div>
               <p className="font-medium">Repository not found</p>
-              <p className="text-sm text-muted-foreground mt-1">{owner}/{repoName} is not in your starred repos.</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {owner}/{repoName} is not in your starred repos.
+              </p>
             </div>
             <Button variant="outline" onClick={() => router.push("/dashboard")}>
-              <ChevronLeft className="h-4 w-4 mr-1" />Back to Dashboard
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to Dashboard
             </Button>
           </div>
         </SidebarInset>
@@ -831,7 +1044,6 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       <AppSidebar {...sidebarProps} />
       <SidebarInset className="overflow-x-hidden">
         <div className="w-full px-4 sm:px-6 pt-6 pb-8">
-
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 mb-5">
             <button
@@ -861,7 +1073,9 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar className="h-10 w-10 shrink-0 rounded-lg">
                     <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
-                    <AvatarFallback className="rounded-lg">{repo.owner[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback className="rounded-lg">
+                      {repo.owner[0].toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">{repo.owner}</p>
@@ -869,12 +1083,23 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePinToggle} title={repo.isPinned ? "Unpin" : "Pin"}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handlePinToggle}
+                    title={repo.isPinned ? "Unpin" : "Pin"}
+                  >
                     <Pin className={cn("h-4 w-4", repo.isPinned && "fill-accent text-accent")} />
                   </Button>
                   <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
-                    <a href={`https://github.com/${repo.fullName}`} target="_blank" rel="noopener noreferrer">
-                      <GitHubIcon className="h-3.5 w-3.5" />GitHub
+                    <a
+                      href={`https://github.com/${repo.fullName}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <GitHubIcon className="h-3.5 w-3.5" />
+                      GitHub
                     </a>
                   </Button>
                 </div>
@@ -891,37 +1116,54 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <Star className="h-3.5 w-3.5" />
-                  <span className="font-mono font-semibold text-foreground">{formatNumber(repo.stargazersCount)}</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {formatNumber(repo.stargazersCount)}
+                  </span>
                   <span className="text-xs">stars</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <GitFork className="h-3.5 w-3.5" />
-                  <span className="font-mono font-semibold text-foreground">{formatNumber(repo.forksCount)}</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {formatNumber(repo.forksCount)}
+                  </span>
                   <span className="text-xs">forks</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <AlertCircle className="h-3.5 w-3.5" />
-                  <span className="font-mono font-semibold text-foreground">{formatNumber(repo.openIssuesCount)}</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {formatNumber(repo.openIssuesCount)}
+                  </span>
                   <span className="text-xs">issues</span>
                 </span>
                 {repo.language && (
                   <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: repo.languageColor || "#64748b" }} />
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: repo.languageColor || "#64748b" }}
+                    />
                     {repo.language}
                   </span>
                 )}
                 {repo.license && (
                   <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                    <Scale className="h-3.5 w-3.5" />{repo.license}
+                    <Scale className="h-3.5 w-3.5" />
+                    {repo.license}
                   </span>
                 )}
                 {repo.isTrending && (
-                  <Badge variant="outline" className="text-xs gap-1 border-amber-500/30 bg-amber-500/10 text-amber-400 h-5">
-                    <Zap className="h-3 w-3" />Trending
+                  <Badge
+                    variant="outline"
+                    className="text-xs gap-1 border-amber-500/30 bg-amber-500/10 text-amber-400 h-5"
+                  >
+                    <Zap className="h-3 w-3" />
+                    Trending
                   </Badge>
                 )}
                 {repo.status && (
-                  <Badge variant="outline" className={cn("text-xs h-5", STATUS_LABELS[repo.status].color)}>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-xs h-5", STATUS_LABELS[repo.status].color)}
+                  >
                     {STATUS_LABELS[repo.status].label}
                   </Badge>
                 )}
@@ -941,8 +1183,12 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                 Starred {format(new Date(repo.starredAt), "MMM d, yyyy")}
               </span>
               {repo.homepage && (
-                <a href={repo.homepage} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-accent hover:underline">
+                <a
+                  href={repo.homepage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-accent hover:underline"
+                >
                   <Globe className="h-3 w-3" />
                   {repo.homepage.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                 </a>
@@ -952,8 +1198,15 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                 <code className="font-mono bg-muted px-2 py-1 rounded text-xs truncate max-w-[280px]">
                   git clone https://github.com/{repo.fullName}.git
                 </code>
-                <button onClick={handleCopyClone} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
-                  {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                <button
+                  onClick={handleCopyClone}
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -964,8 +1217,10 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                 <Separator className="opacity-60" />
                 <div className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap gap-1.5">
-                    {repo.topics.slice(0, 10).map(t => (
-                      <Badge key={t} variant="secondary" className="text-xs h-5">{t}</Badge>
+                    {repo.topics.slice(0, 10).map((t) => (
+                      <Badge key={t} variant="secondary" className="text-xs h-5">
+                        {t}
+                      </Badge>
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -974,9 +1229,20 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                       { icon: GitCommit, label: "PRs", path: "pulls" },
                       { icon: FileText, label: "Releases", path: "releases" },
                     ].map(({ icon: Icon, label, path }) => (
-                      <Button key={label} variant="ghost" size="sm" className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground" asChild>
-                        <a href={`https://github.com/${repo.fullName}/${path}`} target="_blank" rel="noopener noreferrer">
-                          <Icon className="h-3 w-3" />{label}
+                      <Button
+                        key={label}
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                        asChild
+                      >
+                        <a
+                          href={`https://github.com/${repo.fullName}/${path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Icon className="h-3 w-3" />
+                          {label}
                         </a>
                       </Button>
                     ))}
@@ -991,9 +1257,16 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
               title="Contribution Opportunities"
               icon={GitCommit}
               action={
-                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" asChild onClick={e => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs gap-1 text-muted-foreground"
+                  asChild
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <a href={`/repo/${repo.owner}/${repo.name}/contributions`}>
-                    <ArrowRight className="h-3 w-3" />Workspace
+                    <ArrowRight className="h-3 w-3" />
+                    Workspace
                   </a>
                 </Button>
               }
@@ -1004,10 +1277,8 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
 
           {/* Two-column body */}
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_380px] xl:grid-cols-[minmax(0,0.75fr)_420px] 2xl:grid-cols-[minmax(0,780px)_minmax(440px,1fr)] gap-5 items-start">
-
             {/* Left: README only */}
             <div className="space-y-5 min-w-0">
-
               {/* README */}
               <SectionCard
                 title="README"
@@ -1015,9 +1286,20 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                 collapsible
                 defaultOpen
                 action={
-                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" asChild onClick={e => e.stopPropagation()}>
-                    <a href={`https://github.com/${repo.fullName}#readme`} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3 w-3" />GitHub
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs gap-1 text-muted-foreground"
+                    asChild
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <a
+                      href={`https://github.com/${repo.fullName}#readme`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      GitHub
                     </a>
                   </Button>
                 }
@@ -1039,9 +1321,16 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                 collapsible
                 defaultOpen
                 action={
-                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" asChild onClick={e => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs gap-1 text-muted-foreground"
+                    asChild
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Link href={`/intel/${repo.owner}/${repo.name}`}>
-                      <ExternalLink className="h-3 w-3" />Full report
+                      <ExternalLink className="h-3 w-3" />
+                      Full report
                     </Link>
                   </Button>
                 }

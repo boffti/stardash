@@ -37,7 +37,7 @@ interface ReadmeResponse {
 class AuthError extends Error {
   constructor(message: string) {
     super(message)
-    this.name = 'AuthError'
+    this.name = "AuthError"
   }
 }
 
@@ -45,10 +45,10 @@ const fetcher = async (url: string): Promise<ReadmeResponse> => {
   const res = await fetch(url)
   const data = await res.json()
   if (!res.ok) {
-    if (res.status === 401 || data.code === 'GITHUB_AUTH_ERROR') {
-      throw new AuthError(data.error || 'GitHub authentication expired')
+    if (res.status === 401 || data.code === "GITHUB_AUTH_ERROR") {
+      throw new AuthError(data.error || "GitHub authentication expired")
     }
-    throw new Error(data.error || 'Failed to fetch README')
+    throw new Error(data.error || "Failed to fetch README")
   }
   return data
 }
@@ -79,7 +79,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
   const { data, error, isLoading } = useSWR<ReadmeResponse>(
     open && repo ? `/api/github/readme?owner=${repo.owner}&repo=${repo.name}` : null,
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false },
   )
 
   if (!repo) return null
@@ -155,10 +155,10 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                     const supabase = createClient()
                     const currentPath = window.location.pathname + window.location.search
                     await supabase.auth.signInWithOAuth({
-                      provider: 'github',
+                      provider: "github",
                       options: {
                         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(currentPath)}`,
-                        scopes: 'read:user user:email public_repo read:org notifications',
+                        scopes: "read:user user:email public_repo read:org notifications",
                       },
                     })
                   }}
@@ -168,7 +168,8 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                 </Button>
               </Empty>
             ) : readme ? (
-              <article className="prose dark:prose-invert prose-sm max-w-full
+              <article
+                className="prose dark:prose-invert prose-sm max-w-full
                 prose-headings:font-semibold prose-headings:text-foreground
                 prose-h1:text-xl sm:prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3
                 prose-h2:text-lg sm:prose-h2:text-xl prose-h2:mt-6 sm:prose-h2:mt-8

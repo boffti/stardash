@@ -1,10 +1,13 @@
-import type { RepoIntelMetrics, IntelSubScores } from './types'
+import type { RepoIntelMetrics, IntelSubScores } from "./types"
 
 function clamp(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)))
 }
 
-function commitVelocityPoints(commits90d: number | undefined, commits30d: number | undefined): number {
+function commitVelocityPoints(
+  commits90d: number | undefined,
+  commits30d: number | undefined,
+): number {
   const c90 = commits90d ?? 0
   const c30 = commits30d ?? 0
   if (c90 >= 30 || c30 >= 10) return 40
@@ -59,18 +62,21 @@ export function computeSubScores(metrics: RepoIntelMetrics): IntelSubScores {
     (cf.issueTemplate ? 7 : 0) +
     (cf.pullRequestTemplate ? 7 : 0)
   const contribPoints = contributorPoints(
-    metrics.activeCommitAuthors90d ?? metrics.activeContributors90d
+    metrics.activeCommitAuthors90d ?? metrics.activeContributors90d,
   )
   const stalePoints =
-    metrics.staleIssueCount === 0 ? 20
-    : metrics.staleIssueCount <= 5 ? 12
-    : metrics.staleIssueCount <= 15 ? 6
-    : 0
+    metrics.staleIssueCount === 0
+      ? 20
+      : metrics.staleIssueCount <= 5
+        ? 12
+        : metrics.staleIssueCount <= 15
+          ? 6
+          : 0
   const community = clamp(filePoints + contribPoints + stalePoints)
 
   // ── Trust (inverse risk) ─────────────────────────────────────────────────
   const busTrust = busFactorTrustPoints(
-    metrics.activeCommitAuthors90d ?? metrics.activeContributors90d
+    metrics.activeCommitAuthors90d ?? metrics.activeContributors90d,
   )
   const govTrust =
     (cf.license ? 15 : 0) +

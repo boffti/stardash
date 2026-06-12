@@ -5,7 +5,13 @@ import { ExternalLink, Loader2, AlertCircle, MessageSquare, Calendar } from "luc
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
 import { GitHubIcon } from "@/components/icons/github-icon"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -55,7 +61,9 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
   const [owner, repo] = (opportunity?.repoFullName ?? "").split("/")
 
   const { data, error, isLoading } = useSWR<IssueResponse>(
-    open && opportunity ? `/api/github/issue?owner=${owner}&repo=${repo}&number=${opportunity.issueNumber}` : null,
+    open && opportunity
+      ? `/api/github/issue?owner=${owner}&repo=${repo}&number=${opportunity.issueNumber}`
+      : null,
     fetcher,
     { revalidateOnFocus: false },
   )
@@ -83,7 +91,12 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 Full issue body for {opportunity.repoFullName} #{opportunity.issueNumber}
               </SheetDescription>
             </div>
-            <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 px-2 sm:px-3" asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 px-2 sm:px-3"
+              asChild
+            >
               <a href={opportunity.htmlUrl} target="_blank" rel="noopener noreferrer">
                 <GitHubIcon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Open on GitHub</span>
@@ -99,7 +112,9 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 <span className="flex items-center gap-1.5">
                   <Avatar className="h-4 w-4">
                     <AvatarImage src={data.authorAvatar ?? undefined} alt={data.author} />
-                    <AvatarFallback className="text-[8px]">{data.author[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback className="text-[8px]">
+                      {data.author[0].toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   {data.author}
                 </span>
@@ -117,9 +132,13 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 </span>
               )}
               <div className="flex flex-wrap gap-1">
-                <Badge variant="secondary" className="text-xs">{opportunity.difficulty}</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {opportunity.difficulty}
+                </Badge>
                 {opportunity.labels.slice(0, 4).map((label) => (
-                  <Badge key={label} variant="outline" className="max-w-40 truncate text-xs">{label}</Badge>
+                  <Badge key={label} variant="outline" className="max-w-40 truncate text-xs">
+                    {label}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -149,7 +168,8 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 </Button>
               </Empty>
             ) : data?.body ? (
-              <article className="prose dark:prose-invert prose-sm max-w-full
+              <article
+                className="prose dark:prose-invert prose-sm max-w-full
                 prose-headings:font-semibold prose-headings:text-foreground
                 prose-h1:text-xl prose-h1:border-b prose-h1:border-border prose-h1:pb-3
                 prose-h2:text-lg prose-h2:mt-6
@@ -189,7 +209,13 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                               whiteSpace: "pre-wrap",
                               overflowWrap: "anywhere",
                             }}
-                            codeTagProps={{ style: { fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", wordBreak: "break-word" } }}
+                            codeTagProps={{
+                              style: {
+                                fontFamily: "var(--font-mono)",
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                              },
+                            }}
                           >
                             {block.code}
                           </SyntaxHighlighter>
@@ -197,11 +223,17 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                       )
                     },
                     a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                      <a href={href} target="_blank" rel="noopener noreferrer">
+                        {children}
+                      </a>
                     ),
                     code(props) {
                       const { children, className, ...rest } = props
-                      return <code {...rest} className={className}>{children}</code>
+                      return (
+                        <code {...rest} className={className}>
+                          {children}
+                        </code>
+                      )
                     },
                   }}
                 >

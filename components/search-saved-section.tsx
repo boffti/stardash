@@ -61,19 +61,16 @@ export function SearchSavedSection({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {searches.map(search => (
+        {searches.map((search) => (
           <div
             key={search.id}
             className={cn(
               "group rounded-lg border border-border/70 bg-card/60 p-3",
-              "hover:border-muted-foreground/30 hover:bg-card transition-colors"
+              "hover:border-muted-foreground/30 hover:bg-card transition-colors",
             )}
           >
             <div className="flex items-start justify-between gap-3">
-              <button
-                onClick={() => onSearch(search.query)}
-                className="min-w-0 flex-1 text-left"
-              >
+              <button onClick={() => onSearch(search.query)} className="min-w-0 flex-1 text-left">
                 <p className="truncate text-sm font-medium">{search.query}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1">

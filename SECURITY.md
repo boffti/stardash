@@ -5,6 +5,7 @@
 If you discover a security vulnerability, please **do not** open a public issue.
 
 Email **boffti@gmail.com** with:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact

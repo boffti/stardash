@@ -4,11 +4,7 @@ import { useMemo, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
-import {
-  History,
-  RefreshCw,
-  Search,
-} from "lucide-react"
+import { History, RefreshCw, Search } from "lucide-react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Input } from "@/components/ui/input"
@@ -95,7 +91,8 @@ export function RecentlyViewedDashboard() {
 
   const lastViewed = recentRepos[0]?.viewedAt
   const lastSynced = data?.lastSynced
-    ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
+    ? (data.fromCache ? "Cached " : "Synced ") +
+      formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
   const collections = metadata?.collections ?? []
@@ -165,7 +162,8 @@ export function RecentlyViewedDashboard() {
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Recently viewed</h1>
               <p className="text-sm text-muted-foreground">
-                Reopen repositories you looked at recently across your dashboard and trending workflow.
+                Reopen repositories you looked at recently across your dashboard and trending
+                workflow.
               </p>
             </div>
 
@@ -175,7 +173,10 @@ export function RecentlyViewedDashboard() {
                   {recentEntries.length} tracked
                 </Badge>
                 <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
-                  Last viewed {lastViewed ? formatDistanceToNow(new Date(lastViewed), { addSuffix: true }) : "never"}
+                  Last viewed{" "}
+                  {lastViewed
+                    ? formatDistanceToNow(new Date(lastViewed), { addSuffix: true })
+                    : "never"}
                 </Badge>
                 <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
                   Top language {topLanguages[0]?.[0] ?? "Mixed"}
@@ -201,15 +202,20 @@ export function RecentlyViewedDashboard() {
               </EmptyMedia>
               <EmptyTitle>No recently viewed repositories</EmptyTitle>
               <EmptyDescription>
-                Open a repository from <Link href="/dashboard" className="underline underline-offset-4">All Stars</Link> or <Link href="/trending" className="underline underline-offset-4">Trending</Link> to start building this stack.
+                Open a repository from{" "}
+                <Link href="/dashboard" className="underline underline-offset-4">
+                  All Stars
+                </Link>{" "}
+                or{" "}
+                <Link href="/trending" className="underline underline-offset-4">
+                  Trending
+                </Link>{" "}
+                to start building this stack.
               </EmptyDescription>
             </Empty>
           ) : (
             <section>
-              <RepoGrid
-                repos={recentRepos.map(({ repo }) => repo)}
-                onRepoClick={handleRepoClick}
-              />
+              <RepoGrid repos={recentRepos.map(({ repo }) => repo)} onRepoClick={handleRepoClick} />
             </section>
           )}
         </main>
@@ -252,11 +258,7 @@ export function RecentlyViewedDashboard() {
         onPinToggle={() => {}}
       />
 
-      <ReadmeViewer
-        repo={selectedRepo}
-        open={readmeViewerOpen}
-        onClose={handleCloseReadme}
-      />
+      <ReadmeViewer repo={selectedRepo} open={readmeViewerOpen} onClose={handleCloseReadme} />
     </SidebarProvider>
   )
 }

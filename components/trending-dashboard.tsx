@@ -31,7 +31,7 @@ export function TrendingDashboard() {
   // Sensors for DnD
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
   )
 
   // Fetch starred repos
@@ -39,9 +39,9 @@ export function TrendingDashboard() {
 
   // Fetch user metadata (tags, collections) from Supabase
   const { data: metadata } = useSWR<UserMetadata>(
-    user?.id ? '/api/user/metadata' : null,
-    (url: string) => fetch(url).then(r => r.json()),
-    { revalidateOnFocus: false }
+    user?.id ? "/api/user/metadata" : null,
+    (url: string) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false },
   )
 
   const repos = useMemo(() => {
@@ -81,7 +81,8 @@ export function TrendingDashboard() {
   }, [repos])
 
   const lastSynced = data?.lastSynced
-    ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
+    ? (data.fromCache ? "Cached " : "Synced ") +
+      formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
   const hasRepoData = Boolean(data)
 
@@ -99,10 +100,10 @@ export function TrendingDashboard() {
   }
 
   const isTokenExpired = Boolean(
-    error?.message?.includes('token') ||
-    error?.message?.includes('expired') ||
-    error?.message?.includes('re-authenticate') ||
-    data?.error
+    error?.message?.includes("token") ||
+    error?.message?.includes("expired") ||
+    error?.message?.includes("re-authenticate") ||
+    data?.error,
   )
 
   const handleRepoClick = (repo: StarredRepo) => {
@@ -147,191 +148,189 @@ export function TrendingDashboard() {
 
   return (
     <DndContext sensors={sensors}>
-    <SidebarProvider>
-      <AppSidebar
-        collections={collections}
-        tags={tags}
-        selectedCollection={null}
-        selectedTag={null}
-        showUncategorized={false}
-        onSelectCollection={() => {}}
-        onSelectTag={() => {}}
-        onShowUncategorized={() => {}}
-        totalStars={repos.length}
-        uncategorizedCount={uncategorizedCount}
-        userId={user?.id}
-      />
-      <SidebarInset className="overflow-x-hidden">
-        <AppPageHeader
-          searchLabel="Search trending repos and actions"
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-          lastSynced={lastSynced}
-          onRefresh={isTokenExpired ? undefined : () => handleRefresh("trending-navbar-refresh")}
-          isRefreshing={isRefreshing}
-          hideNavActions
+      <SidebarProvider>
+        <AppSidebar
+          collections={collections}
+          tags={tags}
+          selectedCollection={null}
+          selectedTag={null}
+          showUncategorized={false}
+          onSelectCollection={() => {}}
+          onSelectTag={() => {}}
+          onShowUncategorized={() => {}}
+          totalStars={repos.length}
+          uncategorizedCount={uncategorizedCount}
+          userId={user?.id}
         />
+        <SidebarInset className="overflow-x-hidden">
+          <AppPageHeader
+            searchLabel="Search trending repos and actions"
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            lastSynced={lastSynced}
+            onRefresh={isTokenExpired ? undefined : () => handleRefresh("trending-navbar-refresh")}
+            isRefreshing={isRefreshing}
+            hideNavActions
+          />
 
-        <main className="flex-1 p-6">
-          {/* Token expiry banner — always at top when expired and cached data exists */}
-          {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
+          <main className="flex-1 p-6">
+            {/* Token expiry banner — always at top when expired and cached data exists */}
+            {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
 
-          <section className="mb-8 space-y-4">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Trending</h1>
-              <p className="text-sm text-muted-foreground">
-                Discover repositories based on your last {trendingAnalysis.totalAnalyzed} starred repos
-              </p>
-            </div>
+            <section className="mb-8 space-y-4">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-semibold tracking-tight">Trending</h1>
+                <p className="text-sm text-muted-foreground">
+                  Discover repositories based on your last {trendingAnalysis.totalAnalyzed} starred
+                  repos
+                </p>
+              </div>
 
-            {trendingAnalysis.topLanguages.length > 0 && (
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Top languages:</span>
-                  <div className="flex flex-wrap items-center gap-1">
-                    {trendingAnalysis.topLanguages.slice(0, 3).map((lang) => (
-                      <span
-                        key={lang}
-                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {lang}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                {trendingAnalysis.topTopics.length > 0 && (
+              {trendingAnalysis.topLanguages.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Top topics:</span>
+                    <span className="text-xs text-muted-foreground">Top languages:</span>
                     <div className="flex flex-wrap items-center gap-1">
-                      {trendingAnalysis.topTopics.slice(0, 3).map((topic) => (
+                      {trendingAnalysis.topLanguages.slice(0, 3).map((lang) => (
                         <span
-                          key={topic}
+                          key={lang}
                           className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                         >
-                          {topic}
+                          {lang}
                         </span>
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-          </section>
-          {/* Loading State */}
-          {isLoading && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-muted-foreground">
-                {data?.fromCache ? "Refreshing your starred repositories..." : "Analyzing your starred repositories..."}
-              </p>
-            </div>
-          )}
-
-          {/* Full-page error only when no cached data */}
-          {(error || data?.error) && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">
-                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
-              </p>
-              {isTokenExpired ? (
-                <Button variant="outline" onClick={handleReconnect}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Reconnect GitHub
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={() => handleRefresh("trending-inline-retry")}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Content — shown even when token expired if cached data exists */}
-          {hasRepoData && (
-            <>
-              {/* Empty State - Not Enough Stars */}
-              {data?.repos && data.repos.length < 25 && (
-                <TrendingEmptyState
-                  currentCount={data.repos.length}
-                  requiredCount={25}
-                />
-              )}
-
-              {/* Trending Sections */}
-              {data?.repos && data.repos.length >= 25 && (
-                <div className="space-y-6">
-                  {trendingAnalysis.categories.map((category) => (
-                    <TrendingSection
-                      key={category.id}
-                      title={category.title}
-                      description={category.description}
-                      repos={category.repos}
-                      onRepoClick={handleRepoClick}
-                    />
-                  ))}
-
-                  {/* Fallback if no categories have repos */}
-                  {trendingAnalysis.categories.length === 0 && (
-                    <div className="text-center py-20">
-                      <p className="text-muted-foreground">No trending recommendations found.</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Try starring more repositories to get personalized recommendations.
-                      </p>
+                  {trendingAnalysis.topTopics.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Top topics:</span>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {trendingAnalysis.topTopics.slice(0, 3).map((topic) => (
+                          <span
+                            key={topic}
+                            className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                          >
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
               )}
-            </>
-          )}
-        </main>
-      </SidebarInset>
+            </section>
+            {/* Loading State */}
+            {isLoading && !hasRepoData && (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  {data?.fromCache
+                    ? "Refreshing your starred repositories..."
+                    : "Analyzing your starred repositories..."}
+                </p>
+              </div>
+            )}
 
-      <RepoCommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
-        title="Search Trending"
-        description="Search trending repositories and run quick actions."
-        headerLabel="Search trending repositories and actions"
-        placeholder="Jump to a trending repo or action..."
-        emptyHint="Try a repo name or a trending recommendation."
-        repos={trendingRepos}
-        actions={[
-          {
-            value: "refresh-trending",
-            label: "Refresh starred repositories",
-            shortcut: "Sync",
-            icon: RefreshCw,
-            onSelect: () => handleRefresh("trending-command-palette"),
-          },
-        ]}
-        onRepoOpen={handleRepoClick}
-      />
+            {/* Full-page error only when no cached data */}
+            {(error || data?.error) && !hasRepoData && (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+                <p className="text-destructive">
+                  {isTokenExpired
+                    ? "Your GitHub session has expired."
+                    : "Failed to load starred repositories"}
+                </p>
+                {isTokenExpired ? (
+                  <Button variant="outline" onClick={handleReconnect}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Reconnect GitHub
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => handleRefresh("trending-inline-retry")}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                )}
+              </div>
+            )}
 
-      {/* Detail Panel */}
-      <RepoDetailPanel
-        repo={selectedRepo}
-        open={detailPanelOpen}
-        onClose={handleCloseDetail}
-        onViewReadme={handleViewReadme}
-        collections={[]}
-        tags={[]}
-        onStatusChange={() => {}}
-        onTagToggle={() => {}}
-        onTagCreate={() => {}}
-        onCollectionToggle={() => {}}
-        onCollectionCreate={() => {}}
-        onNotesChange={() => {}}
-        onPinToggle={() => {}}
-      />
+            {/* Content — shown even when token expired if cached data exists */}
+            {hasRepoData && (
+              <>
+                {/* Empty State - Not Enough Stars */}
+                {data?.repos && data.repos.length < 25 && (
+                  <TrendingEmptyState currentCount={data.repos.length} requiredCount={25} />
+                )}
 
-      {/* README Viewer */}
-      <ReadmeViewer
-        repo={selectedRepo}
-        open={readmeViewerOpen}
-        onClose={handleCloseReadme}
-      />
-    </SidebarProvider>
+                {/* Trending Sections */}
+                {data?.repos && data.repos.length >= 25 && (
+                  <div className="space-y-6">
+                    {trendingAnalysis.categories.map((category) => (
+                      <TrendingSection
+                        key={category.id}
+                        title={category.title}
+                        description={category.description}
+                        repos={category.repos}
+                        onRepoClick={handleRepoClick}
+                      />
+                    ))}
+
+                    {/* Fallback if no categories have repos */}
+                    {trendingAnalysis.categories.length === 0 && (
+                      <div className="text-center py-20">
+                        <p className="text-muted-foreground">No trending recommendations found.</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Try starring more repositories to get personalized recommendations.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+        </SidebarInset>
+
+        <RepoCommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          title="Search Trending"
+          description="Search trending repositories and run quick actions."
+          headerLabel="Search trending repositories and actions"
+          placeholder="Jump to a trending repo or action..."
+          emptyHint="Try a repo name or a trending recommendation."
+          repos={trendingRepos}
+          actions={[
+            {
+              value: "refresh-trending",
+              label: "Refresh starred repositories",
+              shortcut: "Sync",
+              icon: RefreshCw,
+              onSelect: () => handleRefresh("trending-command-palette"),
+            },
+          ]}
+          onRepoOpen={handleRepoClick}
+        />
+
+        {/* Detail Panel */}
+        <RepoDetailPanel
+          repo={selectedRepo}
+          open={detailPanelOpen}
+          onClose={handleCloseDetail}
+          onViewReadme={handleViewReadme}
+          collections={[]}
+          tags={[]}
+          onStatusChange={() => {}}
+          onTagToggle={() => {}}
+          onTagCreate={() => {}}
+          onCollectionToggle={() => {}}
+          onCollectionCreate={() => {}}
+          onNotesChange={() => {}}
+          onPinToggle={() => {}}
+        />
+
+        {/* README Viewer */}
+        <ReadmeViewer repo={selectedRepo} open={readmeViewerOpen} onClose={handleCloseReadme} />
+      </SidebarProvider>
     </DndContext>
   )
 }

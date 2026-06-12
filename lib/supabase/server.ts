@@ -1,5 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
 type SupabaseCookie = {
   name: string
@@ -10,7 +10,7 @@ type SupabaseCookie = {
     httpOnly?: boolean
     maxAge?: number
     path?: string
-    sameSite?: 'lax' | 'strict' | 'none' | boolean
+    sameSite?: "lax" | "strict" | "none" | boolean
     secure?: boolean
   }
 }

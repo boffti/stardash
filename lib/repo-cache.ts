@@ -1,4 +1,4 @@
-import { StarredRepo } from './types'
+import { StarredRepo } from "./types"
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -12,7 +12,7 @@ function cacheKey(userId: string) {
 }
 
 export function getCachedRepos(userId: string): { repos: StarredRepo[]; cachedAt: string } | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === "undefined") return null
   try {
     const raw = localStorage.getItem(cacheKey(userId))
     if (!raw) return null
@@ -26,7 +26,7 @@ export function getCachedRepos(userId: string): { repos: StarredRepo[]; cachedAt
 }
 
 export function setCachedRepos(userId: string, repos: StarredRepo[]): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === "undefined") return
   try {
     const cache: RepoCache = { repos, cachedAt: new Date().toISOString() }
     localStorage.setItem(cacheKey(userId), JSON.stringify(cache))
@@ -36,6 +36,6 @@ export function setCachedRepos(userId: string, repos: StarredRepo[]): void {
 }
 
 export function clearCachedRepos(userId: string): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === "undefined") return
   localStorage.removeItem(cacheKey(userId))
 }

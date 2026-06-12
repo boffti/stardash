@@ -56,7 +56,7 @@ pnpm dev
 
 - Reference the related issue in the PR description (e.g., `Closes #42`).
 - Keep PRs small and focused — one logical change per PR.
-- Include a short description of *what* changed and *why*.
+- Include a short description of _what_ changed and _why_.
 - Add screenshots for UI changes.
 
 ---

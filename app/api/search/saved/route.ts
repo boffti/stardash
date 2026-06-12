@@ -1,8 +1,11 @@
-import { NextResponse } from 'next/server'
-import * as Sentry from '@sentry/nextjs'
-import { createClient } from '@/lib/supabase/server'
-import type { DiscoverSavedSearch } from '@/lib/search-cache'
-import { DISCOVER_SEARCH_CACHE_VERSION, isDiscoverSearchesMissingTableError } from '@/lib/search-cache'
+import { NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
+import { createClient } from "@/lib/supabase/server"
+import type { DiscoverSavedSearch } from "@/lib/search-cache"
+import {
+  DISCOVER_SEARCH_CACHE_VERSION,
+  isDiscoverSearchesMissingTableError,
+} from "@/lib/search-cache"
 
 interface DiscoverSearchSummaryRow {
   id: string
@@ -35,18 +38,23 @@ function mapSearch(row: DiscoverSearchSummaryRow): DiscoverSavedSearch {
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { data, error } = await supabase
-      .from('discover_searches')
-      .select('id, query, normalized_query, context_hash, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved')
-      .eq('user_id', user.id)
-      .eq('search_version', DISCOVER_SEARCH_CACHE_VERSION)
-      .order('is_saved', { ascending: false })
-      .order('last_run_at', { ascending: false })
+      .from("discover_searches")
+      .select(
+        "id, query, normalized_query, context_hash, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved",
+      )
+      .eq("user_id", user.id)
+      .eq("search_version", DISCOVER_SEARCH_CACHE_VERSION)
+      .order("is_saved", { ascending: false })
+      .order("last_run_at", { ascending: false })
       .limit(50)
 
     if (error) {
@@ -59,14 +67,14 @@ export async function GET() {
 
     const now = Date.now()
     const searches = ((data ?? []) as DiscoverSearchSummaryRow[])
-      .filter(row => row.is_saved || new Date(row.expires_at).getTime() > now)
+      .filter((row) => row.is_saved || new Date(row.expires_at).getTime() > now)
       .slice(0, 24)
       .map(mapSearch)
 
     return NextResponse.json({ searches })
   } catch (err) {
     Sentry.captureException(err)
-    console.error('Saved search list error:', err)
-    return NextResponse.json({ error: 'Failed to load saved searches' }, { status: 500 })
+    console.error("Saved search list error:", err)
+    return NextResponse.json({ error: "Failed to load saved searches" }, { status: 500 })
   }
 }

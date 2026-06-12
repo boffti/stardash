@@ -1,7 +1,7 @@
-import { createClient } from '@/lib/supabase/server'
-import { getValidGitHubToken } from '@/lib/tokens'
-import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
+import { createClient } from "@/lib/supabase/server"
+import { getValidGitHubToken } from "@/lib/tokens"
+import { NextRequest, NextResponse } from "next/server"
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit"
 
 // 60 issue fetches per user per minute — generous for normal use but blocks
 // automated scraping that would exhaust the GitHub API quota.
@@ -11,12 +11,15 @@ const ISSUE_RATE_WINDOW_MS = 60_000
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const owner = searchParams.get('owner')
-    const repo = searchParams.get('repo')
-    const number = searchParams.get('number')
+    const owner = searchParams.get("owner")
+    const repo = searchParams.get("repo")
+    const number = searchParams.get("number")
 
     if (!owner || !repo || !number) {
-      return NextResponse.json({ error: 'Missing owner, repo, or number parameter' }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing owner, repo, or number parameter" },
+        { status: 400 },
+      )
     }
 
     const supabase = await createClient()
@@ -26,40 +29,46 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const rl = checkRateLimit(`${user.id}:issue`, ISSUE_RATE_LIMIT, ISSUE_RATE_WINDOW_MS)
     if (!rl.allowed) {
       return NextResponse.json(
-        { error: 'Too many issue requests. Please slow down.' },
+        { error: "Too many issue requests. Please slow down." },
         { status: 429, headers: getRateLimitHeaders(rl) },
       )
     }
 
     const tokenResult = await getValidGitHubToken()
 
-    if (tokenResult.error === 'expired') {
-      return NextResponse.json({ error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' }, { status: 401 })
+    if (tokenResult.error === "expired") {
+      return NextResponse.json(
+        { error: "GitHub token expired", code: "GITHUB_AUTH_ERROR" },
+        { status: 401 },
+      )
     }
 
-    if (tokenResult.error === 'not_found' || !tokenResult.token) {
-      return NextResponse.json({ error: 'GitHub token not available' }, { status: 401 })
+    if (tokenResult.error === "not_found" || !tokenResult.token) {
+      return NextResponse.json({ error: "GitHub token not available" }, { status: 401 })
     }
 
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${number}`, {
       headers: {
         Authorization: `Bearer ${tokenResult.token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
     })
 
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
-        return NextResponse.json({ error: 'GitHub token expired', code: 'GITHUB_AUTH_ERROR' }, { status: 401 })
+        return NextResponse.json(
+          { error: "GitHub token expired", code: "GITHUB_AUTH_ERROR" },
+          { status: 401 },
+        )
       }
-      return NextResponse.json({ error: 'Failed to fetch issue' }, { status: res.status })
+      return NextResponse.json({ error: "Failed to fetch issue" }, { status: res.status })
     }
 
     const issue = (await res.json()) as {
@@ -80,6 +89,6 @@ export async function GET(request: NextRequest) {
       { headers: getRateLimitHeaders(rl) },
     )
   } catch {
-    return NextResponse.json({ error: 'Failed to fetch issue' }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch issue" }, { status: 500 })
   }
 }

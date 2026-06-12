@@ -27,11 +27,14 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
   const [query, setQuery] = useState("")
   const chips = EXAMPLE_QUERIES.slice(0, 4)
 
-  const handleSubmit = useCallback((q: string) => {
-    const trimmed = q.trim()
-    if (!trimmed || isLoading) return
-    onSearch(trimmed)
-  }, [onSearch, isLoading])
+  const handleSubmit = useCallback(
+    (q: string) => {
+      const trimmed = q.trim()
+      if (!trimmed || isLoading) return
+      onSearch(trimmed)
+    },
+    [onSearch, isLoading],
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSubmit(query)
@@ -58,7 +61,7 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search again..."
               autoFocus
@@ -71,12 +74,19 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
             disabled={isLoading || !query.trim()}
             className="shrink-0"
           >
-            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+            {isLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ArrowRight className="h-3.5 w-3.5" />
+            )}
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { setQuery(""); onClear() }}
+            onClick={() => {
+              setQuery("")
+              onClear()
+            }}
             className="shrink-0 text-muted-foreground"
           >
             <X className="h-3.5 w-3.5" />
@@ -121,7 +131,7 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
             <Search className="shrink-0 ml-1 h-4 w-4 text-muted-foreground" />
             <input
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="e.g. prod-ready CLI frameworks, AI context tools..."
               autoFocus
@@ -141,10 +151,14 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
               disabled={isLoading || !query.trim()}
               className="shrink-0 h-8"
             >
-              {isLoading
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <><span className="mr-1.5 text-xs">Search</span><ArrowRight className="h-3 w-3" /></>
-              }
+              {isLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <span className="mr-1.5 text-xs">Search</span>
+                  <ArrowRight className="h-3 w-3" />
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -166,7 +180,7 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
                     "px-3 py-1.5 rounded-full text-xs border border-border/50 bg-muted/30",
                     "text-muted-foreground hover:border-accent/60 hover:bg-accent/15 hover:text-foreground",
                     "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-                    "transition-all duration-150"
+                    "transition-all duration-150",
                   )}
                 >
                   {chip}

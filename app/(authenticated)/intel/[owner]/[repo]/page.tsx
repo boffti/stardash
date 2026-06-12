@@ -1,4 +1,4 @@
-import { RepoIntelPage } from '@/components/repo-intel-page'
+import { RepoIntelPage } from "@/components/repo-intel-page"
 
 interface Props {
   params: Promise<{ owner: string; repo: string }>

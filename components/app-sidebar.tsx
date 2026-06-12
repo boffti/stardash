@@ -33,11 +33,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Collection, Tag as TagType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { CreateCollectionModal } from "./create-collection-modal"
@@ -70,7 +66,13 @@ function createDashboardFilterHref(filters: {
   return query ? `/dashboard?${query}` : "/dashboard"
 }
 
-function DroppableItem({ id, children }: { id: string; children: (isOver: boolean) => React.ReactNode }) {
+function DroppableItem({
+  id,
+  children,
+}: {
+  id: string
+  children: (isOver: boolean) => React.ReactNode
+}) {
   const { isOver, setNodeRef } = useDroppable({ id })
   return <div ref={setNodeRef}>{children(isOver)}</div>
 }
@@ -111,7 +113,9 @@ function TagsEmptyState() {
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground/70">No tags yet</p>
         <p className="text-[11px] leading-relaxed text-muted-foreground/40">
-          Open any repo and add tags<br />from the detail panel
+          Open any repo and add tags
+          <br />
+          from the detail panel
         </p>
       </div>
     </div>
@@ -164,11 +168,10 @@ export function AppSidebar({
   const [tagModalOpen, setTagModalOpen] = useState(false)
 
   const filteredTags = tagSearch.trim()
-    ? tags.filter(t => t.label.toLowerCase().includes(tagSearch.toLowerCase()))
+    ? tags.filter((t) => t.label.toLowerCase().includes(tagSearch.toLowerCase()))
     : tags
-  const visibleTags = tagsExpanded || tagSearch.trim()
-    ? filteredTags
-    : filteredTags.slice(0, TAGS_VISIBLE_DEFAULT)
+  const visibleTags =
+    tagsExpanded || tagSearch.trim() ? filteredTags : filteredTags.slice(0, TAGS_VISIBLE_DEFAULT)
   const hiddenCount = filteredTags.length - visibleTags.length
   const isHomeRoute = pathname === "/dashboard"
   const isRecentlyViewedRoute = pathname === "/recently-viewed"
@@ -190,7 +193,10 @@ export function AppSidebar({
           href="/dashboard"
           className="flex items-center gap-2 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent" suppressHydrationWarning>
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-accent"
+            suppressHydrationWarning
+          >
             <Star className="h-4 w-4 text-accent-foreground" />
           </div>
           <div>
@@ -214,20 +220,22 @@ export function AppSidebar({
                   >
                     <Star className="h-4 w-4" />
                     <span>All Stars</span>
-                    {isLoading
-                      ? <Skeleton className="ml-auto h-4 w-6 rounded" />
-                      : <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
-                    }
+                    {isLoading ? (
+                      <Skeleton className="ml-auto h-4 w-6 rounded" />
+                    ) : (
+                      <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                    )}
                   </SidebarMenuButton>
                 ) : (
                   <SidebarMenuButton asChild isActive={false}>
                     <Link href="/dashboard">
                       <Star className="h-4 w-4" />
                       <span>All Stars</span>
-                      {isLoading
-                        ? <Skeleton className="ml-auto h-4 w-6 rounded" />
-                        : <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
-                      }
+                      {isLoading ? (
+                        <Skeleton className="ml-auto h-4 w-6 rounded" />
+                      ) : (
+                        <SidebarMenuBadge>{totalStars}</SidebarMenuBadge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 )}
@@ -340,7 +348,8 @@ export function AppSidebar({
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {isLoading && collections.length === 0 && (
+                  {isLoading &&
+                    collections.length === 0 &&
                     Array.from({ length: 3 }).map((_, i) => (
                       <SidebarMenuItem key={i}>
                         <SidebarMenuButton disabled className="pointer-events-none">
@@ -349,8 +358,7 @@ export function AppSidebar({
                           <Skeleton className="h-4 w-5 rounded ml-auto" />
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                    ))
-                  )}
+                    ))}
                   {!isLoading && collections.length === 0 && (
                     <CollectionsEmptyState onAICategorize={onAICategorize} />
                   )}
@@ -365,11 +373,14 @@ export function AppSidebar({
                               className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
                             >
                               <span className="shrink-0">{collection.emoji}</span>
-                              <span className="flex-1 truncate min-w-0" title={collection.name}>{collection.name}</span>
-                              {isOver
-                                ? <Plus className="h-3 w-3 shrink-0 text-violet-400" />
-                                : <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
-                              }
+                              <span className="flex-1 truncate min-w-0" title={collection.name}>
+                                {collection.name}
+                              </span>
+                              {isOver ? (
+                                <Plus className="h-3 w-3 shrink-0 text-violet-400" />
+                              ) : (
+                                <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
+                              )}
                             </SidebarMenuButton>
                           ) : (
                             <SidebarMenuButton
@@ -377,13 +388,18 @@ export function AppSidebar({
                               isActive={false}
                               className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
                             >
-                              <Link href={createDashboardFilterHref({ collectionId: collection.id })}>
+                              <Link
+                                href={createDashboardFilterHref({ collectionId: collection.id })}
+                              >
                                 <span className="shrink-0">{collection.emoji}</span>
-                                <span className="flex-1 truncate min-w-0" title={collection.name}>{collection.name}</span>
-                                {isOver
-                                  ? <Plus className="h-3 w-3 shrink-0 text-violet-400" />
-                                  : <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
-                                }
+                                <span className="flex-1 truncate min-w-0" title={collection.name}>
+                                  {collection.name}
+                                </span>
+                                {isOver ? (
+                                  <Plus className="h-3 w-3 shrink-0 text-violet-400" />
+                                ) : (
+                                  <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
+                                )}
                               </Link>
                             </SidebarMenuButton>
                           )}
@@ -440,7 +456,7 @@ export function AppSidebar({
                         <Input
                           placeholder={`Search ${tags.length} tags…`}
                           value={tagSearch}
-                          onChange={e => {
+                          onChange={(e) => {
                             setTagSearch(e.target.value)
                             setTagsExpanded(false)
                           }}
@@ -460,22 +476,36 @@ export function AppSidebar({
                                   <SidebarMenuButton
                                     isActive={selectedTag === tag.id}
                                     onClick={() => onSelectTag(tag.id)}
-                                    className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                                    className={cn(
+                                      isOver && "ring-1 ring-violet-500 bg-violet-500/10",
+                                    )}
                                   >
-                                    <Tag className="h-3 w-3 shrink-0" style={{ color: isOver ? '#8b5cf6' : tag.color }} />
+                                    <Tag
+                                      className="h-3 w-3 shrink-0"
+                                      style={{ color: isOver ? "#8b5cf6" : tag.color }}
+                                    />
                                     <span className="flex-1 truncate min-w-0">{tag.label}</span>
-                                    {isOver && <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />}
+                                    {isOver && (
+                                      <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />
+                                    )}
                                   </SidebarMenuButton>
                                 ) : (
                                   <SidebarMenuButton
                                     asChild
                                     isActive={false}
-                                    className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                                    className={cn(
+                                      isOver && "ring-1 ring-violet-500 bg-violet-500/10",
+                                    )}
                                   >
                                     <Link href={createDashboardFilterHref({ tagId: tag.id })}>
-                                      <Tag className="h-3 w-3 shrink-0" style={{ color: isOver ? '#8b5cf6' : tag.color }} />
+                                      <Tag
+                                        className="h-3 w-3 shrink-0"
+                                        style={{ color: isOver ? "#8b5cf6" : tag.color }}
+                                      />
                                       <span className="flex-1 truncate min-w-0">{tag.label}</span>
-                                      {isOver && <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />}
+                                      {isOver && (
+                                        <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />
+                                      )}
                                     </Link>
                                   </SidebarMenuButton>
                                 )}
@@ -524,11 +554,7 @@ export function AppSidebar({
       )}
 
       {onCreateTag && (
-        <CreateTagModal
-          open={tagModalOpen}
-          onOpenChange={setTagModalOpen}
-          onCreate={onCreateTag}
-        />
+        <CreateTagModal open={tagModalOpen} onOpenChange={setTagModalOpen} onCreate={onCreateTag} />
       )}
     </Sidebar>
   )

@@ -63,7 +63,7 @@ export function SearchPersonalizedSection({
         <h3 className="text-sm font-medium">Based on your stars</h3>
       </div>
 
-      {themes.map(theme => (
+      {themes.map((theme) => (
         <div key={theme.theme} className="space-y-3">
           <div>
             <div className="flex items-center gap-1.5">
@@ -74,13 +74,8 @@ export function SearchPersonalizedSection({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {theme.repos.slice(0, 4).map(repo => (
-              <SearchResultCard
-                key={repo.id}
-                repo={repo}
-                tags={tags}
-                collections={collections}
-              />
+            {theme.repos.slice(0, 4).map((repo) => (
+              <SearchResultCard key={repo.id} repo={repo} tags={tags} collections={collections} />
             ))}
           </div>
         </div>

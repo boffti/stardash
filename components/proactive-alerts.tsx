@@ -13,7 +13,7 @@ interface ProactiveAlertsProps {
   userId: string | undefined
 }
 
-type AlertType = 'archived' | 'trending' | 'release'
+type AlertType = "archived" | "trending" | "release"
 
 interface Alert {
   id: string
@@ -28,7 +28,7 @@ interface Alert {
   }
 }
 
-const STORAGE_KEY = 'stardash_dismissed_alerts'
+const STORAGE_KEY = "stardash_dismissed_alerts"
 
 export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
@@ -73,7 +73,7 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
         if (!dismissedAlerts.has(alertId)) {
           newAlerts.push({
             id: alertId,
-            type: 'archived',
+            type: "archived",
             repoId: repo.id,
             repoName: repo.fullName,
             message: `${repo.fullName} was archived`,
@@ -88,7 +88,7 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
         if (!dismissedAlerts.has(alertId)) {
           newAlerts.push({
             id: alertId,
-            type: 'trending',
+            type: "trending",
             repoId: repo.id,
             repoName: repo.fullName,
             message: `${repo.fullName} doubled in stars this month`,
@@ -103,7 +103,7 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
         if (!dismissedAlerts.has(alertId)) {
           newAlerts.push({
             id: alertId,
-            type: 'release',
+            type: "release",
             repoId: repo.id,
             repoName: repo.fullName,
             message: `${repo.fullName} released ${repo.latestRelease.tagName}`,
@@ -128,11 +128,11 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
 
   const getAlertIcon = (type: AlertType) => {
     switch (type) {
-      case 'archived':
+      case "archived":
         return <Archive className="h-4 w-4 text-amber-500" />
-      case 'trending':
+      case "trending":
         return <TrendingUp className="h-4 w-4 text-emerald-500" />
-      case 'release':
+      case "release":
         return <Package className="h-4 w-4 text-blue-500" />
       default:
         return <Bell className="h-4 w-4" />
@@ -141,21 +141,30 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
 
   const getAlertBadge = (type: AlertType) => {
     switch (type) {
-      case 'archived':
+      case "archived":
         return (
-          <Badge variant="outline" className="text-[10px] h-5 bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400">
+          <Badge
+            variant="outline"
+            className="text-[10px] h-5 bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400"
+          >
             Archived
           </Badge>
         )
-      case 'trending':
+      case "trending":
         return (
-          <Badge variant="outline" className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400">
+          <Badge
+            variant="outline"
+            className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400"
+          >
             Trending
           </Badge>
         )
-      case 'release':
+      case "release":
         return (
-          <Badge variant="outline" className="text-[10px] h-5 bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400">
+          <Badge
+            variant="outline"
+            className="text-[10px] h-5 bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400"
+          >
             Release
           </Badge>
         )
@@ -180,12 +189,15 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
               className="h-7 text-xs text-muted-foreground hover:text-foreground"
               onClick={() => {
                 // Dismiss all alerts
-                const allAlertIds = alerts.map(a => a.id)
+                const allAlertIds = alerts.map((a) => a.id)
                 const newDismissed = new Set([...dismissedAlerts, ...allAlertIds])
                 setDismissedAlerts(newDismissed)
                 if (userId) {
                   try {
-                    localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify([...newDismissed]))
+                    localStorage.setItem(
+                      `${STORAGE_KEY}_${userId}`,
+                      JSON.stringify([...newDismissed]),
+                    )
                   } catch {
                     // Ignore localStorage errors
                   }
@@ -204,7 +216,7 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
               key={alert.id}
               className={cn(
                 "flex items-center justify-between gap-3 p-2.5 rounded-lg",
-                "bg-muted/50 hover:bg-muted transition-colors group"
+                "bg-muted/50 hover:bg-muted transition-colors group",
               )}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -212,11 +224,11 @@ export function ProactiveAlerts({ repos, userId }: ProactiveAlertsProps) {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm truncate">
-                      <span className="font-medium">{alert.repoName}</span>
-                      {' '}
-                      {alert.type === 'archived' && 'was archived'}
-                      {alert.type === 'trending' && 'doubled in stars this month'}
-                      {alert.type === 'release' && `released ${alert.meta?.tagName || 'a new version'}`}
+                      <span className="font-medium">{alert.repoName}</span>{" "}
+                      {alert.type === "archived" && "was archived"}
+                      {alert.type === "trending" && "doubled in stars this month"}
+                      {alert.type === "release" &&
+                        `released ${alert.meta?.tagName || "a new version"}`}
                     </span>
                   </div>
                 </div>

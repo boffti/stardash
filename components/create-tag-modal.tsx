@@ -27,8 +27,16 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const TAG_PALETTE = [
-  "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ec4899",
-  "#06b6d4", "#ef4444", "#84cc16", "#f97316", "#6366f1",
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+  "#f97316",
+  "#6366f1",
 ]
 
 const formSchema = z.object({
@@ -53,11 +61,7 @@ function pickTagColor(label: string): string {
   return TAG_PALETTE[Math.abs(hash) % TAG_PALETTE.length]
 }
 
-export function CreateTagModal({
-  open,
-  onOpenChange,
-  onCreate,
-}: CreateTagModalProps) {
+export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormData>({
@@ -97,9 +101,7 @@ export function CreateTagModal({
             <Tag className="h-5 w-5" />
             Create Tag
           </DialogTitle>
-          <DialogDescription>
-            Create a new tag to categorize your repositories.
-          </DialogDescription>
+          <DialogDescription>Create a new tag to categorize your repositories.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -152,7 +154,7 @@ export function CreateTagModal({
                             "h-6 w-6 rounded-full transition-all",
                             selectedColor === color
                               ? "ring-2 ring-offset-2 ring-primary scale-110"
-                              : "hover:scale-105"
+                              : "hover:scale-105",
                           )}
                           style={{ backgroundColor: color }}
                           aria-label={`Select color ${color}`}

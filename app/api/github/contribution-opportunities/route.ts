@@ -1,20 +1,20 @@
-import { NextResponse } from 'next/server'
-import * as Sentry from '@sentry/nextjs'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { getValidGitHubToken } from '@/lib/tokens'
+import { NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { getValidGitHubToken } from "@/lib/tokens"
 import {
   fetchRepoContributionIssues,
   rankReposForIssueDiscovery,
   type ContributionOpportunity,
   type ContributionPreferences,
-} from '@/lib/contribution-opportunities'
-import type { StarredRepo } from '@/lib/types'
+} from "@/lib/contribution-opportunities"
+import type { StarredRepo } from "@/lib/types"
 
 export const maxDuration = 60
 
 const SCAN_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes between broad scans per user
-const SINGLE_REPO_SCAN_DAY_LIMIT = 20    // max single-repo scans per user per day
+const SINGLE_REPO_SCAN_DAY_LIMIT = 20 // max single-repo scans per user per day
 const DAY_MS = 24 * 60 * 60 * 1000
 const SCAN_BATCH_SIZE = 5
 
@@ -40,7 +40,12 @@ async function fetchContributionIssueBatches(
   for (let index = 0; index < repos.length; index += SCAN_BATCH_SIZE) {
     const batch = repos.slice(index, index + SCAN_BATCH_SIZE)
     const batchResults = await Promise.all(
-      batch.map((repo) => fetchRepoContributionIssues(token, repo, preferences, { maxIssues: maxIssuesPerRepo, minScore })),
+      batch.map((repo) =>
+        fetchRepoContributionIssues(token, repo, preferences, {
+          maxIssues: maxIssuesPerRepo,
+          minScore,
+        }),
+      ),
     )
     opportunities.push(...batchResults.flat())
   }
@@ -57,7 +62,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = (await request.json()) as RequestBody
@@ -70,18 +75,18 @@ export async function POST(request: Request) {
     const isSingleRepoScan = repos.length === 1
 
     const { token, error: tokenError } = await getValidGitHubToken()
-    if (tokenError === 'expired') {
+    if (tokenError === "expired") {
       return NextResponse.json(
-        { error: 'GitHub token expired. Please sign in again.' },
+        { error: "GitHub token expired. Please sign in again." },
         { status: 401 },
       )
     }
 
     const adminSupabase = createAdminClient()
     const { data: profile } = await adminSupabase
-      .from('profiles')
-      .select('last_contribution_scan_at, single_repo_scan_day_start, single_repo_scan_day_count')
-      .eq('id', user.id)
+      .from("profiles")
+      .select("last_contribution_scan_at, single_repo_scan_day_start, single_repo_scan_day_count")
+      .eq("id", user.id)
       .maybeSingle()
 
     const now = Date.now()
@@ -99,28 +104,33 @@ export async function POST(request: Request) {
         const retryAfter = Math.ceil((dayStart! + DAY_MS - now) / 1000)
         return NextResponse.json(
           {
-            error: 'Daily single-repo scan limit reached. Try again tomorrow.',
+            error: "Daily single-repo scan limit reached. Try again tomorrow.",
             nextAllowedAt,
             retryAfterSeconds: retryAfter,
           },
-          { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+          { status: 429, headers: { "Retry-After": String(retryAfter) } },
         )
       }
 
       // Increment single-repo scan counter — fail closed so a DB error never
       // silently bypasses the daily cap and allows an uncounted scan.
       const { error: counterError } = await adminSupabase
-        .from('profiles')
+        .from("profiles")
         .update({
-          single_repo_scan_day_start: isNewDay ? new Date(now).toISOString() : profile!.single_repo_scan_day_start,
+          single_repo_scan_day_start: isNewDay
+            ? new Date(now).toISOString()
+            : profile!.single_repo_scan_day_start,
           single_repo_scan_day_count: dayCount + 1,
         })
-        .eq('id', user.id)
+        .eq("id", user.id)
 
       if (counterError) {
-        console.error('[contribution-opportunities] failed to increment scan counter:', counterError)
+        console.error(
+          "[contribution-opportunities] failed to increment scan counter:",
+          counterError,
+        )
         return NextResponse.json(
-          { error: 'Failed to record scan. Please try again.' },
+          { error: "Failed to record scan. Please try again." },
           { status: 500 },
         )
       }
@@ -132,19 +142,19 @@ export async function POST(request: Request) {
           const retryAfter = Math.ceil((SCAN_COOLDOWN_MS - msSinceLast) / 1000)
           return NextResponse.json(
             {
-              error: 'Please wait before scanning for contribution opportunities again.',
+              error: "Please wait before scanning for contribution opportunities again.",
               retryAfterSeconds: retryAfter,
             },
-            { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+            { status: 429, headers: { "Retry-After": String(retryAfter) } },
           )
         }
       }
 
       // Record broad scan start time before expensive multi-repo GitHub API calls.
       await adminSupabase
-        .from('profiles')
+        .from("profiles")
         .update({ last_contribution_scan_at: new Date(now).toISOString() })
-        .eq('id', user.id)
+        .eq("id", user.id)
     }
 
     const preferences = body.preferences ?? {}
@@ -154,10 +164,17 @@ export async function POST(request: Request) {
     const reposToScan = isSingleRepoScan
       ? repos.filter((repo) => !repo.archived)
       : rankReposForIssueDiscovery(repos, preferences).slice(0, maxRepos)
-    const opportunities = await fetchContributionIssueBatches(token ?? undefined, reposToScan, preferences, maxIssuesPerRepo, minScore)
+    const opportunities = await fetchContributionIssueBatches(
+      token ?? undefined,
+      reposToScan,
+      preferences,
+      maxIssuesPerRepo,
+      minScore,
+    )
 
     opportunities.sort(
-      (a, b) => b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) =>
+        b.score - a.score || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     )
 
     return NextResponse.json({
@@ -167,7 +184,10 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     Sentry.captureException(error)
-    console.error('[contribution-opportunities] error:', error)
-    return NextResponse.json({ error: 'Failed to load contribution opportunities' }, { status: 500 })
+    console.error("[contribution-opportunities] error:", error)
+    return NextResponse.json(
+      { error: "Failed to load contribution opportunities" },
+      { status: 500 },
+    )
   }
 }

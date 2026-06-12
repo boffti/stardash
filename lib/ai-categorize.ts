@@ -1,17 +1,37 @@
-import { generateObject } from 'ai'
-import type { LanguageModel } from 'ai'
-import { z } from 'zod'
-import type { StarredRepo, Tag, Collection, CategorizationResult } from './types'
+import { generateObject } from "ai"
+import type { LanguageModel } from "ai"
+import { z } from "zod"
+import type { StarredRepo, Tag, Collection, CategorizationResult } from "./types"
 
 const COLLECTION_COLORS = [
-  '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899',
-  '#06b6d4', '#ef4444', '#84cc16', '#f97316', '#6366f1',
-  '#14b8a6', '#a855f7', '#0ea5e9', '#d946ef', '#64748b',
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+  "#f97316",
+  "#6366f1",
+  "#14b8a6",
+  "#a855f7",
+  "#0ea5e9",
+  "#d946ef",
+  "#64748b",
 ]
 
 const TAG_COLORS = [
-  '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899',
-  '#06b6d4', '#ef4444', '#84cc16', '#f97316', '#6366f1',
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+  "#f97316",
+  "#6366f1",
 ]
 
 function hashColor(str: string, palette: string[]): string {
@@ -25,21 +45,30 @@ function hashColor(str: string, palette: string[]): string {
 
 // Phase 1: generate collection taxonomy + shared tag vocabulary
 const TaxonomySchema = z.object({
-  collections: z.array(z.object({
-    id: z.string().describe('URL-safe slug e.g. "ai-ml-tools"'),
-    name: z.string().max(22).describe('Human-readable name, max 22 characters e.g. "AI & ML", "Frontend", "CLI Tools", "DevOps"'),
-    emoji: z.string().describe('Single emoji representing the collection'),
-  })),
-  tags: z.array(z.string()).describe('Shared vocabulary of 15-25 lowercase hyphenated tags'),
+  collections: z.array(
+    z.object({
+      id: z.string().describe('URL-safe slug e.g. "ai-ml-tools"'),
+      name: z
+        .string()
+        .max(22)
+        .describe(
+          'Human-readable name, max 22 characters e.g. "AI & ML", "Frontend", "CLI Tools", "DevOps"',
+        ),
+      emoji: z.string().describe("Single emoji representing the collection"),
+    }),
+  ),
+  tags: z.array(z.string()).describe("Shared vocabulary of 15-25 lowercase hyphenated tags"),
 })
 
 // Phase 2: classify a batch of repos using the established taxonomy
 const RepoBatchSchema = z.object({
-  repos: z.array(z.object({
-    id: z.string().describe('Exact repo id from the input'),
-    tags: z.array(z.string()).describe('1-3 tags chosen ONLY from the provided tag vocabulary'),
-    collectionIds: z.array(z.string()).describe('1-3 collection IDs from the provided list'),
-  })),
+  repos: z.array(
+    z.object({
+      id: z.string().describe("Exact repo id from the input"),
+      tags: z.array(z.string()).describe("1-3 tags chosen ONLY from the provided tag vocabulary"),
+      collectionIds: z.array(z.string()).describe("1-3 collection IDs from the provided list"),
+    }),
+  ),
 })
 
 const BATCH_SIZE = 100
@@ -55,21 +84,21 @@ interface CategorizeReposOptions {
 export async function categorizeRepos(
   repos: StarredRepo[],
   model: LanguageModel,
-  options: CategorizeReposOptions = {}
+  options: CategorizeReposOptions = {},
 ): Promise<CategorizationResult> {
   const reposToAnalyze = repos.slice(0, 500)
-  const repoIdSet = new Set(reposToAnalyze.map(r => r.id))
+  const repoIdSet = new Set(reposToAnalyze.map((r) => r.id))
   const { existingTaxonomy, providerOptions = {} } = options
   const shouldUseExistingTaxonomy = Boolean(
-    existingTaxonomy?.collections.length && existingTaxonomy.tags.length
+    existingTaxonomy?.collections.length && existingTaxonomy.tags.length,
   )
 
-  const summaries = reposToAnalyze.map(r => ({
+  const summaries = reposToAnalyze.map((r) => ({
     id: r.id,
     name: r.name,
-    description: r.description || '',
-    language: r.language || '',
-    topics: r.topics.join(', '),
+    description: r.description || "",
+    language: r.language || "",
+    topics: r.topics.join(", "),
   }))
 
   let collections: Collection[]
@@ -114,8 +143,8 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
     tagVocabulary = taxonomyObj.tags
   }
 
-  const collectionIdSet = new Set(collections.map(c => c.id))
-  const collectionsList = collections.map(c => `${c.id}: ${c.name}`).join('\n')
+  const collectionIdSet = new Set(collections.map((c) => c.id))
+  const collectionsList = collections.map((c) => `${c.id}: ${c.name}`).join("\n")
   const tagVocabularySet = new Set(tagVocabulary)
 
   // Phase 2: classify repos in batches of 100
@@ -141,7 +170,7 @@ Collections (use ONLY these IDs):
 ${collectionsList}
 
 Tag vocabulary (use ONLY these tags — do NOT invent new ones):
-${tagVocabulary.join(', ')}
+${tagVocabulary.join(", ")}
 
 Rules:
 - Assign each repo to 1-3 collections
@@ -154,15 +183,17 @@ Rules:
       if (!repoIdSet.has(repoResult.id)) continue
 
       // Deduplicate labels to avoid duplicate tag keys when rendering
-      const uniqueLabels = Array.from(new Set(repoResult.tags.filter(label => tagVocabularySet.has(label))))
-      const tags: Tag[] = uniqueLabels.map(label => {
+      const uniqueLabels = Array.from(
+        new Set(repoResult.tags.filter((label) => tagVocabularySet.has(label))),
+      )
+      const tags: Tag[] = uniqueLabels.map((label) => {
         const tag: Tag = { id: `tag-${label}`, label, color: hashColor(label, TAG_COLORS) }
         allTagsMap.set(label, tag)
         return tag
       })
       repoTags[repoResult.id] = tags
 
-      const validCollections = repoResult.collectionIds.filter(id => collectionIdSet.has(id))
+      const validCollections = repoResult.collectionIds.filter((id) => collectionIdSet.has(id))
       repoCollections[repoResult.id] = validCollections
     }
   }
@@ -174,7 +205,9 @@ Rules:
       collectionRepoCounts[cid] = (collectionRepoCounts[cid] || 0) + 1
     }
   }
-  collections.forEach(c => { c.repoCount = collectionRepoCounts[c.id] || 0 })
+  collections.forEach((c) => {
+    c.repoCount = collectionRepoCounts[c.id] || 0
+  })
 
   return {
     collections,

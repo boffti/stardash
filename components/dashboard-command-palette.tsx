@@ -132,7 +132,12 @@ export function DashboardCommandPalette({
 
   const normalizedQuery = query.trim().toLowerCase()
   const hasActiveFilters = Boolean(
-    searchQuery || selectedCollection || selectedTag || languageFilter || healthFilter || showUncategorized
+    searchQuery ||
+    selectedCollection ||
+    selectedTag ||
+    languageFilter ||
+    healthFilter ||
+    showUncategorized,
   )
 
   const visibleRepos = useMemo(() => {
@@ -160,54 +165,57 @@ export function DashboardCommandPalette({
       .slice(0, RESULT_LIMIT)
   }, [filteredRepos, normalizedQuery, repos])
 
-  const quickActions = useMemo(() => ([
-    {
-      value: "refresh-stars",
-      label: "Refresh starred repositories",
-      searchText: "refresh starred repositories sync",
-      shortcut: "Sync",
-      icon: RefreshCw,
-      onSelect: () => onRefresh(),
-      iconClassName: isRefreshing ? "animate-spin" : "",
-    },
-    {
-      value: "auto-categorize",
-      label: "Auto-categorize with AI",
-      searchText: "auto categorize with ai sparkles",
-      shortcut: "AI",
-      icon: Sparkles,
-      onSelect: () => onCategorize(),
-      iconClassName: isCategorizing ? "animate-pulse" : "",
-    },
-    {
-      value: `view-${viewMode === "grid" ? "list" : "grid"}`,
-      label: `Switch to ${viewMode === "grid" ? "list" : "grid"} view`,
-      searchText: `switch to ${viewMode === "grid" ? "list" : "grid"} view`,
-      shortcut: viewMode === "grid" ? "List" : "Grid",
-      icon: viewMode === "grid" ? List : LayoutGrid,
-      onSelect: () => onViewModeChange(viewMode === "grid" ? "list" : "grid"),
-      iconClassName: "",
-    },
-    {
-      value: "clear-filters",
-      label: "Clear active filters",
-      searchText: "clear active filters reset",
-      shortcut: hasActiveFilters ? "Reset" : "Idle",
-      icon: SlidersHorizontal,
-      onSelect: onClearFilters,
-      iconClassName: "",
-      disabled: !hasActiveFilters,
-    },
-  ]), [
-    hasActiveFilters,
-    isCategorizing,
-    isRefreshing,
-    onCategorize,
-    onClearFilters,
-    onRefresh,
-    onViewModeChange,
-    viewMode,
-  ])
+  const quickActions = useMemo(
+    () => [
+      {
+        value: "refresh-stars",
+        label: "Refresh starred repositories",
+        searchText: "refresh starred repositories sync",
+        shortcut: "Sync",
+        icon: RefreshCw,
+        onSelect: () => onRefresh(),
+        iconClassName: isRefreshing ? "animate-spin" : "",
+      },
+      {
+        value: "auto-categorize",
+        label: "Auto-categorize with AI",
+        searchText: "auto categorize with ai sparkles",
+        shortcut: "AI",
+        icon: Sparkles,
+        onSelect: () => onCategorize(),
+        iconClassName: isCategorizing ? "animate-pulse" : "",
+      },
+      {
+        value: `view-${viewMode === "grid" ? "list" : "grid"}`,
+        label: `Switch to ${viewMode === "grid" ? "list" : "grid"} view`,
+        searchText: `switch to ${viewMode === "grid" ? "list" : "grid"} view`,
+        shortcut: viewMode === "grid" ? "List" : "Grid",
+        icon: viewMode === "grid" ? List : LayoutGrid,
+        onSelect: () => onViewModeChange(viewMode === "grid" ? "list" : "grid"),
+        iconClassName: "",
+      },
+      {
+        value: "clear-filters",
+        label: "Clear active filters",
+        searchText: "clear active filters reset",
+        shortcut: hasActiveFilters ? "Reset" : "Idle",
+        icon: SlidersHorizontal,
+        onSelect: onClearFilters,
+        iconClassName: "",
+        disabled: !hasActiveFilters,
+      },
+    ],
+    [
+      hasActiveFilters,
+      isCategorizing,
+      isRefreshing,
+      onCategorize,
+      onClearFilters,
+      onRefresh,
+      onViewModeChange,
+      viewMode,
+    ],
+  )
 
   const visibleQuickActions = useMemo(() => {
     return quickActions.filter((action) => matchesPaletteQuery(action.searchText, normalizedQuery))
@@ -232,19 +240,21 @@ export function DashboardCommandPalette({
   }, [languages, normalizedQuery])
 
   const visibleCollections = useMemo(() => {
-    return collections.filter((collection) => (
-      matchesPaletteQuery(`${collection.name} ${collection.emoji ?? ""}`, normalizedQuery)
-    ))
+    return collections.filter((collection) =>
+      matchesPaletteQuery(`${collection.name} ${collection.emoji ?? ""}`, normalizedQuery),
+    )
   }, [collections, normalizedQuery])
 
   const visibleTags = useMemo(() => {
-    return tags
-      .filter((tag) => matchesPaletteQuery(tag.label, normalizedQuery))
-      .slice(0, 24)
+    return tags.filter((tag) => matchesPaletteQuery(tag.label, normalizedQuery)).slice(0, 24)
   }, [normalizedQuery, tags])
 
   const visibleHealthOptions = useMemo(() => {
-    const healthOptions: Array<{ value: RepoHealthFilter | null; label: string; commandValue: string }> = [
+    const healthOptions: Array<{
+      value: RepoHealthFilter | null
+      label: string
+      commandValue: string
+    }> = [
       { value: null, label: "All health states", commandValue: "health-all" },
       { value: "archived", label: "Archived repositories", commandValue: "health-archived" },
       { value: "dormant", label: "Dormant repositories", commandValue: "health-dormant" },
@@ -252,7 +262,10 @@ export function DashboardCommandPalette({
     return healthOptions.filter((option) => matchesPaletteQuery(option.label, normalizedQuery))
   }, [normalizedQuery])
 
-  const visibleSpecialFilters = matchesPaletteQuery("show uncategorized repositories", normalizedQuery)
+  const visibleSpecialFilters = matchesPaletteQuery(
+    "show uncategorized repositories",
+    normalizedQuery,
+  )
 
   const orderedItemMatches = useMemo(() => {
     const matches: Array<{ value: string; matchesQuery: boolean }> = []
@@ -316,7 +329,9 @@ export function DashboardCommandPalette({
     if (!open) return
 
     const nextSelection =
-      orderedItemMatches.find((item) => item.matchesQuery)?.value ?? orderedItemMatches[0]?.value ?? ""
+      orderedItemMatches.find((item) => item.matchesQuery)?.value ??
+      orderedItemMatches[0]?.value ??
+      ""
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedValue(nextSelection)
@@ -398,7 +413,9 @@ export function DashboardCommandPalette({
                 >
                   <Search className="h-4 w-4" />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate">Filter dashboard for &quot;{query.trim()}&quot;</span>
+                    <span className="truncate">
+                      Filter dashboard for &quot;{query.trim()}&quot;
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       Updates the persistent repo search field
                     </span>
@@ -431,7 +448,9 @@ export function DashboardCommandPalette({
               </CommandGroup>
             )}
 
-            {visibleQuickActions.length > 0 && visibleSortOptions.length > 0 && <CommandSeparator />}
+            {visibleQuickActions.length > 0 && visibleSortOptions.length > 0 && (
+              <CommandSeparator />
+            )}
 
             {visibleSortOptions.length > 0 && (
               <CommandGroup heading="Sort">
@@ -442,7 +461,9 @@ export function DashboardCommandPalette({
                     onSelect={() => runAndClose(() => onSortChange(value))}
                     className="rounded-md"
                   >
-                    <Check className={`h-4 w-4 ${sortBy === value ? "opacity-100" : "opacity-0"}`} />
+                    <Check
+                      className={`h-4 w-4 ${sortBy === value ? "opacity-100" : "opacity-0"}`}
+                    />
                     <span className="flex-1">{label}</span>
                   </CommandItem>
                 ))}
@@ -460,7 +481,9 @@ export function DashboardCommandPalette({
                     onSelect={() => selectLanguage(option.value)}
                     className="rounded-md"
                   >
-                    <Check className={`h-4 w-4 ${languageFilter === option.value ? "opacity-100" : "opacity-0"}`} />
+                    <Check
+                      className={`h-4 w-4 ${languageFilter === option.value ? "opacity-100" : "opacity-0"}`}
+                    />
                     <span className="flex-1">{option.label}</span>
                   </CommandItem>
                 ))}
@@ -520,7 +543,9 @@ export function DashboardCommandPalette({
                       onSelect={() => selectHealthFilter(option.value)}
                       className="rounded-md"
                     >
-                      <Check className={`h-4 w-4 ${healthFilter === option.value ? "opacity-100" : "opacity-0"}`} />
+                      <Check
+                        className={`h-4 w-4 ${healthFilter === option.value ? "opacity-100" : "opacity-0"}`}
+                      />
                       <span className="flex-1">{option.label}</span>
                     </CommandItem>
                   ))}

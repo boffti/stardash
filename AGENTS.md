@@ -86,6 +86,7 @@ app/
 GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table and retrieved via `getValidGitHubToken(userId)` from `lib/tokens.ts`. Expired tokens require re-auth.
 
 **Key files:**
+
 - `lib/supabase/client.ts` — browser client
 - `lib/supabase/server.ts` — async server/RSC client (reads cookies)
 - `lib/supabase/admin.ts` — service-role admin (server only, never expose to client)
@@ -115,14 +116,14 @@ GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table
 
 ### Database Schema
 
-| Table | Purpose |
-|-------|---------|
-| `profiles` | User identity, GitHub token, sync timestamps, AI rate limit |
-| `repos` | Global repo catalog (admin-written, user-readable) |
-| `user_starred_repos` | Per-user: status, notes, pinned |
-| `tags` / `collections` | User-owned taxonomy |
-| `user_starred_repo_tags` / `_collections` | Many-to-many junctions |
-| `repo_star_snapshots` | Daily star history for trending |
+| Table                                     | Purpose                                                     |
+| ----------------------------------------- | ----------------------------------------------------------- |
+| `profiles`                                | User identity, GitHub token, sync timestamps, AI rate limit |
+| `repos`                                   | Global repo catalog (admin-written, user-readable)          |
+| `user_starred_repos`                      | Per-user: status, notes, pinned                             |
+| `tags` / `collections`                    | User-owned taxonomy                                         |
+| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                      |
+| `repo_star_snapshots`                     | Daily star history for trending                             |
 
 **RLS:** All user tables enforce `auth.uid() = user_id`. `repos` is authenticated-read, admin-write only (`lib/supabase/admin.ts`).
 

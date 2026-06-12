@@ -1,16 +1,16 @@
-'use client'
+"use client"
 
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useSyncExternalStore } from "react"
 
-export type AIProvider = 'openrouter' | 'openai' | 'anthropic'
+export type AIProvider = "openrouter" | "openai" | "anthropic"
 
 export interface AIKeyConfig {
   provider: AIProvider
   key: string
 }
 
-const STORAGE_KEY = 'stardash-ai-key'
-const STORAGE_EVENT = 'stardash-ai-key-updated'
+const STORAGE_KEY = "stardash-ai-key"
+const STORAGE_EVENT = "stardash-ai-key-updated"
 
 let cachedRaw: string | null | undefined
 let cachedConfig: AIKeyConfig | null = null
@@ -25,7 +25,7 @@ function parseStoredConfig(raw: string | null): AIKeyConfig | null {
 }
 
 function readFromStorage(): AIKeyConfig | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === "undefined") return null
 
   const raw = localStorage.getItem(STORAGE_KEY)
   if (raw === cachedRaw) return cachedConfig
@@ -36,11 +36,11 @@ function readFromStorage(): AIKeyConfig | null {
 }
 
 function subscribeToStorage(onStoreChange: () => void) {
-  window.addEventListener('storage', onStoreChange)
+  window.addEventListener("storage", onStoreChange)
   window.addEventListener(STORAGE_EVENT, onStoreChange)
 
   return () => {
-    window.removeEventListener('storage', onStoreChange)
+    window.removeEventListener("storage", onStoreChange)
     window.removeEventListener(STORAGE_EVENT, onStoreChange)
   }
 }
@@ -66,8 +66,8 @@ export function useAIKey() {
   const getHeaders = useCallback((): Record<string, string> => {
     if (!config?.key) return {}
     return {
-      'x-ai-provider': config.provider,
-      'x-ai-key': config.key,
+      "x-ai-provider": config.provider,
+      "x-ai-key": config.key,
     }
   }, [config])
 

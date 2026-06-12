@@ -1,5 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr"
+import { NextResponse, type NextRequest } from "next/server"
 
 type SupabaseCookie = {
   name: string
@@ -10,7 +10,7 @@ type SupabaseCookie = {
     httpOnly?: boolean
     maxAge?: number
     path?: string
-    sameSite?: 'lax' | 'strict' | 'none' | boolean
+    sameSite?: "lax" | "strict" | "none" | boolean
     secure?: boolean
   }
 }
@@ -29,9 +29,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: SupabaseCookie[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          )
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -54,22 +52,20 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Redirect authenticated users away from login page to home
-  if (pathname === '/auth/login' && user) {
+  if (pathname === "/auth/login" && user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = "/"
     return NextResponse.redirect(url)
   }
 
   // Redirect unauthenticated users away from protected routes to login
   const isProtectedRoute =
-    !pathname.startsWith('/auth') &&
-    !pathname.startsWith('/api') &&
-    pathname !== '/'
+    !pathname.startsWith("/auth") && !pathname.startsWith("/api") && pathname !== "/"
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    url.searchParams.set('next', pathname)
+    url.pathname = "/auth/login"
+    url.searchParams.set("next", pathname)
     return NextResponse.redirect(url)
   }
 

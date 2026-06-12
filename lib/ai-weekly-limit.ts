@@ -1,8 +1,8 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createAdminClient } from "@/lib/supabase/admin"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export type WeeklyLimitFeature = 'brief' | 'intel' | 'search'
+export type WeeklyLimitFeature = "brief" | "intel" | "search"
 
 interface FeatureLimits {
   weekly: number
@@ -12,8 +12,8 @@ interface FeatureLimits {
 // Limits are authoritative here and passed to the DB function at call time.
 // The DB function (check_and_increment_ai_limit) enforces them atomically.
 const LIMITS: Record<WeeklyLimitFeature, FeatureLimits> = {
-  brief:  { weekly: 20, daily: 7 },
-  intel:  { weekly: 10, daily: 5 },
+  brief: { weekly: 20, daily: 7 },
+  intel: { weekly: 10, daily: 5 },
   search: { weekly: 20, daily: 7 },
 }
 
@@ -22,7 +22,7 @@ export interface WeeklyLimitResult {
   remaining: number
   nextAllowedAt: string | null
   /** Set when allowed is false — distinguishes which window was exhausted. */
-  limitType?: 'weekly' | 'daily'
+  limitType?: "weekly" | "daily"
 }
 
 // Shape returned by the check_and_increment_ai_limit Postgres function.
@@ -30,7 +30,7 @@ interface RpcResult {
   allowed: boolean
   remaining?: number
   nextAllowedAt?: string | null
-  limitType?: 'weekly' | 'daily'
+  limitType?: "weekly" | "daily"
   error?: string
 }
 
@@ -38,17 +38,17 @@ export async function checkAndIncrementWeeklyLimit(
   userId: string,
   feature: WeeklyLimitFeature,
 ): Promise<WeeklyLimitResult> {
-  const admin  = createAdminClient()
+  const admin = createAdminClient()
   const limits = LIMITS[feature]
 
   // Delegate to the DB function which runs the check + increment inside a
   // single transaction with a row-level lock (SELECT … FOR UPDATE), preventing
   // the TOCTOU race where concurrent requests could both bypass the quota.
-  const { data, error } = await admin.rpc('check_and_increment_ai_limit', {
-    p_user_id:      userId,
-    p_feature:      feature,
+  const { data, error } = await admin.rpc("check_and_increment_ai_limit", {
+    p_user_id: userId,
+    p_feature: feature,
     p_weekly_limit: limits.weekly,
-    p_daily_limit:  limits.daily ?? null,
+    p_daily_limit: limits.daily ?? null,
   })
 
   if (error) throw error
@@ -60,10 +60,10 @@ export async function checkAndIncrementWeeklyLimit(
   }
 
   return {
-    allowed:      result.allowed,
-    remaining:    result.remaining ?? 0,
+    allowed: result.allowed,
+    remaining: result.remaining ?? 0,
     nextAllowedAt: result.nextAllowedAt ?? null,
-    limitType:    result.limitType,
+    limitType: result.limitType,
   }
 }
 
@@ -80,15 +80,15 @@ export async function checkAndUpdatePersonalizedSearchLimit(
   const admin = createAdminClient()
 
   const { data: profile, error } = await admin
-    .from('profiles')
-    .select('id, last_personalized_search_at')
-    .eq('id', userId)
+    .from("profiles")
+    .select("id, last_personalized_search_at")
+    .eq("id", userId)
     .maybeSingle()
 
   if (error) throw error
 
-  const now    = Date.now()
-  const row    = profile as Record<string, unknown> | null
+  const now = Date.now()
+  const row = profile as Record<string, unknown> | null
   const lastAt = row?.last_personalized_search_at
     ? new Date(row.last_personalized_search_at as string).getTime()
     : null
@@ -98,9 +98,9 @@ export async function checkAndUpdatePersonalizedSearchLimit(
   }
 
   await admin
-    .from('profiles')
+    .from("profiles")
     .update({ last_personalized_search_at: new Date(now).toISOString() })
-    .eq('id', userId)
+    .eq("id", userId)
 
   return { allowed: true, nextAllowedAt: null }
 }

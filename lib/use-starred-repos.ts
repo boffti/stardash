@@ -55,7 +55,9 @@ async function fetchStarredRepos(url: string, userId?: string, options: RefreshO
   const result = await response.json()
 
   if (!response.ok) {
-    const err = new Error(result.error || "Failed to fetch starred repositories") as Error & { status?: number }
+    const err = new Error(result.error || "Failed to fetch starred repositories") as Error & {
+      status?: number
+    }
     err.status = response.status
     throw err
   }
@@ -107,7 +109,7 @@ export function useStarredRepos(userId?: string) {
       keepPreviousData: true,
       dedupingInterval: 15 * 1000,
       shouldRetryOnError: false,
-    }
+    },
   )
 
   const refresh = async ({ manual = false, ...options }: RefreshOptions = {}) => {
@@ -130,7 +132,8 @@ export function useStarredRepos(userId?: string) {
     if (!userId || initialSyncCheckedRef.current) return
 
     const cached = getCachedRepos(userId)
-    const shouldBackgroundSync = !cached || (Date.now() - new Date(cached.cachedAt).getTime()) >= MIN_BACKGROUND_SYNC_INTERVAL_MS
+    const shouldBackgroundSync =
+      !cached || Date.now() - new Date(cached.cachedAt).getTime() >= MIN_BACKGROUND_SYNC_INTERVAL_MS
 
     initialSyncCheckedRef.current = true
 

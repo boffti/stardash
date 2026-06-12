@@ -109,7 +109,14 @@ export interface ContributionCommandPaletteProps {
 
 const DIFFICULTIES: SelectableDifficulty[] = ["all", "beginner", "intermediate", "advanced"]
 const CONTRIBUTION_TYPES: ContributionType[] = [
-  "bugfix", "docs", "tests", "frontend", "backend", "infra", "feature", "maintenance",
+  "bugfix",
+  "docs",
+  "tests",
+  "frontend",
+  "backend",
+  "infra",
+  "feature",
+  "maintenance",
 ]
 
 export function ContributionCommandPalette({
@@ -219,8 +226,12 @@ export function ContributionCommandPalette({
                 >
                   <Search className="h-4 w-4" />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate">Filter opportunities for &quot;{query.trim()}&quot;</span>
-                    <span className="text-xs text-muted-foreground">Searches repo names and issue titles</span>
+                    <span className="truncate">
+                      Filter opportunities for &quot;{query.trim()}&quot;
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Searches repo names and issue titles
+                    </span>
                   </div>
                   <CommandShortcut>
                     <ArrowRight className="h-3.5 w-3.5" />
@@ -312,7 +323,9 @@ export function ContributionCommandPalette({
                 onSelect={() => runAndClose(() => onLanguageChange("all"))}
                 className="rounded-md"
               >
-                <Check className={cn("h-4 w-4", language === "all" ? "opacity-100" : "opacity-0")} />
+                <Check
+                  className={cn("h-4 w-4", language === "all" ? "opacity-100" : "opacity-0")}
+                />
                 <span className="flex-1">All languages</span>
               </CommandItem>
               {languageOptions.map(([name, count]) => (
@@ -361,7 +374,10 @@ export function ContributionCommandPalette({
                 className="rounded-md"
               >
                 <Check
-                  className={cn("h-4 w-4", contributionType === "all" ? "opacity-100" : "opacity-0")}
+                  className={cn(
+                    "h-4 w-4",
+                    contributionType === "all" ? "opacity-100" : "opacity-0",
+                  )}
                 />
                 <span className="flex-1">Any type</span>
               </CommandItem>
