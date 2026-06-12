@@ -599,7 +599,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
   )
 
   const { data: repoMeta } = useSWR<{ githubRepoId: number | null }>(
-    `/api/github/repo-meta?owner=${owner}&repo=${repo}`,
+   `/api/github/repo-meta?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
     fetcher,
     { revalidateOnFocus: false }
   )
