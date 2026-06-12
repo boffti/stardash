@@ -30,21 +30,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
 
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-
   build:
-    name: Build
+    name: Build & typecheck
     runs-on: ubuntu-latest
     # Build with placeholder public env so it never needs real secrets — keeps
     # the job runnable on fork PRs where secrets are unavailable.
@@ -61,3 +48,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # Run after build so Next has generated next-env.d.ts (image/module types).
+      # `next build` ignores type errors (ignoreBuildErrors), so this is the real
+      # type gate.
+      - run: pnpm typecheck
