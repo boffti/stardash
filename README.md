@@ -41,19 +41,20 @@ StarDash is an open-source personal dashboard for developers who use GitHub star
 
 Sign in with GitHub, sync your stars once, and get a full workspace across six views:
 
-| View | What it does |
-|---|---|
-| **Dashboard** | Browse, search, filter, and annotate all your starred repos |
-| **Repo Intel** | AI-generated health report for any starred repo |
-| **Contribute** | Find and prioritize real open issues you could work on |
-| **Repo Workspace** | Deep-dive into a single repo's issues and get an AI contribution brief |
-| **Discover** | AI-powered semantic search to find new repos to star |
-| **Trending** | Discover repos gaining momentum in your starred collection |
-| **Recently Viewed** | Jump back to repos you've been exploring |
+| View                | What it does                                                           |
+| ------------------- | ---------------------------------------------------------------------- |
+| **Dashboard**       | Browse, search, filter, and annotate all your starred repos            |
+| **Repo Intel**      | AI-generated health report for any starred repo                        |
+| **Contribute**      | Find and prioritize real open issues you could work on                 |
+| **Repo Workspace**  | Deep-dive into a single repo's issues and get an AI contribution brief |
+| **Discover**        | AI-powered semantic search to find new repos to star                   |
+| **Trending**        | Discover repos gaining momentum in your starred collection             |
+| **Recently Viewed** | Jump back to repos you've been exploring                               |
 
 ## ✨ Features
 
 ### Dashboard
+
 - Full starred-repo sync (up to 5,000 repos via paginated GitHub API)
 - 24-hour client-side cache for instant reloads and offline fallback
 - Grid and list layouts with adjustable page size
@@ -68,6 +69,7 @@ Sign in with GitHub, sync your stars once, and get a full workspace across six v
 - Proactive alerts for archived repos, trending signals, and major release drops
 
 ### Repo Intel ✨ AI-powered
+
 - On-demand deep analysis of any starred repo powered by OpenRouter (Gemini 2.0 Flash)
 - **Health score** (0–100) with maintenance verdict, community sentiment, and adoption readiness
 - Key metrics: commit activity, contributor count, days since last commit/release, community files (CONTRIBUTING, CoC, CI)
@@ -77,6 +79,7 @@ Sign in with GitHub, sync your stars once, and get a full workspace across six v
 - **Self-hosted:** set your own key via env; no quota enforced
 
 ### Contribution Dashboard ✨ AI-powered
+
 - Scans your starred repos for open GitHub issues you could realistically contribute to
 - Filters by **difficulty** (beginner / intermediate / advanced), **language**, and **contribution type** (bugfix, docs, tests, frontend, backend, infra, feature, maintenance)
 - Scores and ranks opportunities using fit reasons, quality signals, and risk factors
@@ -86,11 +89,13 @@ Sign in with GitHub, sync your stars once, and get a full workspace across six v
 - **Self-hosted:** no brief quota enforced when using your own key
 
 ### Trending
+
 - Heuristic recommendation engine seeded from your most recent 25 starred repos
 - Surfaces top languages and topics from your recent activity
 - Three recommendation buckets: **Popular in Your Network**, **Heating Up**, **Hidden Gems**
 
 ### AI Categorization
+
 - Two-phase flow: Phase 1 generates 5–12 collections and 15–25 reusable tags from your full repo corpus; Phase 2 classifies repos in batches of 100
 - Analyzes up to 500 repos per run
 - **Hosted app:** 24-hour cooldown between runs — add your own API key in Settings to run on demand without waiting
@@ -118,19 +123,21 @@ Sign in with GitHub, sync your stars once, and get a full workspace across six v
 
 All AI features support user-provided API keys, configured in **Settings → AI Provider**:
 
-| Provider | Default model | Key format |
-|---|---|---|
-| [OpenRouter](https://openrouter.ai/) | `google/gemini-2.0-flash-001` | `sk-or-...` |
-| [OpenAI](https://platform.openai.com/) | `gpt-4o-mini` | `sk-...` |
-| [Anthropic](https://console.anthropic.com/) | `claude-haiku` | `sk-ant-...` |
+| Provider                                    | Default model                 | Key format   |
+| ------------------------------------------- | ----------------------------- | ------------ |
+| [OpenRouter](https://openrouter.ai/)        | `google/gemini-2.0-flash-001` | `sk-or-...`  |
+| [OpenAI](https://platform.openai.com/)      | `gpt-4o-mini`                 | `sk-...`     |
+| [Anthropic](https://console.anthropic.com/) | `claude-haiku`                | `sk-ant-...` |
 
 When a user key is detected, all per-user rate limits are bypassed and the key is used exclusively for that session — the app's shared key is never touched.
 
 ### Platform
+
 - GitHub OAuth login via Supabase Auth
 - Daily star snapshot cron (`0 2 * * *`) for trend calculations
 - Observability via Sentry (errors) and Langfuse (AI traces)
 - Self-hostable via Docker Compose (see [Self-Hosting](#-self-hosting))
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -280,18 +287,18 @@ Important implementation detail:
 
 ## 🖥️ Tech stack
 
-| Layer            | Technology                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------- |
+| Layer            | Technology                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
 | Framework        | [Next.js 16](https://nextjs.org/) (App Router) + [React 19](https://react.dev/)                   |
-| Language         | [TypeScript 5.7](https://www.typescriptlang.org/)                                              |
+| Language         | [TypeScript 5.7](https://www.typescriptlang.org/)                                                 |
 | Styling          | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)                 |
-| Database / Auth  | [Supabase](https://supabase.com/) (Postgres + GitHub OAuth)                                    |
-| Data fetching    | [SWR](https://swr.vercel.app/)                                                                 |
+| Database / Auth  | [Supabase](https://supabase.com/) (Postgres + GitHub OAuth)                                       |
+| Data fetching    | [SWR](https://swr.vercel.app/)                                                                    |
 | AI               | [Vercel AI SDK](https://sdk.vercel.ai/) + [OpenRouter](https://openrouter.ai/) (Gemini 2.0 Flash) |
-| Error tracking   | [Sentry](https://sentry.io/)                                                                   |
-| AI observability | [Langfuse](https://langfuse.com/)                                                              |
-| Animations       | [Framer Motion](https://www.framer.com/motion/)                                                |
-| Drag & Drop      | [dnd-kit](https://dndkit.com/)                                                                 |
+| Error tracking   | [Sentry](https://sentry.io/)                                                                      |
+| AI observability | [Langfuse](https://langfuse.com/)                                                                 |
+| Animations       | [Framer Motion](https://www.framer.com/motion/)                                                   |
+| Drag & Drop      | [dnd-kit](https://dndkit.com/)                                                                    |
 
 ## ⚙️ Local development
 
@@ -397,8 +404,8 @@ You can run StarDash on your own infrastructure. The app is a standard Next.js s
 
 ### Prerequisites
 
-| Service                                                     | Purpose                      | Free tier?  |
-| ----------------------------------------------------------- | ---------------------------- | ----------- |
+| Service                                                        | Purpose                      | Free tier?  |
+| -------------------------------------------------------------- | ---------------------------- | ----------- |
 | [Supabase](https://supabase.com)                               | Auth + Postgres database     | ✅ Yes      |
 | [GitHub OAuth App](https://github.com/settings/developers)     | User sign-in                 | ✅ Free     |
 | [OpenRouter](https://openrouter.ai)                            | AI categorization (optional) | Pay-per-use |
@@ -470,15 +477,15 @@ Then set up your own cron job or system timer to hit `/api/cron/star-snapshots` 
 
 ## 🗺️ Roadmap
 
-| Status | Item |
-|--------|------|
-| ✅ Done | Dashboard, Repo Intel, Contribute, Discover, Repo Workspace, Trending |
+| Status         | Item                                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| ✅ Done        | Dashboard, Repo Intel, Contribute, Discover, Repo Workspace, Trending  |
 | 🔨 In progress | **MCP server** — expose contribution tools to Cursor, Claude, Windsurf |
-| 📋 Planned | Gamification — streaks, XP, challenges, leaderboard |
-| 📋 Planned | Conversational AI assistant (persistent chat panel) |
-| 📋 Planned | RAG-powered briefs (embed repo files for deeper context) |
-| 📋 Planned | PR draft scaffolder |
-| 📋 Planned | Contribution history & skill graph |
+| 📋 Planned     | Gamification — streaks, XP, challenges, leaderboard                    |
+| 📋 Planned     | Conversational AI assistant (persistent chat panel)                    |
+| 📋 Planned     | RAG-powered briefs (embed repo files for deeper context)               |
+| 📋 Planned     | PR draft scaffolder                                                    |
+| 📋 Planned     | Contribution history & skill graph                                     |
 
 Have an idea? [Open an issue](https://github.com/boffti/stardash/issues) or start a [discussion](https://github.com/boffti/stardash/discussions)!
 

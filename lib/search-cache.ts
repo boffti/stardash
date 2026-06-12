@@ -28,7 +28,7 @@ export function isDiscoverSearchesMissingTableError(error: unknown) {
   return (
     code === "PGRST205" ||
     code === "42P01" ||
-    message.includes("discover_searches") && message.includes("schema cache")
+    (message.includes("discover_searches") && message.includes("schema cache"))
   )
 }
 
@@ -58,13 +58,15 @@ function hashString(value: string) {
 export function buildPersonalizedSearchRepoSignature(repos: StarredRepo[]) {
   const sample = repos.slice(0, 100)
   const source = sample
-    .map(repo => [
-      repo.fullName,
-      repo.name,
-      repo.description ?? "",
-      repo.language ?? "",
-      repo.topics.slice(0, 5).join(","),
-    ].join(":"))
+    .map((repo) =>
+      [
+        repo.fullName,
+        repo.name,
+        repo.description ?? "",
+        repo.language ?? "",
+        repo.topics.slice(0, 5).join(","),
+      ].join(":"),
+    )
     .join("|")
 
   return `${sample.length}:${hashString(source)}`

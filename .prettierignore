@@ -1,0 +1,19 @@
+# Dependencies & build output
+node_modules
+.next
+out
+build
+.vercel
+
+# Lockfiles & generated
+pnpm-lock.yaml
+next-env.d.ts
+
+# Misc
+.git
+coverage
+*.min.js
+
+# Vendored / tool-managed dirs (also ignored by ESLint)
+.agents
+.opencode

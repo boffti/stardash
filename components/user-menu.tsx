@@ -1,11 +1,11 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useTheme } from '@/components/theme-provider'
-import { GitHubIcon } from '@/components/icons/github-icon'
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { RefreshCw, Settings, Moon, Sun, Monitor, LogOut, User, Clock } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useTheme } from "@/components/theme-provider"
+import { GitHubIcon } from "@/components/icons/github-icon"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,33 +16,33 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuPortal,
-} from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useUser } from '@/components/providers/user-provider'
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useUser } from "@/components/providers/user-provider"
 
 interface UserMenuProps {
   lastSynced?: string | null
 }
 
 function formatCompactSyncLabel(lastSynced: string) {
-  if (lastSynced.includes('less than a minute ago')) {
-    return lastSynced.startsWith('Cached') ? 'Cached just now' : 'Synced just now'
+  if (lastSynced.includes("less than a minute ago")) {
+    return lastSynced.startsWith("Cached") ? "Cached just now" : "Synced just now"
   }
 
   return lastSynced
-    .replace(' minutes ago', 'm ago')
-    .replace(' minute ago', 'm ago')
-    .replace(' hours ago', 'h ago')
-    .replace(' hour ago', 'h ago')
-    .replace(' days ago', 'd ago')
-    .replace(' day ago', 'd ago')
-    .replace(' months ago', 'mo ago')
-    .replace(' month ago', 'mo ago')
-    .replace(' years ago', 'y ago')
-    .replace(' year ago', 'y ago')
-    .replace('about ', '')
-    .replace('over ', '')
-    .replace('almost ', '~')
+    .replace(" minutes ago", "m ago")
+    .replace(" minute ago", "m ago")
+    .replace(" hours ago", "h ago")
+    .replace(" hour ago", "h ago")
+    .replace(" days ago", "d ago")
+    .replace(" day ago", "d ago")
+    .replace(" months ago", "mo ago")
+    .replace(" month ago", "mo ago")
+    .replace(" years ago", "y ago")
+    .replace(" year ago", "y ago")
+    .replace("about ", "")
+    .replace("over ", "")
+    .replace("almost ", "~")
 }
 
 export function UserMenu({ lastSynced }: UserMenuProps) {
@@ -55,11 +55,12 @@ export function UserMenu({ lastSynced }: UserMenuProps) {
     setMounted(true)
   }, [])
 
-  const username = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || 'User'
+  const username =
+    user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || "User"
   const avatarUrl = user?.user_metadata?.avatar_url
-  const githubUrl = user?.user_metadata?.user_name 
-    ? `https://github.com/${user.user_metadata.user_name}` 
-    : 'https://github.com'
+  const githubUrl = user?.user_metadata?.user_name
+    ? `https://github.com/${user.user_metadata.user_name}`
+    : "https://github.com"
   const compactLastSynced = lastSynced ? formatCompactSyncLabel(lastSynced) : null
   const avatarButton = (
     <Button
@@ -82,9 +83,7 @@ export function UserMenu({ lastSynced }: UserMenuProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {avatarButton}
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>{avatarButton}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium">{username}</p>
@@ -114,28 +113,38 @@ export function UserMenu({ lastSynced }: UserMenuProps) {
             Settings
           </Link>
         </DropdownMenuItem>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-            <Sun className={`mr-2 h-4 w-4 transition-all ${resolvedTheme === 'dark' ? 'scale-0 -rotate-90' : 'scale-100 rotate-0'}`} />
-            <Moon className={`absolute mr-2 h-4 w-4 transition-all ${resolvedTheme === 'dark' ? 'scale-100 rotate-0' : 'scale-0 rotate-90'}`} />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Sun
+              className={`mr-2 h-4 w-4 transition-all ${resolvedTheme === "dark" ? "scale-0 -rotate-90" : "scale-100 rotate-0"}`}
+            />
+            <Moon
+              className={`absolute mr-2 h-4 w-4 transition-all ${resolvedTheme === "dark" ? "scale-100 rotate-0" : "scale-0 rotate-90"}`}
+            />
             <span>Theme</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onSelect={() => setTheme('light')}>
+              <DropdownMenuItem onSelect={() => setTheme("light")}>
                 <Sun className="mr-2 h-4 w-4" />
                 Light
-                {mounted && theme === 'light' && <span className="ml-auto text-accent">&#10003;</span>}
+                {mounted && theme === "light" && (
+                  <span className="ml-auto text-accent">&#10003;</span>
+                )}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTheme('dark')}>
+              <DropdownMenuItem onSelect={() => setTheme("dark")}>
                 <Moon className="mr-2 h-4 w-4" />
                 Dark
-                {mounted && theme === 'dark' && <span className="ml-auto text-accent">&#10003;</span>}
+                {mounted && theme === "dark" && (
+                  <span className="ml-auto text-accent">&#10003;</span>
+                )}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTheme('system')}>
+              <DropdownMenuItem onSelect={() => setTheme("system")}>
                 <Monitor className="mr-2 h-4 w-4" />
                 System
-                {mounted && theme === 'system' && <span className="ml-auto text-accent">&#10003;</span>}
+                {mounted && theme === "system" && (
+                  <span className="ml-auto text-accent">&#10003;</span>
+                )}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuPortal>

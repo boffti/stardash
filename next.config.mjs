@@ -1,15 +1,15 @@
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs"
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true,
   },
-  allowedDevOrigins: ['http://localhost'],
+  allowedDevOrigins: ["http://localhost"],
 }
 
 export default withSentryConfig(nextConfig, {
@@ -17,4 +17,4 @@ export default withSentryConfig(nextConfig, {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.CI,
-});
+})

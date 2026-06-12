@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { fetchRepoStarCount } from '@/lib/github'
-import { getAnyValidGitHubToken } from '@/lib/tokens'
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { fetchRepoStarCount } from "@/lib/github"
+import { getAnyValidGitHubToken } from "@/lib/tokens"
 
 // This route is called by Vercel Cron to snapshot star counts daily
 // It processes repos in batches to avoid rate limits
@@ -11,21 +11,24 @@ const DELAY_BETWEEN_BATCHES_MS = 1000
 
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access
-  const authHeader = request.headers.get('authorization')
+  const authHeader = request.headers.get("authorization")
   const cronSecret = process.env.CRON_SECRET
 
   if (!cronSecret) {
-    return NextResponse.json({ error: 'CRON_SECRET environment variable is required' }, { status: 500 })
+    return NextResponse.json(
+      { error: "CRON_SECRET environment variable is required" },
+      { status: 500 },
+    )
   }
 
   if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   // Create service role client for database operations
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
   try {
@@ -34,8 +37,8 @@ export async function GET(request: NextRequest) {
 
     // Get all repos from the global repos table
     const { data: repos, error: reposError } = await supabase
-      .from('repos')
-      .select('github_repo_id, owner, name')
+      .from("repos")
+      .select("github_repo_id, owner, name")
 
     if (reposError) {
       throw reposError
@@ -61,20 +64,18 @@ export async function GET(request: NextRequest) {
 
             if (starCount !== null) {
               // Upsert the snapshot (insert or update if exists for today)
-              const { error } = await supabase
-                .from('repo_star_snapshots')
-                .upsert(
-                  {
-                    repo_github_id: repo.github_repo_id,
-                    owner: repo.owner,
-                    name: repo.name,
-                    star_count: starCount,
-                    snapshot_date: new Date().toISOString().split('T')[0],
-                  },
-                  {
-                    onConflict: 'repo_github_id,snapshot_date',
-                  }
-                )
+              const { error } = await supabase.from("repo_star_snapshots").upsert(
+                {
+                  repo_github_id: repo.github_repo_id,
+                  owner: repo.owner,
+                  name: repo.name,
+                  star_count: starCount,
+                  snapshot_date: new Date().toISOString().split("T")[0],
+                },
+                {
+                  onConflict: "repo_github_id,snapshot_date",
+                },
+              )
 
               if (error) {
                 throw error
@@ -88,10 +89,10 @@ export async function GET(request: NextRequest) {
           } catch (error) {
             results.failed++
             results.errors.push(
-              `Error processing ${repo.owner}/${repo.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+              `Error processing ${repo.owner}/${repo.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
             )
           }
-        })
+        }),
       )
 
       results.processed += batch.length
@@ -111,9 +112,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

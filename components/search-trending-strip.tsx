@@ -24,7 +24,12 @@ function formatNumber(n: number): string {
   return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : n.toString()
 }
 
-export function SearchTrendingStrip({ repos, tags, collections, className }: SearchTrendingStripProps) {
+export function SearchTrendingStrip({
+  repos,
+  tags,
+  collections,
+  className,
+}: SearchTrendingStripProps) {
   if (repos.length === 0) return null
 
   return (
@@ -35,20 +40,22 @@ export function SearchTrendingStrip({ repos, tags, collections, className }: Sea
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-        {repos.map(repo => {
+        {repos.map((repo) => {
           const langColor = repo.language ? (LANGUAGE_COLORS[repo.language] ?? "#64748b") : null
           return (
             <div
               key={repo.id}
               className={cn(
                 "shrink-0 w-48 rounded-lg border border-border/60 bg-card p-3",
-                "flex flex-col gap-2 hover:border-muted-foreground/30 hover:bg-card/80 transition-all"
+                "flex flex-col gap-2 hover:border-muted-foreground/30 hover:bg-card/80 transition-all",
               )}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <Avatar className="h-5 w-5 shrink-0">
                   <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
-                  <AvatarFallback className="text-[10px]">{repo.owner[0].toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className="text-[10px]">
+                    {repo.owner[0].toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <p className="text-[11px] text-muted-foreground/60 truncate">{repo.owner}</p>
@@ -64,7 +71,10 @@ export function SearchTrendingStrip({ repos, tags, collections, className }: Sea
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                   {langColor && (
                     <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: langColor }} />
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: langColor }}
+                      />
                     </div>
                   )}
                   <div className="flex items-center gap-0.5">
@@ -81,11 +91,7 @@ export function SearchTrendingStrip({ repos, tags, collections, className }: Sea
                   )}
                 </div>
 
-                <SearchStarPopover
-                  repo={repo}
-                  tags={tags}
-                  collections={collections}
-                />
+                <SearchStarPopover repo={repo} tags={tags} collections={collections} />
               </div>
             </div>
           )

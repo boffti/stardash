@@ -13,9 +13,26 @@ import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
 import { Badge } from "@/components/ui/badge"
-import { X, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, List, StarOff, LogIn, Star } from "lucide-react"
+import {
+  X,
+  RefreshCw,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  List,
+  StarOff,
+  LogIn,
+  Star,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Pagination,
@@ -36,7 +53,14 @@ import {
 } from "@/components/ui/alert-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache"
-import type { CategorizationResult, UserMetadata, RepoStatus, StarredRepo, Collection, Tag } from "@/lib/types"
+import type {
+  CategorizationResult,
+  UserMetadata,
+  RepoStatus,
+  StarredRepo,
+  Collection,
+  Tag,
+} from "@/lib/types"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
@@ -46,14 +70,25 @@ import { useAIKey } from "@/lib/use-ai-key"
 import { trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import { isDormantRepo, type RepoHealthFilter } from "@/lib/repo-health"
 import {
-  updateRepoStatus, updateRepoNotes, togglePin,
-  createTag, assignTag, removeTag,
-  createCollection, assignCollection, removeCollection,
+  updateRepoStatus,
+  updateRepoNotes,
+  togglePin,
+  createTag,
+  assignTag,
+  removeTag,
+  createCollection,
+  assignCollection,
+  removeCollection,
   pickTagColor,
 } from "@/lib/user-metadata"
 import {
-  DndContext, DragOverlay, MouseSensor, TouchSensor,
-  useSensor, useSensors, type DragEndEvent,
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core"
 
 const VIEW_MODE_KEY = "stardash_view_mode"
@@ -93,7 +128,10 @@ export function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1)
   const [categorization, setCategorization] = useState<CategorizationResult | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
-  const [categorizeLimit, setCategorizeLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
+  const [categorizeLimit, setCategorizeLimit] = useState<{
+    remaining: number | null
+    nextAllowedAt: string | null
+  }>({ remaining: null, nextAllowedAt: null })
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
@@ -102,23 +140,23 @@ export function Dashboard() {
   const supabase = createClient()
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
   )
 
   // Fetch user metadata (tags, collections, repo assignments) from Supabase
   const { data: metadata, mutate: mutateMetadata } = useSWR<UserMetadata>(
-    user?.id ? '/api/user/metadata' : null,
+    user?.id ? "/api/user/metadata" : null,
     async (url: string) => {
       const r = await fetch(url)
       if (r.status === 401) {
         // Session has expired — redirect to login
         await reauthenticate()
-        throw new Error('Session expired')
+        throw new Error("Session expired")
       }
-      if (!r.ok) throw new Error('Failed to fetch metadata')
+      if (!r.ok) throw new Error("Failed to fetch metadata")
       return r.json()
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false },
   )
 
   // Fetch starred repos — checks localStorage cache before hitting GitHub API
@@ -127,18 +165,19 @@ export function Dashboard() {
   const rawRepos = data?.repos || []
   const hasRepoData = Boolean(data)
   const lastSynced = data?.lastSynced
-    ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
+    ? (data.fromCache ? "Cached " : "Synced ") +
+      formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
   // Merge DB metadata + AI categorization over raw GitHub data. DB wins.
   const repos = useMemo(() => {
-    return (data?.repos ?? []).map(repo => {
+    return (data?.repos ?? []).map((repo) => {
       const dbMeta = metadata?.repoMeta[repo.id]
 
       let mergedRepo = repo
 
       if (dbMeta) {
-        const dbTags = (metadata?.tags ?? []).filter(t => dbMeta.tagIds.includes(t.id))
+        const dbTags = (metadata?.tags ?? []).filter((t) => dbMeta.tagIds.includes(t.id))
         mergedRepo = {
           ...mergedRepo,
           status: dbMeta.status ?? repo.status,
@@ -153,8 +192,14 @@ export function Dashboard() {
       if (categorization) {
         mergedRepo = {
           ...mergedRepo,
-          tags: mergedRepo.tags.length > 0 ? mergedRepo.tags : (categorization.repoTags[repo.id] ?? repo.tags),
-          collections: mergedRepo.collections.length > 0 ? mergedRepo.collections : (categorization.repoCollections[repo.id] ?? repo.collections),
+          tags:
+            mergedRepo.tags.length > 0
+              ? mergedRepo.tags
+              : (categorization.repoTags[repo.id] ?? repo.tags),
+          collections:
+            mergedRepo.collections.length > 0
+              ? mergedRepo.collections
+              : (categorization.repoCollections[repo.id] ?? repo.collections),
         }
       }
 
@@ -166,19 +211,19 @@ export function Dashboard() {
     const dbCollections = metadata?.collections ?? []
     const aiCollections = categorization?.collections ?? []
     const merged = new Map<string, Collection>()
-    aiCollections.forEach(c => merged.set(c.name.toLowerCase(), c))
-    dbCollections.forEach(c => merged.set(c.name.toLowerCase(), c))
+    aiCollections.forEach((c) => merged.set(c.name.toLowerCase(), c))
+    dbCollections.forEach((c) => merged.set(c.name.toLowerCase(), c))
     const allCollections = Array.from(merged.values())
-    const dbIds = new Set(dbCollections.map(c => c.id))
+    const dbIds = new Set(dbCollections.map((c) => c.id))
     // Compute repoCount from actual repos (reflects live starred list, not stale DB count)
     const countById = new Map<string, number>()
     for (const repo of repos) {
-      for (const cid of (repo.collections ?? [])) {
+      for (const cid of repo.collections ?? []) {
         countById.set(cid, (countById.get(cid) ?? 0) + 1)
       }
     }
     return allCollections
-      .map(c => ({ ...c, repoCount: countById.get(c.id) ?? 0 }))
+      .map((c) => ({ ...c, repoCount: countById.get(c.id) ?? 0 }))
       .sort((a, b) => {
         const aIsDb = dbIds.has(a.id)
         const bIsDb = dbIds.has(b.id)
@@ -192,10 +237,10 @@ export function Dashboard() {
     const dbTags = metadata?.tags ?? []
     const aiTags = categorization?.allTags ?? []
     const merged = new Map<string, Tag>()
-    aiTags.forEach(t => merged.set(t.label.toLowerCase(), t))
-    dbTags.forEach(t => merged.set(t.label.toLowerCase(), t))
+    aiTags.forEach((t) => merged.set(t.label.toLowerCase(), t))
+    dbTags.forEach((t) => merged.set(t.label.toLowerCase(), t))
     const all = Array.from(merged.values())
-    const dbIds = new Set(dbTags.map(t => t.id))
+    const dbIds = new Set(dbTags.map((t) => t.id))
     return all.sort((a, b) => {
       const aIsDb = dbIds.has(a.id)
       const bIsDb = dbIds.has(b.id)
@@ -268,9 +313,7 @@ export function Dashboard() {
 
   // Count uncategorized repos
   const uncategorizedCount = useMemo(() => {
-    return repos.filter(
-      (repo) => repo.tags.length === 0 && repo.collections.length === 0
-    ).length
+    return repos.filter((repo) => repo.tags.length === 0 && repo.collections.length === 0).length
   }, [repos])
 
   // Filter and sort repos
@@ -286,7 +329,7 @@ export function Dashboard() {
           repo.owner.toLowerCase().includes(query) ||
           repo.description?.toLowerCase().includes(query) ||
           repo.notes?.toLowerCase().includes(query) ||
-          repo.tags.some((tag) => tag.label.toLowerCase().includes(query))
+          repo.tags.some((tag) => tag.label.toLowerCase().includes(query)),
       )
     }
 
@@ -309,9 +352,7 @@ export function Dashboard() {
 
     // Tag filter
     if (selectedTag) {
-      filtered = filtered.filter((repo) =>
-        repo.tags.some((tag) => tag.id === selectedTag)
-      )
+      filtered = filtered.filter((repo) => repo.tags.some((tag) => tag.id === selectedTag))
     }
 
     // Uncategorized filter
@@ -347,13 +388,30 @@ export function Dashboard() {
     })
 
     return filtered
-  }, [repos, searchQuery, sortBy, languageFilter, healthFilter, selectedCollection, selectedTag, showUncategorized])
+  }, [
+    repos,
+    searchQuery,
+    sortBy,
+    languageFilter,
+    healthFilter,
+    selectedCollection,
+    selectedTag,
+    showUncategorized,
+  ])
 
   // Reset to page 1 when filters/sort change
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
-  }, [searchQuery, sortBy, languageFilter, healthFilter, selectedCollection, selectedTag, showUncategorized])
+  }, [
+    searchQuery,
+    sortBy,
+    languageFilter,
+    healthFilter,
+    selectedCollection,
+    selectedTag,
+    showUncategorized,
+  ])
 
   // Reset to page 1 when page size changes
   useEffect(() => {
@@ -364,8 +422,12 @@ export function Dashboard() {
   // Pagination calculations
   const totalPages = pageSize === "all" ? 1 : Math.ceil(filteredRepos.length / (pageSize as number))
   const startIndex = pageSize === "all" ? 0 : (currentPage - 1) * (pageSize as number)
-  const endIndex = pageSize === "all" ? filteredRepos.length : Math.min(startIndex + (pageSize as number), filteredRepos.length)
-  const paginatedRepos = pageSize === "all" ? filteredRepos : filteredRepos.slice(startIndex, endIndex)
+  const endIndex =
+    pageSize === "all"
+      ? filteredRepos.length
+      : Math.min(startIndex + (pageSize as number), filteredRepos.length)
+  const paginatedRepos =
+    pageSize === "all" ? filteredRepos : filteredRepos.slice(startIndex, endIndex)
 
   // Fetch repo health data only for the currently visible slice to avoid hammering GitHub.
   const repoIdsForHealth = useMemo(() => {
@@ -377,8 +439,10 @@ export function Dashboard() {
   }, [paginatedRepos, selectedRepo])
 
   // Batch health requests in chunks of 50 to avoid long URLs
-  const { data: healthData } = useSWR<Record<string, { isTrending: boolean; latestRelease: StarredRepo['latestRelease'] }>>(
-    repoIdsForHealth.length > 0 ? ['health', repoIdsForHealth] : null,
+  const { data: healthData } = useSWR<
+    Record<string, { isTrending: boolean; latestRelease: StarredRepo["latestRelease"] }>
+  >(
+    repoIdsForHealth.length > 0 ? ["health", repoIdsForHealth] : null,
     async () => {
       const batchSize = 50
       const batches = []
@@ -389,11 +453,11 @@ export function Dashboard() {
 
       const results = await Promise.all(
         batches.map(async (batch) => {
-          const url = `/api/github/health?repoIds=${batch.join(',')}`
+          const url = `/api/github/health?repoIds=${batch.join(",")}`
           const res = await fetch(url)
           if (!res.ok) return {}
           return res.json()
-        })
+        }),
       )
 
       return results.reduce((acc, batch) => ({ ...acc, ...batch }), {})
@@ -403,7 +467,7 @@ export function Dashboard() {
       revalidateOnReconnect: false,
       shouldRetryOnError: false,
       dedupingInterval: 60 * 1000,
-    }
+    },
   )
 
   const paginatedReposWithHealth = useMemo(() => {
@@ -435,7 +499,8 @@ export function Dashboard() {
   const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
     if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total]
-    if (current >= total - 3) return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total]
+    if (current >= total - 3)
+      return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total]
     return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total]
   }
 
@@ -481,42 +546,46 @@ export function Dashboard() {
   }
 
   const isTokenExpired = Boolean(
-    error?.message?.includes('token') ||
-    error?.message?.includes('expired') ||
-    error?.message?.includes('re-authenticate') ||
+    error?.message?.includes("token") ||
+    error?.message?.includes("expired") ||
+    error?.message?.includes("re-authenticate") ||
     (error as (Error & { status?: number }) | undefined)?.status === 401 ||
-    data?.error
+    data?.error,
   )
 
   const handleCategorize = async () => {
     if (!rawRepos.length) return
     setIsCategorizing(true)
     try {
-      const response = await fetch('/api/ai/categorize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getHeaders() },
+      const response = await fetch("/api/ai/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify({ repos: rawRepos }),
       })
       if (response.status === 429) {
         const result = await response.json()
         setCategorizeLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
-        toast.error(result.error ?? 'AI categorization limit reached')
+        toast.error(result.error ?? "AI categorization limit reached")
         return
       }
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Failed to categorize')
+      if (!response.ok) throw new Error(result.error || "Failed to categorize")
       const categorizationResult = result as CategorizationResult
       setCategorization(categorizationResult)
       if (user?.id) localStorage.removeItem(`stardash_categorization_${user.id}`)
       await mutateMetadata()
-      const categorizedRepoCount = categorizationResult.categorizedRepoCount ?? Object.keys(categorizationResult.repoTags).length
+      const categorizedRepoCount =
+        categorizationResult.categorizedRepoCount ??
+        Object.keys(categorizationResult.repoTags).length
       if (categorizedRepoCount === 0) {
-        toast.info('No new starred repos to categorize')
+        toast.info("No new starred repos to categorize")
       } else {
-        toast.success(`Categorized ${categorizedRepoCount} ${categorizedRepoCount === 1 ? 'repo' : 'repos'}`)
+        toast.success(
+          `Categorized ${categorizedRepoCount} ${categorizedRepoCount === 1 ? "repo" : "repos"}`,
+        )
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to categorize repositories')
+      toast.error(err instanceof Error ? err.message : "Failed to categorize repositories")
     } finally {
       setIsCategorizing(false)
     }
@@ -533,7 +602,7 @@ export function Dashboard() {
       notes: string | null
       tagIds: string[]
       collectionIds: string[]
-    }> = {}
+    }> = {},
   ): UserMetadata => ({
     tags: prev?.tags ?? [],
     collections: prev?.collections ?? [],
@@ -557,23 +626,25 @@ export function Dashboard() {
 
     const response = await fetch(`/api/user/repo-id?githubRepoId=${repo.id}`)
     if (!response.ok) {
-      throw new Error('Repo metadata missing. Refresh your stars and try again.')
+      throw new Error("Repo metadata missing. Refresh your stars and try again.")
     }
 
     const payload = await response.json()
     const dbId = payload.dbId as string
-    mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId), { revalidate: false })
+    mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId), { revalidate: false })
     return dbId
   }
 
   const handleStatusChange = async (repo: StarredRepo, status: RepoStatus | null) => {
     try {
       const dbId = await getDbId(repo)
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { status }), { revalidate: false })
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { status }), {
+        revalidate: false,
+      })
       await updateRepoStatus(supabase, dbId, status)
     } catch {
       mutateMetadata()
-      toast.error('Failed to update status')
+      toast.error("Failed to update status")
     }
   }
 
@@ -581,9 +652,11 @@ export function Dashboard() {
     try {
       const dbId = await getDbId(repo)
       await updateRepoNotes(supabase, dbId, notes)
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), { revalidate: false })
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), {
+        revalidate: false,
+      })
     } catch {
-      toast.error('Failed to save notes')
+      toast.error("Failed to save notes")
     }
   }
 
@@ -591,11 +664,13 @@ export function Dashboard() {
     try {
       const dbId = await getDbId(repo)
       const isPinned = !(metadata?.repoMeta[repo.id]?.isPinned ?? repo.isPinned)
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), { revalidate: false })
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), {
+        revalidate: false,
+      })
       await togglePin(supabase, dbId, isPinned)
     } catch {
       mutateMetadata()
-      toast.error('Failed to update pin')
+      toast.error("Failed to update pin")
     }
   }
 
@@ -605,13 +680,15 @@ export function Dashboard() {
       const dbId = await getDbId(repo)
       const current = metadata?.repoMeta[repo.id]?.tagIds ?? []
       const isAssigned = current.includes(tagId)
-      const newTagIds = isAssigned ? current.filter(id => id !== tagId) : [...current, tagId]
-      mutateMetadata(prev => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), { revalidate: false })
+      const newTagIds = isAssigned ? current.filter((id) => id !== tagId) : [...current, tagId]
+      mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), {
+        revalidate: false,
+      })
       if (isAssigned) await removeTag(supabase, dbId, user.id, tagId)
       else await assignTag(supabase, dbId, user.id, tagId)
     } catch {
       mutateMetadata()
-      toast.error('Failed to update tag')
+      toast.error("Failed to update tag")
     }
   }
 
@@ -624,7 +701,7 @@ export function Dashboard() {
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
-      toast.error(msg.includes('unique') ? 'Tag already exists' : 'Failed to create tag')
+      toast.error(msg.includes("unique") ? "Tag already exists" : "Failed to create tag")
     }
   }
 
@@ -635,33 +712,44 @@ export function Dashboard() {
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
-      toast.error(msg.includes('unique') ? 'Tag already exists' : 'Failed to create tag')
+      toast.error(msg.includes("unique") ? "Tag already exists" : "Failed to create tag")
       throw err
     }
   }
 
-  const handleCollectionToggle = async (repo: StarredRepo, collectionId: string, mode: 'toggle' | 'add-only' = 'toggle') => {
+  const handleCollectionToggle = async (
+    repo: StarredRepo,
+    collectionId: string,
+    mode: "toggle" | "add-only" = "toggle",
+  ) => {
     if (!user?.id) return
     try {
       const dbId = await getDbId(repo)
       const current = metadata?.repoMeta[repo.id]?.collectionIds ?? []
       const isAssigned = current.includes(collectionId)
-      if (isAssigned && mode === 'add-only') return
-      const newCollectionIds = isAssigned ? current.filter(id => id !== collectionId) : [...current, collectionId]
-      mutateMetadata(prev => {
-        const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds })
-        const updatedCollections = newMeta.collections.map(c =>
-          c.id === collectionId
-            ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
-            : c
-        )
-        return { ...newMeta, collections: updatedCollections }
-      }, { revalidate: false })
+      if (isAssigned && mode === "add-only") return
+      const newCollectionIds = isAssigned
+        ? current.filter((id) => id !== collectionId)
+        : [...current, collectionId]
+      mutateMetadata(
+        (prev) => {
+          const newMeta = buildRepoMetaEntry(prev, repo.id, dbId, {
+            collectionIds: newCollectionIds,
+          })
+          const updatedCollections = newMeta.collections.map((c) =>
+            c.id === collectionId
+              ? { ...c, repoCount: Math.max(0, (c.repoCount || 0) + (isAssigned ? -1 : 1)) }
+              : c,
+          )
+          return { ...newMeta, collections: updatedCollections }
+        },
+        { revalidate: false },
+      )
       if (isAssigned) await removeCollection(supabase, dbId, user.id, collectionId)
       else await assignCollection(supabase, dbId, user.id, collectionId)
     } catch {
       mutateMetadata()
-      toast.error('Failed to update collection')
+      toast.error("Failed to update collection")
     }
   }
 
@@ -672,7 +760,9 @@ export function Dashboard() {
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
-      toast.error(msg.includes('unique') ? 'Collection already exists' : 'Failed to create collection')
+      toast.error(
+        msg.includes("unique") ? "Collection already exists" : "Failed to create collection",
+      )
     }
   }
 
@@ -681,13 +771,19 @@ export function Dashboard() {
   }
 
   const removeRepoFromLocalState = (repo: StarredRepo) => {
-    mutate(prev => prev ? { ...prev, repos: prev.repos.filter(r => r.id !== repo.id) } : prev, { revalidate: false })
-    mutateMetadata(prev => {
-      if (!prev) return prev
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [repo.id]: _removed, ...remainingMeta } = prev.repoMeta
-      return { ...prev, repoMeta: remainingMeta }
-    }, { revalidate: false })
+    mutate(
+      (prev) => (prev ? { ...prev, repos: prev.repos.filter((r) => r.id !== repo.id) } : prev),
+      { revalidate: false },
+    )
+    mutateMetadata(
+      (prev) => {
+        if (!prev) return prev
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [repo.id]: _removed, ...remainingMeta } = prev.repoMeta
+        return { ...prev, repoMeta: remainingMeta }
+      },
+      { revalidate: false },
+    )
 
     if (selectedRepo?.id === repo.id) {
       setSelectedRepo(null)
@@ -701,21 +797,28 @@ export function Dashboard() {
 
     if (user?.id) {
       const cached = getCachedRepos(user.id)
-      if (cached) setCachedRepos(user.id, cached.repos.filter(r => r.id !== repo.id))
+      if (cached)
+        setCachedRepos(
+          user.id,
+          cached.repos.filter((r) => r.id !== repo.id),
+        )
     }
   }
 
   const restoreRepoToLocalState = (repo: StarredRepo) => {
-    mutate(prev => {
-      if (!prev) return prev
-      if (prev.repos.some(r => r.id === repo.id)) return prev
-      return { ...prev, repos: [repo, ...prev.repos] }
-    }, { revalidate: false })
+    mutate(
+      (prev) => {
+        if (!prev) return prev
+        if (prev.repos.some((r) => r.id === repo.id)) return prev
+        return { ...prev, repos: [repo, ...prev.repos] }
+      },
+      { revalidate: false },
+    )
     mutateMetadata()
 
     if (user?.id) {
       const cached = getCachedRepos(user.id)
-      if (cached && !cached.repos.some(r => r.id === repo.id)) {
+      if (cached && !cached.repos.some((r) => r.id === repo.id)) {
         setCachedRepos(user.id, [repo, ...cached.repos])
       }
     }
@@ -729,15 +832,15 @@ export function Dashboard() {
     // Optimistic remove from SWR cache and localStorage
     removeRepoFromLocalState(repo)
     try {
-      const res = await fetch('/api/github/star', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/github/star", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ owner: repo.owner, repo: repo.name, githubRepoId: Number(repo.id) }),
       })
 
       if (!res.ok) {
         const result = await res.json().catch(() => null)
-        throw new Error(result?.error || 'Failed to remove star')
+        throw new Error(result?.error || "Failed to remove star")
       }
 
       await refresh({
@@ -750,7 +853,10 @@ export function Dashboard() {
       })
     } catch (error) {
       restoreRepoToLocalState(repo)
-      const message = error instanceof Error ? error.message : `Failed to remove star from ${repo.owner}/${repo.name}`
+      const message =
+        error instanceof Error
+          ? error.message
+          : `Failed to remove star from ${repo.owner}/${repo.name}`
       toast.error(message)
     }
   }
@@ -761,16 +867,22 @@ export function Dashboard() {
     if (!over) return
     const repoId = active.id as string
     const dropTarget = over.id as string
-    const repo = repos.find(r => r.id === repoId)
+    const repo = repos.find((r) => r.id === repoId)
     if (!repo) return
-    if (dropTarget.startsWith('collection::')) {
-      await handleCollectionToggle(repo, dropTarget.replace('collection::', ''), 'add-only')
-    } else if (dropTarget.startsWith('tag::')) {
-      await handleTagToggle(repo, dropTarget.replace('tag::', ''))
+    if (dropTarget.startsWith("collection::")) {
+      await handleCollectionToggle(repo, dropTarget.replace("collection::", ""), "add-only")
+    } else if (dropTarget.startsWith("tag::")) {
+      await handleTagToggle(repo, dropTarget.replace("tag::", ""))
     }
   }
 
-  const hasActiveFilters = searchQuery || languageFilter || healthFilter || selectedCollection || selectedTag || showUncategorized
+  const hasActiveFilters =
+    searchQuery ||
+    languageFilter ||
+    healthFilter ||
+    selectedCollection ||
+    selectedTag ||
+    showUncategorized
 
   const getActiveFilterLabel = () => {
     if (selectedCollection) {
@@ -804,7 +916,7 @@ export function Dashboard() {
     </Badge>
   )
 
-  const activeRepo = activeRepoId ? repos.find(r => r.id === activeRepoId) : null
+  const activeRepo = activeRepoId ? repos.find((r) => r.id === activeRepoId) : null
 
   return (
     <DndContext
@@ -812,375 +924,400 @@ export function Dashboard() {
       onDragStart={({ active }) => setActiveRepoId(active.id as string)}
       onDragEnd={handleDragEnd}
     >
-    <SidebarProvider>
-      <AppSidebar
-        collections={collections}
-        tags={allTags}
-        selectedCollection={selectedCollection}
-        selectedTag={selectedTag}
-        showUncategorized={showUncategorized}
-        onSelectCollection={handleSelectCollection}
-        onSelectTag={handleSelectTag}
-        onShowUncategorized={handleShowUncategorized}
-        totalStars={repos.length}
-        uncategorizedCount={uncategorizedCount}
-        userId={user?.id}
-        onAICategorize={handleCategorize}
-        onCreateCollection={handleCollectionCreate}
-        onCreateTag={handleTagCreateSimple}
-        isLoading={isLoading && !hasRepoData}
-      />
-      <SidebarInset>
-        {/* Top loading progress bar */}
-        {(isLoading || isRefreshing) && (
-          <div className="absolute top-0 left-0 right-0 z-50 h-0.5 overflow-hidden">
-            <div className="h-full bg-primary/70 animate-[loading-bar_1.8s_ease-in-out_infinite]" />
-          </div>
-        )}
-        <DashboardHeader
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          languageFilter={languageFilter}
-          onLanguageFilterChange={setLanguageFilter}
-          healthFilter={healthFilter}
-          onHealthFilterChange={setHealthFilter}
-          languages={languages}
-          lastSynced={lastSynced}
-          onRefresh={isTokenExpired ? undefined : () => handleRefresh("dashboard-navbar-refresh")}
-          isRefreshing={isRefreshing || isLoading}
-          onCategorize={handleCategorize}
-          isCategorizing={isCategorizing}
-          categorizeLimit={categorizeLimit}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        />
-        <DashboardCommandPalette
-          open={commandPaletteOpen}
-          onOpenChange={setCommandPaletteOpen}
-          repos={repos}
-          filteredRepos={filteredRepos}
+      <SidebarProvider>
+        <AppSidebar
           collections={collections}
           tags={allTags}
-          languages={languages}
-          searchQuery={searchQuery}
           selectedCollection={selectedCollection}
           selectedTag={selectedTag}
-          languageFilter={languageFilter}
-          healthFilter={healthFilter}
           showUncategorized={showUncategorized}
-          sortBy={sortBy}
-          viewMode={viewMode}
-          isRefreshing={isLoading}
-          isCategorizing={isCategorizing}
-          onSearchChange={setSearchQuery}
           onSelectCollection={handleSelectCollection}
           onSelectTag={handleSelectTag}
-          onLanguageFilterChange={setLanguageFilter}
-          onHealthFilterChange={setHealthFilter}
           onShowUncategorized={handleShowUncategorized}
-          onSortChange={setSortBy}
-          onViewModeChange={setViewMode}
-          onRefresh={() => handleRefresh("dashboard-command-palette")}
-          onCategorize={handleCategorize}
-          onRepoOpen={handleRepoClick}
-          onClearFilters={clearAllFilters}
+          totalStars={repos.length}
+          uncategorizedCount={uncategorizedCount}
+          userId={user?.id}
+          onAICategorize={handleCategorize}
+          onCreateCollection={handleCollectionCreate}
+          onCreateTag={handleTagCreateSimple}
+          isLoading={isLoading && !hasRepoData}
         />
-        <main className="flex-1 p-6">
-          {/* Token expiry banner — always at top when expired and cached data exists */}
-          {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
-
-          {/* Skeleton loading state — shown immediately while fetching, no cached data */}
-          {isLoading && !hasRepoData && (
-            <>
-              {/* Skeleton toolbar row */}
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-0.5 rounded-md bg-secondary p-0.5">
-                    <div className="h-7 w-7 rounded-sm bg-muted/60 animate-pulse" />
-                    <div className="h-7 w-7 rounded-sm bg-muted/40 animate-pulse" />
-                  </div>
-                  <div className="h-4 w-48 rounded bg-muted animate-pulse" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-4 w-20 rounded bg-muted animate-pulse" />
-                  <div className="h-8 w-20 rounded-md bg-muted animate-pulse" />
-                </div>
-              </div>
-              <RepoGridSkeleton count={12} />
-            </>
-          )}
-
-          {/* Full-page error only when no cached data — token error shows reconnect CTA, others show retry */}
-          {(error || data?.error) && !hasRepoData && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <p className="text-destructive">
-                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
-              </p>
-              {isTokenExpired ? (
-                <Button variant="outline" onClick={handleReconnect}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Reconnect GitHub
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              )}
+        <SidebarInset>
+          {/* Top loading progress bar */}
+          {(isLoading || isRefreshing) && (
+            <div className="absolute top-0 left-0 right-0 z-50 h-0.5 overflow-hidden">
+              <div className="h-full bg-primary/70 animate-[loading-bar_1.8s_ease-in-out_infinite]" />
             </div>
           )}
+          <DashboardHeader
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            languageFilter={languageFilter}
+            onLanguageFilterChange={setLanguageFilter}
+            healthFilter={healthFilter}
+            onHealthFilterChange={setHealthFilter}
+            languages={languages}
+            lastSynced={lastSynced}
+            onRefresh={isTokenExpired ? undefined : () => handleRefresh("dashboard-navbar-refresh")}
+            isRefreshing={isRefreshing || isLoading}
+            onCategorize={handleCategorize}
+            isCategorizing={isCategorizing}
+            categorizeLimit={categorizeLimit}
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          />
+          <DashboardCommandPalette
+            open={commandPaletteOpen}
+            onOpenChange={setCommandPaletteOpen}
+            repos={repos}
+            filteredRepos={filteredRepos}
+            collections={collections}
+            tags={allTags}
+            languages={languages}
+            searchQuery={searchQuery}
+            selectedCollection={selectedCollection}
+            selectedTag={selectedTag}
+            languageFilter={languageFilter}
+            healthFilter={healthFilter}
+            showUncategorized={showUncategorized}
+            sortBy={sortBy}
+            viewMode={viewMode}
+            isRefreshing={isLoading}
+            isCategorizing={isCategorizing}
+            onSearchChange={setSearchQuery}
+            onSelectCollection={handleSelectCollection}
+            onSelectTag={handleSelectTag}
+            onLanguageFilterChange={setLanguageFilter}
+            onHealthFilterChange={setHealthFilter}
+            onShowUncategorized={handleShowUncategorized}
+            onSortChange={setSortBy}
+            onViewModeChange={setViewMode}
+            onRefresh={() => handleRefresh("dashboard-command-palette")}
+            onCategorize={handleCategorize}
+            onRepoOpen={handleRepoClick}
+            onClearFilters={clearAllFilters}
+          />
+          <main className="flex-1 p-6">
+            {/* Token expiry banner — always at top when expired and cached data exists */}
+            {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
 
-          {/* Content — shown even when token expired if cached data exists */}
-          {hasRepoData && (
-            <>
-              {/* Active Filters */}
-              {hasActiveFilters && (
-                <div className="mb-4 flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Filters:</span>
-                  {searchQuery && (
-                    renderFilterBadge(`Search: ${searchQuery}`, () => setSearchQuery(""))
-                  )}
-                  {languageFilter && (
-                    renderFilterBadge(languageFilter, () => setLanguageFilter(null))
-                  )}
-                  {healthFilter && (
-                    renderFilterBadge(getHealthFilterLabel() ?? "Health", () => setHealthFilter(null))
-                  )}
-                  {(selectedCollection || selectedTag) && (
-                    renderFilterBadge(getActiveFilterLabel() ?? "Category", () => {
-                      handleSelectCollection(null)
-                    })
-                  )}
-                  {showUncategorized && (
-                    renderFilterBadge("Uncategorized", () => handleShowUncategorized(false))
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={clearAllFilters}
-                  >
-                    Clear All
-                  </Button>
-                </div>
-              )}
-
-              {/* Results count + view toggle + per-page selector + top pagination */}
-              <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                  <ToggleGroup
-                    type="single"
-                    value={viewMode}
-                    onValueChange={(value) => value && setViewMode(value as "grid" | "list")}
-                    className="bg-secondary rounded-md p-0.5"
-                  >
-                    <ToggleGroupItem value="grid" aria-label="Grid view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
-                      <LayoutGrid className="h-3.5 w-3.5" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="list" aria-label="List view" className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground">
-                      <List className="h-3.5 w-3.5" />
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                  <p className="text-sm text-muted-foreground">
-                    {pageSize === "all" || filteredRepos.length === 0
-                      ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                      : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                    }
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* Inline page nav */}
-                  {pageSize !== "all" && totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        aria-label="Previous page"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span className="text-sm text-muted-foreground tabular-nums">
-                        {currentPage} / {totalPages}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        aria-label="Next page"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+            {/* Skeleton loading state — shown immediately while fetching, no cached data */}
+            {isLoading && !hasRepoData && (
+              <>
+                {/* Skeleton toolbar row */}
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-0.5 rounded-md bg-secondary p-0.5">
+                      <div className="h-7 w-7 rounded-sm bg-muted/60 animate-pulse" />
+                      <div className="h-7 w-7 rounded-sm bg-muted/40 animate-pulse" />
                     </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Per page</span>
-                    <Select
-                      value={String(pageSize)}
-                      onValueChange={(val) => setPageSize(val === "all" ? "all" : Number(val))}
-                    >
-                      <SelectTrigger className="h-8 w-[80px] text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="24">24</SelectItem>
-                        <SelectItem value="48">48</SelectItem>
-                        <SelectItem value="96">96</SelectItem>
-                        <SelectItem value="all">All</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="h-4 w-48 rounded bg-muted animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+                    <div className="h-8 w-20 rounded-md bg-muted animate-pulse" />
                   </div>
                 </div>
+                <RepoGridSkeleton count={12} />
+              </>
+            )}
+
+            {/* Full-page error only when no cached data — token error shows reconnect CTA, others show retry */}
+            {(error || data?.error) && !hasRepoData && (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+                <p className="text-destructive">
+                  {isTokenExpired
+                    ? "Your GitHub session has expired."
+                    : "Failed to load starred repositories"}
+                </p>
+                {isTokenExpired ? (
+                  <Button variant="outline" onClick={handleReconnect}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Reconnect GitHub
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                )}
               </div>
+            )}
 
-              {/* Proactive Alerts - Updates on starred repos */}
-              <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
-
-              {/* Empty State — no repos at all */}
-              {repos.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-32 gap-6">
-                  <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
-                    <Star className="h-9 w-9 text-muted-foreground/50" />
+            {/* Content — shown even when token expired if cached data exists */}
+            {hasRepoData && (
+              <>
+                {/* Active Filters */}
+                {hasActiveFilters && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Filters:</span>
+                    {searchQuery &&
+                      renderFilterBadge(`Search: ${searchQuery}`, () => setSearchQuery(""))}
+                    {languageFilter &&
+                      renderFilterBadge(languageFilter, () => setLanguageFilter(null))}
+                    {healthFilter &&
+                      renderFilterBadge(getHealthFilterLabel() ?? "Health", () =>
+                        setHealthFilter(null),
+                      )}
+                    {(selectedCollection || selectedTag) &&
+                      renderFilterBadge(getActiveFilterLabel() ?? "Category", () => {
+                        handleSelectCollection(null)
+                      })}
+                    {showUncategorized &&
+                      renderFilterBadge("Uncategorized", () => handleShowUncategorized(false))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={clearAllFilters}
+                    >
+                      Clear All
+                    </Button>
                   </div>
-                  <div className="text-center space-y-1.5">
-                    <p className="font-medium text-foreground">No starred repositories yet</p>
+                )}
+
+                {/* Results count + view toggle + per-page selector + top pagination */}
+                <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                    <ToggleGroup
+                      type="single"
+                      value={viewMode}
+                      onValueChange={(value) => value && setViewMode(value as "grid" | "list")}
+                      className="bg-secondary rounded-md p-0.5"
+                    >
+                      <ToggleGroupItem
+                        value="grid"
+                        aria-label="Grid view"
+                        className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="list"
+                        aria-label="List view"
+                        className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                      >
+                        <List className="h-3.5 w-3.5" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
                     <p className="text-sm text-muted-foreground">
-                      Star repositories on GitHub, then sync to see them here.
+                      {pageSize === "all" || filteredRepos.length === 0
+                        ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
+                        : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`}
                     </p>
                   </div>
-                  <Button variant="outline" onClick={() => handleRefresh("empty-state-sync")} disabled={isTokenExpired}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Sync now
-                  </Button>
-                </div>
-              )}
-
-              {/* View */}
-              {repos.length > 0 && (
-                viewMode === "grid" ? (
-                  <RepoGrid repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} onRemoveStar={handleRemoveStarRequest} />
-                ) : (
-                  <RepoList repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} />
-                )
-              )}
-
-              {/* Pagination controls - desktop (hidden on mobile) */}
-              {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
-                <div className="mt-6 hidden md:flex items-center justify-center">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* Inline page nav */}
+                    {pageSize !== "all" && totalPages > 1 && (
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="gap-1 px-2.5"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
-                          aria-label="Go to previous page"
+                          aria-label="Previous page"
                         >
                           <ChevronLeft className="h-4 w-4" />
-                          <span className="hidden sm:block">Previous</span>
                         </Button>
-                      </PaginationItem>
-
-                      {getPageNumbers(currentPage, totalPages).map((page, idx) =>
-                        page === "ellipsis" ? (
-                          <PaginationItem key={`ellipsis-${idx}`}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        ) : (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={page === currentPage}
-                              onClick={(e) => { e.preventDefault(); setCurrentPage(page as number) }}
-                              href="#"
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        )
-                      )}
-
-                      <PaginationItem>
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          {currentPage} / {totalPages}
+                        </span>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="gap-1 px-2.5"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                           disabled={currentPage === totalPages}
-                          aria-label="Go to next page"
+                          aria-label="Next page"
                         >
-                          <span className="hidden sm:block">Next</span>
                           <ChevronRight className="h-4 w-4" />
                         </Button>
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Per page</span>
+                      <Select
+                        value={String(pageSize)}
+                        onValueChange={(val) => setPageSize(val === "all" ? "all" : Number(val))}
+                      >
+                        <SelectTrigger className="h-8 w-[80px] text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="24">24</SelectItem>
+                          <SelectItem value="48">48</SelectItem>
+                          <SelectItem value="96">96</SelectItem>
+                          <SelectItem value="all">All</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </>
-          )}
-        </main>
-      </SidebarInset>
 
-      {/* Detail Panel */}
-      <RepoDetailPanel
-        repo={selectedRepoWithHealth}
-        open={detailPanelOpen}
-        onClose={handleCloseDetail}
-        onViewReadme={handleViewReadme}
-        collections={collections}
-        tags={allTags}
-        onStatusChange={handleStatusChange}
-        onTagToggle={handleTagToggle}
-        onTagCreate={handleTagCreate}
-        onCollectionToggle={handleCollectionToggle}
-        onCollectionCreate={handleCollectionCreate}
-        onNotesChange={handleNotesChange}
-        onPinToggle={handlePinToggle}
-      />
+                {/* Proactive Alerts - Updates on starred repos */}
+                <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
 
-      {/* README Viewer */}
-      <ReadmeViewer
-        repo={selectedRepoWithHealth}
-        open={readmeViewerOpen}
-        onClose={handleCloseReadme}
-      />
+                {/* Empty State — no repos at all */}
+                {repos.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-32 gap-6">
+                    <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
+                      <Star className="h-9 w-9 text-muted-foreground/50" />
+                    </div>
+                    <div className="text-center space-y-1.5">
+                      <p className="font-medium text-foreground">No starred repositories yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        Star repositories on GitHub, then sync to see them here.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleRefresh("empty-state-sync")}
+                      disabled={isTokenExpired}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sync now
+                    </Button>
+                  </div>
+                )}
 
-      {/* Remove Star Confirmation */}
-      <AlertDialog open={!!repoToRemove} onOpenChange={(open) => { if (!open) setRepoToRemove(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove star?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will unstar <span className="font-mono font-medium text-foreground">{repoToRemove?.owner}/{repoToRemove?.name}</span> on GitHub and delete all associated tags, collections, and notes.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleRemoveStarConfirm}
-            >
-              Remove Star
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </SidebarProvider>
-    <DragOverlay>
-      {activeRepo && (
-        <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-xl text-sm font-mono opacity-90 cursor-grabbing">
-          {activeRepo.owner}/{activeRepo.name}
-        </div>
-      )}
-    </DragOverlay>
+                {/* View */}
+                {repos.length > 0 &&
+                  (viewMode === "grid" ? (
+                    <RepoGrid
+                      repos={paginatedReposWithHealth}
+                      onRepoClick={handleRepoClick}
+                      onRemoveStar={handleRemoveStarRequest}
+                    />
+                  ) : (
+                    <RepoList repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} />
+                  ))}
+
+                {/* Pagination controls - desktop (hidden on mobile) */}
+                {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
+                  <div className="mt-6 hidden md:flex items-center justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 px-2.5"
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            aria-label="Go to previous page"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span className="hidden sm:block">Previous</span>
+                          </Button>
+                        </PaginationItem>
+
+                        {getPageNumbers(currentPage, totalPages).map((page, idx) =>
+                          page === "ellipsis" ? (
+                            <PaginationItem key={`ellipsis-${idx}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          ) : (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                isActive={page === currentPage}
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  setCurrentPage(page as number)
+                                }}
+                                href="#"
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ),
+                        )}
+
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 px-2.5"
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            aria-label="Go to next page"
+                          >
+                            <span className="hidden sm:block">Next</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+        </SidebarInset>
+
+        {/* Detail Panel */}
+        <RepoDetailPanel
+          repo={selectedRepoWithHealth}
+          open={detailPanelOpen}
+          onClose={handleCloseDetail}
+          onViewReadme={handleViewReadme}
+          collections={collections}
+          tags={allTags}
+          onStatusChange={handleStatusChange}
+          onTagToggle={handleTagToggle}
+          onTagCreate={handleTagCreate}
+          onCollectionToggle={handleCollectionToggle}
+          onCollectionCreate={handleCollectionCreate}
+          onNotesChange={handleNotesChange}
+          onPinToggle={handlePinToggle}
+        />
+
+        {/* README Viewer */}
+        <ReadmeViewer
+          repo={selectedRepoWithHealth}
+          open={readmeViewerOpen}
+          onClose={handleCloseReadme}
+        />
+
+        {/* Remove Star Confirmation */}
+        <AlertDialog
+          open={!!repoToRemove}
+          onOpenChange={(open) => {
+            if (!open) setRepoToRemove(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove star?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will unstar{" "}
+                <span className="font-mono font-medium text-foreground">
+                  {repoToRemove?.owner}/{repoToRemove?.name}
+                </span>{" "}
+                on GitHub and delete all associated tags, collections, and notes.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleRemoveStarConfirm}
+              >
+                Remove Star
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </SidebarProvider>
+      <DragOverlay>
+        {activeRepo && (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-xl text-sm font-mono opacity-90 cursor-grabbing">
+            {activeRepo.owner}/{activeRepo.name}
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   )
 }

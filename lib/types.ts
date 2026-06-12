@@ -23,12 +23,12 @@ export interface CategorizationResult {
 }
 
 export type RepoStatus =
-  | 'want-to-try'
-  | 'currently-using'
-  | 'tried-liked'
-  | 'tried-dropped'
-  | 'just-interesting'
-  | 'reference'
+  | "want-to-try"
+  | "currently-using"
+  | "tried-liked"
+  | "tried-dropped"
+  | "just-interesting"
+  | "reference"
   | null
 
 export interface Tag {
@@ -80,12 +80,12 @@ export interface StarredRepo {
 }
 
 export type MaintenanceVerdict =
-  | 'actively-maintained'
-  | 'lightly-maintained'
-  | 'stale'
-  | 'abandoned'
+  | "actively-maintained"
+  | "lightly-maintained"
+  | "stale"
+  | "abandoned"
 
-export type MaintenanceSignalStrength = 'strong' | 'ok' | 'weak' | 'bad' | 'unknown'
+export type MaintenanceSignalStrength = "strong" | "ok" | "weak" | "bad" | "unknown"
 
 export interface RepoMaintenanceAssessment {
   verdict: MaintenanceVerdict
@@ -101,23 +101,19 @@ export interface RepoMaintenanceAssessment {
   }
 }
 
-export type CommunitySentiment = 'positive' | 'mixed' | 'frustrated'
+export type CommunitySentiment = "positive" | "mixed" | "frustrated"
 
-export type AdoptionReadiness =
-  | 'production-ready'
-  | 'maturing'
-  | 'experimental'
-  | 'deprecated'
+export type AdoptionReadiness = "production-ready" | "maturing" | "experimental" | "deprecated"
 
 export interface RepoIntelMetrics {
-  issueCloseRate: number          // 0–1
+  issueCloseRate: number // 0–1
   avgIssueResponseDays: number | null // Deprecated name: median days from issue creation to close.
   medianIssueCloseDays?: number | null
   staleIssueCount: number
-  prMergeRate: number             // 0–1
+  prMergeRate: number // 0–1
   avgPrMergeDays: number | null
   stalePrCount?: number | null
-  activeContributors90d: number   // Deprecated proxy kept for cached insight compatibility.
+  activeContributors90d: number // Deprecated proxy kept for cached insight compatibility.
   topContributorCount?: number
   topContributorShare?: number
   topThreeContributorShare?: number
@@ -143,10 +139,10 @@ export interface RepoIntelMetrics {
 }
 
 export interface IntelSubScores {
-  maintenance: number  // 0–100
-  activity: number     // 0–100
-  community: number    // 0–100
-  trust: number        // 0–100 (100 = low risk / high trust)
+  maintenance: number // 0–100
+  activity: number // 0–100
+  community: number // 0–100
+  trust: number // 0–100 (100 = low risk / high trust)
 }
 
 export interface RepoIntel {
@@ -164,33 +160,45 @@ export interface RepoIntel {
 }
 
 export const STATUS_LABELS: Record<Exclude<RepoStatus, null>, { label: string; color: string }> = {
-  'want-to-try': { label: 'Want to Try', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  'currently-using': { label: 'Currently Using', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  'tried-liked': { label: 'Tried - Liked', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  'tried-dropped': { label: 'Tried - Dropped', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  'just-interesting': { label: 'Just Interesting', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  'reference': { label: 'Reference', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  "want-to-try": { label: "Want to Try", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  "currently-using": {
+    label: "Currently Using",
+    color: "bg-green-500/20 text-green-400 border-green-500/30",
+  },
+  "tried-liked": {
+    label: "Tried - Liked",
+    color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  },
+  "tried-dropped": {
+    label: "Tried - Dropped",
+    color: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  },
+  "just-interesting": {
+    label: "Just Interesting",
+    color: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  },
+  reference: { label: "Reference", color: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
 }
 
 export const LANGUAGE_COLORS: Record<string, string> = {
-  'TypeScript': '#3178c6',
-  'JavaScript': '#f7df1e',
-  'Python': '#3572A5',
-  'Rust': '#dea584',
-  'Go': '#00ADD8',
-  'Java': '#b07219',
-  'C++': '#f34b7d',
-  'C': '#555555',
-  'Ruby': '#701516',
-  'PHP': '#4F5D95',
-  'Swift': '#F05138',
-  'Kotlin': '#A97BFF',
-  'Shell': '#89e051',
-  'HTML': '#e34c26',
-  'CSS': '#563d7c',
-  'Vue': '#41b883',
-  'Svelte': '#ff3e00',
-  'Dart': '#00B4AB',
-  'Scala': '#c22d40',
-  'Elixir': '#6e4a7e',
+  TypeScript: "#3178c6",
+  JavaScript: "#f7df1e",
+  Python: "#3572A5",
+  Rust: "#dea584",
+  Go: "#00ADD8",
+  Java: "#b07219",
+  "C++": "#f34b7d",
+  C: "#555555",
+  Ruby: "#701516",
+  PHP: "#4F5D95",
+  Swift: "#F05138",
+  Kotlin: "#A97BFF",
+  Shell: "#89e051",
+  HTML: "#e34c26",
+  CSS: "#563d7c",
+  Vue: "#41b883",
+  Svelte: "#ff3e00",
+  Dart: "#00B4AB",
+  Scala: "#c22d40",
+  Elixir: "#6e4a7e",
 }

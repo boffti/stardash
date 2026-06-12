@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from "@/lib/supabase/client"
 
 export function getAuthClient() {
   return createClient()
@@ -7,10 +7,10 @@ export function getAuthClient() {
 export async function signInWithGitHub() {
   const supabase = createClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'github',
+    provider: "github",
     options: {
       redirectTo: `${window.location.origin}/auth/callback`,
-      scopes: 'read:user user:email public_repo read:org notifications',
+      scopes: "read:user user:email public_repo read:org notifications",
     },
   })
   return { data, error }
@@ -20,19 +20,23 @@ export async function signOut() {
   const supabase = createClient()
   const { error } = await supabase.auth.signOut()
   if (!error) {
-    window.location.href = '/'
+    window.location.href = "/"
   }
   return { error }
 }
 
 export async function getSession() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session
 }
 
 export async function getUser() {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   return user
 }

@@ -2,11 +2,7 @@
 
 import { useState } from "react"
 import { Star, Check, ChevronDown, Loader2 } from "lucide-react"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -31,9 +27,9 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
     if (starred || loading) return
     setLoading(true)
     try {
-      await fetch('/api/github/star', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch("/api/github/star", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           owner: repo.owner,
           repo: repo.name,
@@ -53,17 +49,25 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
   }
 
   const toggleTag = (id: string) => {
-    setSelectedTags(prev => {
+    setSelectedTags((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }
 
   const toggleCollection = (id: string) => {
-    setSelectedCollections(prev => {
+    setSelectedCollections((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }
@@ -88,10 +92,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
         onClick={handleStar}
         disabled={loading}
       >
-        {loading
-          ? <Loader2 className="h-3 w-3 animate-spin" />
-          : <Star className="h-3 w-3" />
-        }
+        {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
         Star
       </Button>
     )
@@ -112,7 +113,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Collections</p>
               <div className="flex flex-wrap gap-1.5">
-                {collections.slice(0, 8).map(c => (
+                {collections.slice(0, 8).map((c) => (
                   <button
                     key={c.id}
                     onClick={() => toggleCollection(c.id)}
@@ -120,7 +121,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
                       "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-all",
                       selectedCollections.has(c.id)
                         ? "border-accent/50 bg-accent/10 text-accent-foreground"
-                        : "border-border/50 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/40"
+                        : "border-border/50 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/40",
                     )}
                   >
                     <span>{c.emoji}</span>
@@ -136,22 +137,23 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Tags</p>
               <div className="flex flex-wrap gap-1.5">
-                {tags.slice(0, 12).map(tag => (
-                  <button
-                    key={tag.id}
-                    onClick={() => toggleTag(tag.id)}
-                  >
+                {tags.slice(0, 12).map((tag) => (
+                  <button key={tag.id} onClick={() => toggleTag(tag.id)}>
                     <Badge
                       variant="outline"
                       className={cn(
                         "text-xs px-1.5 py-0 h-5 cursor-pointer border transition-all",
-                        selectedTags.has(tag.id) ? "opacity-100 ring-1" : "opacity-60 hover:opacity-90"
+                        selectedTags.has(tag.id)
+                          ? "opacity-100 ring-1"
+                          : "opacity-60 hover:opacity-90",
                       )}
                       style={{
                         backgroundColor: `${tag.color}20`,
                         color: tag.color,
                         borderColor: selectedTags.has(tag.id) ? tag.color : `${tag.color}40`,
-                        boxShadow: selectedTags.has(tag.id) ? `0 0 0 1px ${tag.color}60` : undefined,
+                        boxShadow: selectedTags.has(tag.id)
+                          ? `0 0 0 1px ${tag.color}60`
+                          : undefined,
                       }}
                     >
                       {tag.label}
@@ -169,17 +171,22 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
               onClick={handleStar}
               disabled={loading}
             >
-              {loading
-                ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                : <Star className="h-3 w-3 mr-1" />
-              }
+              {loading ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Star className="h-3 w-3 mr-1" />
+              )}
               Star
             </Button>
             <Button
               variant="ghost"
               size="sm"
               className="h-7 text-xs text-muted-foreground"
-              onClick={() => { setSelectedTags(new Set()); setSelectedCollections(new Set()); handleStar() }}
+              onClick={() => {
+                setSelectedTags(new Set())
+                setSelectedCollections(new Set())
+                handleStar()
+              }}
               disabled={loading}
             >
               Skip

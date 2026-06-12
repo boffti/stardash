@@ -1,9 +1,9 @@
-'use client'
+"use client"
 
-import * as React from 'react'
+import * as React from "react"
 
-type Theme = 'light' | 'dark' | 'system'
-type ResolvedTheme = 'light' | 'dark'
+type Theme = "light" | "dark" | "system"
+type ResolvedTheme = "light" | "dark"
 
 interface ThemeContextValue {
   theme: Theme
@@ -16,25 +16,25 @@ interface ThemeProviderProps {
   defaultTheme?: Theme
   storageKey?: string
   enableSystem?: boolean
-  attribute?: 'class'
+  attribute?: "class"
 }
 
 const ThemeContext = React.createContext<ThemeContextValue | undefined>(undefined)
 
 function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined') return 'dark'
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  if (typeof window === "undefined") return "dark"
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'system',
-  storageKey = 'theme',
+  defaultTheme = "system",
+  storageKey = "theme",
   enableSystem = true,
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(defaultTheme)
   const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>(() =>
-    defaultTheme === 'dark' ? 'dark' : defaultTheme === 'light' ? 'light' : 'dark'
+    defaultTheme === "dark" ? "dark" : defaultTheme === "light" ? "light" : "dark",
   )
 
   React.useEffect(() => {
@@ -43,23 +43,27 @@ export function ThemeProvider({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeState(nextTheme)
     setResolvedTheme(
-      nextTheme === 'system' && enableSystem ? getSystemTheme() : nextTheme === 'light' ? 'light' : 'dark'
+      nextTheme === "system" && enableSystem
+        ? getSystemTheme()
+        : nextTheme === "light"
+          ? "light"
+          : "dark",
     )
   }, [defaultTheme, enableSystem, storageKey])
 
   React.useEffect(() => {
     const root = document.documentElement
-    root.classList.remove('light', 'dark')
+    root.classList.remove("light", "dark")
     root.classList.add(resolvedTheme)
   }, [resolvedTheme])
 
   React.useEffect(() => {
-    if (!enableSystem || theme !== 'system') return
+    if (!enableSystem || theme !== "system") return
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
     const handleChange = () => setResolvedTheme(getSystemTheme())
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
+    mediaQuery.addEventListener("change", handleChange)
+    return () => mediaQuery.removeEventListener("change", handleChange)
   }, [enableSystem, theme])
 
   const setTheme = React.useCallback(
@@ -67,10 +71,14 @@ export function ThemeProvider({
       setThemeState(nextTheme)
       window.localStorage.setItem(storageKey, nextTheme)
       setResolvedTheme(
-        nextTheme === 'system' && enableSystem ? getSystemTheme() : nextTheme === 'light' ? 'light' : 'dark'
+        nextTheme === "system" && enableSystem
+          ? getSystemTheme()
+          : nextTheme === "light"
+            ? "light"
+            : "dark",
       )
     },
-    [enableSystem, storageKey]
+    [enableSystem, storageKey],
   )
 
   const value = React.useMemo(
@@ -79,7 +87,7 @@ export function ThemeProvider({
       resolvedTheme,
       setTheme,
     }),
-    [resolvedTheme, setTheme, theme]
+    [resolvedTheme, setTheme, theme],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
@@ -89,7 +97,7 @@ export function useTheme() {
   const context = React.useContext(ThemeContext)
 
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider')
+    throw new Error("useTheme must be used within a ThemeProvider")
   }
 
   return context

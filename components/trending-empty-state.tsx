@@ -19,7 +19,8 @@ export function TrendingEmptyState({ currentCount, requiredCount }: TrendingEmpt
       </div>
       <h2 className="text-xl font-semibold mb-2">Need More Stars</h2>
       <p className="text-muted-foreground text-center max-w-md mb-6">
-        To generate personalized trending recommendations, we need to analyze your last {requiredCount} starred repositories. You currently have {currentCount} stars.
+        To generate personalized trending recommendations, we need to analyze your last{" "}
+        {requiredCount} starred repositories. You currently have {currentCount} stars.
       </p>
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
@@ -42,7 +43,8 @@ export function TrendingEmptyState({ currentCount, requiredCount }: TrendingEmpt
       </div>
 
       <p className="text-xs text-muted-foreground mt-8">
-        Tip: Star repositories on GitHub that interest you, and we&apos;ll find similar trending repos.
+        Tip: Star repositories on GitHub that interest you, and we&apos;ll find similar trending
+        repos.
       </p>
     </div>
   )

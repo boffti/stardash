@@ -9,21 +9,18 @@ import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
-const UserMenu = dynamic(
-  () => import("@/components/user-menu").then((module) => module.UserMenu),
-  {
-    ssr: false,
-    loading: () => (
-      <Button variant="ghost" size="icon" className="rounded-full">
-        <Avatar className="h-8 w-8">
-          <AvatarFallback>
-            <UserIcon className="h-4 w-4" />
-          </AvatarFallback>
-        </Avatar>
-      </Button>
-    ),
-  },
-)
+const UserMenu = dynamic(() => import("@/components/user-menu").then((module) => module.UserMenu), {
+  ssr: false,
+  loading: () => (
+    <Button variant="ghost" size="icon" className="rounded-full">
+      <Avatar className="h-8 w-8">
+        <AvatarFallback>
+          <UserIcon className="h-4 w-4" />
+        </AvatarFallback>
+      </Avatar>
+    </Button>
+  ),
+})
 
 interface AppPageHeaderProps {
   searchLabel?: string
@@ -98,9 +95,7 @@ export function AppPageHeader({
           )}
 
           {desktopControls && (
-            <div className="hidden md:flex items-center gap-3">
-              {desktopControls}
-            </div>
+            <div className="hidden md:flex items-center gap-3">{desktopControls}</div>
           )}
 
           {hasMobileControls && (
@@ -137,8 +132,8 @@ export function AppPageHeader({
                 const categorizeTooltip = isCategorizing
                   ? "Analyzing…"
                   : isCategorizeLimited && categorizeLimit?.nextAllowedAt
-                  ? `Used this week. Resets ${new Date(categorizeLimit.nextAllowedAt).toLocaleDateString()}`
-                  : "AI categorize"
+                    ? `Used this week. Resets ${new Date(categorizeLimit.nextAllowedAt).toLocaleDateString()}`
+                    : "AI categorize"
                 return (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -149,7 +144,9 @@ export function AppPageHeader({
                           disabled={Boolean(isCategorizing) || !onCategorize || isCategorizeLimited}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Sparkles className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`} />
+                          <Sparkles
+                            className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`}
+                          />
                           <span suppressHydrationWarning className="hidden sm:inline">
                             {isCategorizing ? "Analyzing…" : "Categorize"}
                           </span>
@@ -177,10 +174,14 @@ export function AppPageHeader({
       </header>
 
       {hasMobileControls && (
-        <div className={mobileControlsOpen ? "block md:hidden border-b border-border bg-background/95" : "hidden md:hidden"}>
-          <div className="flex items-center gap-3 px-4 py-2">
-            {mobileControls}
-          </div>
+        <div
+          className={
+            mobileControlsOpen
+              ? "block md:hidden border-b border-border bg-background/95"
+              : "hidden md:hidden"
+          }
+        >
+          <div className="flex items-center gap-3 px-4 py-2">{mobileControls}</div>
         </div>
       )}
     </>

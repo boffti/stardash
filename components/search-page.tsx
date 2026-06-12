@@ -43,14 +43,18 @@ export function SearchPage() {
 
   const { data: metadata } = useSWR<UserMetadata>(
     user?.id ? "/api/user/metadata" : null,
-    (url: string) => fetch(url).then(r => r.json()),
-    { revalidateOnFocus: false }
+    (url: string) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false },
   )
 
-  const { data: savedSearchData, mutate: mutateSavedSearches, isLoading: isLoadingSavedSearches } = useSWR<{ searches: DiscoverSavedSearch[] }>(
+  const {
+    data: savedSearchData,
+    mutate: mutateSavedSearches,
+    isLoading: isLoadingSavedSearches,
+  } = useSWR<{ searches: DiscoverSavedSearch[] }>(
     user?.id ? "/api/search/saved" : null,
-    (url: string) => fetch(url).then(r => r.json()),
-    { revalidateOnFocus: false }
+    (url: string) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false },
   )
 
   const tags = metadata?.tags ?? []
@@ -59,16 +63,16 @@ export function SearchPage() {
 
   const uncategorizedCount = useMemo(() => {
     const repos = starData?.repos ?? []
-    return repos.filter(r => r.tags.length === 0 && r.collections.length === 0).length
+    return repos.filter((r) => r.tags.length === 0 && r.collections.length === 0).length
   }, [starData?.repos])
 
   // Fetch trending repos from existing data
   const trendingRepos = useMemo<SearchRepo[]>(() => {
     const repos = starData?.repos ?? []
     return repos
-      .filter(r => r.isTrending)
+      .filter((r) => r.isTrending)
       .slice(0, 12)
-      .map(r => ({
+      .map((r) => ({
         id: parseInt(r.id) || 0,
         fullName: r.fullName,
         name: r.name,
@@ -105,7 +109,7 @@ export function SearchPage() {
       return
     }
 
-    const sample = repos.slice(0, 100).map(r => ({
+    const sample = repos.slice(0, 100).map((r) => ({
       name: r.name,
       description: r.description ?? "",
       language: r.language,
@@ -117,17 +121,17 @@ export function SearchPage() {
 
     // Build an array of numeric GitHub repo IDs so the server can filter
     // already-starred repos from personalized discovery results.
-    const starredIds = repos.map(r => parseInt(r.id, 10)).filter(id => !isNaN(id))
+    const starredIds = repos.map((r) => parseInt(r.id, 10)).filter((id) => !isNaN(id))
 
     fetch("/api/search/personalized", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getHeaders() },
       body: JSON.stringify({ repos: sample, starredIds }),
     })
-      .then(async r => {
+      .then(async (r) => {
         const data = await r.json()
         if (!r.ok) {
-          console.error('[personalized] API error:', data)
+          console.error("[personalized] API error:", data)
           return
         }
         if (Array.isArray(data.themes) && data.themes.length > 0) {
@@ -135,142 +139,151 @@ export function SearchPage() {
           setPersonalizedThemes(data.themes)
         }
       })
-      .catch(err => console.error('[personalized] fetch error:', err))
+      .catch((err) => console.error("[personalized] fetch error:", err))
       .finally(() => {
         setPersonalizedLoaded(true)
         setIsPersonalizing(false)
       })
   }, [getHeaders, personalizedLoaded, starData?.repos, user?.id])
 
-  const handleSearch = useCallback(async (query: string) => {
-    const searchRunId = searchRunRef.current + 1
-    searchRunRef.current = searchRunId
-    setIsSearching(true)
-    setHasResults(false)
-    setSearchResults([])
-    setPipelineEvents([])
+  const handleSearch = useCallback(
+    async (query: string) => {
+      const searchRunId = searchRunRef.current + 1
+      searchRunRef.current = searchRunId
+      setIsSearching(true)
+      setHasResults(false)
+      setSearchResults([])
+      setPipelineEvents([])
 
-    const applyPipelineEvent = (event: SearchPipelineEvent) => {
-      if (searchRunRef.current !== searchRunId) return
-      setPipelineEvents(prev => [...prev, event])
-      if (event.type === "result") {
-        setSearchResults(event.repos)
-        setHasResults(true)
-      }
-      if (event.type === "error") {
-        console.error("[search] pipeline error:", event.error)
-      }
-    }
-
-    // Send a minimal star-data snapshot so the server can derive user context
-    // and a context hash. Only include fields the server actually reads —
-    // private user metadata (notes, tags, collections, isPinned) is omitted.
-    const starDataSnapshot = (starData?.repos ?? []).slice(0, 200).map(r => ({
-      id: r.id,
-      owner: r.owner,
-      name: r.name,
-      fullName: r.fullName,
-      description: r.description ?? "",
-      language: r.language,
-      topics: r.topics,
-      stargazersCount: r.stargazersCount,
-      forksCount: r.forksCount,
-      pushedAt: r.pushedAt,
-      starredAt: r.starredAt,
-      avatarUrl: r.avatarUrl,
-      status: r.status,
-      isPinned: false,
-      notes: "",
-      tags: [],
-      collections: [],
-      readme: null,
-      languageColor: null,
-      homepage: null,
-      license: null,
-      openIssuesCount: 0,
-    }))
-
-    try {
-      const res = await fetch("/api/search/repos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/x-ndjson",
-          "x-search-pipeline": "stream",
-          ...getHeaders(),
-        },
-        body: JSON.stringify({ query, starData: starDataSnapshot }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        console.error('[search] API error:', data)
-        return
-      }
-
-      if (!res.body) {
-        const data = await res.json()
-        if (data.repos) {
-          setSearchResults(data.repos)
+      const applyPipelineEvent = (event: SearchPipelineEvent) => {
+        if (searchRunRef.current !== searchRunId) return
+        setPipelineEvents((prev) => [...prev, event])
+        if (event.type === "result") {
+          setSearchResults(event.repos)
           setHasResults(true)
         }
-        return
-      }
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
-
-        for (const line of lines) {
-          if (!line.trim()) continue
-          applyPipelineEvent(JSON.parse(line) as SearchPipelineEvent)
+        if (event.type === "error") {
+          console.error("[search] pipeline error:", event.error)
         }
       }
 
-      buffer += decoder.decode()
-      if (buffer.trim()) {
-        applyPipelineEvent(JSON.parse(buffer) as SearchPipelineEvent)
-      }
-    } catch (err) {
-      if (searchRunRef.current === searchRunId) {
-        console.error('[search] fetch error:', err)
-        setPipelineEvents(prev => [
-          ...prev,
-          {
-            type: "error",
-            error: err instanceof Error ? err.message : "Search failed",
-            elapsedMs: 0,
+      // Send a minimal star-data snapshot so the server can derive user context
+      // and a context hash. Only include fields the server actually reads —
+      // private user metadata (notes, tags, collections, isPinned) is omitted.
+      const starDataSnapshot = (starData?.repos ?? []).slice(0, 200).map((r) => ({
+        id: r.id,
+        owner: r.owner,
+        name: r.name,
+        fullName: r.fullName,
+        description: r.description ?? "",
+        language: r.language,
+        topics: r.topics,
+        stargazersCount: r.stargazersCount,
+        forksCount: r.forksCount,
+        pushedAt: r.pushedAt,
+        starredAt: r.starredAt,
+        avatarUrl: r.avatarUrl,
+        status: r.status,
+        isPinned: false,
+        notes: "",
+        tags: [],
+        collections: [],
+        readme: null,
+        languageColor: null,
+        homepage: null,
+        license: null,
+        openIssuesCount: 0,
+      }))
+
+      try {
+        const res = await fetch("/api/search/repos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/x-ndjson",
+            "x-search-pipeline": "stream",
+            ...getHeaders(),
           },
-        ])
-      }
-    } finally {
-      if (searchRunRef.current === searchRunId) {
-        setIsSearching(false)
-        mutateSavedSearches()
-      }
-    }
-  }, [getHeaders, mutateSavedSearches])
+          body: JSON.stringify({ query, starData: starDataSnapshot }),
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          console.error("[search] API error:", data)
+          return
+        }
 
-  const handleToggleSavedSearch = useCallback(async (search: DiscoverSavedSearch) => {
-    await fetch(`/api/search/saved/${search.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isSaved: !search.isSaved }),
-    })
-    mutateSavedSearches()
-  }, [mutateSavedSearches])
+        if (!res.body) {
+          const data = await res.json()
+          if (data.repos) {
+            setSearchResults(data.repos)
+            setHasResults(true)
+          }
+          return
+        }
 
-  const handleDeleteSavedSearch = useCallback(async (search: DiscoverSavedSearch) => {
-    await fetch(`/api/search/saved/${search.id}`, { method: "DELETE" })
-    mutateSavedSearches()
-  }, [mutateSavedSearches])
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? ""
+
+          for (const line of lines) {
+            if (!line.trim()) continue
+            applyPipelineEvent(JSON.parse(line) as SearchPipelineEvent)
+          }
+        }
+
+        buffer += decoder.decode()
+        if (buffer.trim()) {
+          applyPipelineEvent(JSON.parse(buffer) as SearchPipelineEvent)
+        }
+      } catch (err) {
+        if (searchRunRef.current === searchRunId) {
+          console.error("[search] fetch error:", err)
+          setPipelineEvents((prev) => [
+            ...prev,
+            {
+              type: "error",
+              error: err instanceof Error ? err.message : "Search failed",
+              elapsedMs: 0,
+            },
+          ])
+        }
+      } finally {
+        if (searchRunRef.current === searchRunId) {
+          setIsSearching(false)
+          mutateSavedSearches()
+        }
+      }
+    },
+    [getHeaders, mutateSavedSearches],
+  )
+
+  const handleToggleSavedSearch = useCallback(
+    async (search: DiscoverSavedSearch) => {
+      await fetch(`/api/search/saved/${search.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isSaved: !search.isSaved }),
+      })
+      mutateSavedSearches()
+    },
+    [mutateSavedSearches],
+  )
+
+  const handleDeleteSavedSearch = useCallback(
+    async (search: DiscoverSavedSearch) => {
+      await fetch(`/api/search/saved/${search.id}`, { method: "DELETE" })
+      mutateSavedSearches()
+    },
+    [mutateSavedSearches],
+  )
 
   const handleClear = useCallback(() => {
     searchRunRef.current += 1
@@ -301,10 +314,7 @@ export function SearchPage() {
         onCreateTag={async () => {}}
       />
       <SidebarInset>
-        <AppPageHeader
-          lastSynced={null}
-          hideNavActions
-        />
+        <AppPageHeader lastSynced={null} hideNavActions />
 
         <div className="flex-1 flex flex-col min-h-0">
           <SearchHero
@@ -326,11 +336,9 @@ export function SearchPage() {
             {/* Search results */}
             {hasResults && (
               <div className="mt-6 space-y-4">
-                <p className="text-xs text-muted-foreground">
-                  {searchResults.length} repos found
-                </p>
+                <p className="text-xs text-muted-foreground">{searchResults.length} repos found</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {searchResults.map(repo => (
+                  {searchResults.map((repo) => (
                     <SearchResultCard
                       key={repo.id}
                       repo={repo}
@@ -372,7 +380,11 @@ export function SearchPage() {
 
                 <SearchPersonalizedSection
                   themes={personalizedThemes}
-                  isLoading={isPersonalizing || isLoadingStars || (!personalizedLoaded && Boolean(starData?.repos.length))}
+                  isLoading={
+                    isPersonalizing ||
+                    isLoadingStars ||
+                    (!personalizedLoaded && Boolean(starData?.repos.length))
+                  }
                   hasRepoSource={Boolean(starData?.repos.length)}
                   tags={tags}
                   collections={collections}

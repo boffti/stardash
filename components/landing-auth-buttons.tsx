@@ -1,10 +1,10 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { GitHubIcon } from '@/components/icons/github-icon'
+import { useState } from "react"
+import { Loader2 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
+import { GitHubIcon } from "@/components/icons/github-icon"
 
 export function LandingAuthButtons() {
   const [isLoading, setIsLoading] = useState(false)
@@ -14,10 +14,10 @@ export function LandingAuthButtons() {
     setIsLoading(true)
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
-      provider: 'github',
+      provider: "github",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: 'read:user user:email public_repo read:org notifications',
+        scopes: "read:user user:email public_repo read:org notifications",
       },
     })
     // OAuth redirect takes over; reset in case it fails

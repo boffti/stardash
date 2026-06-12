@@ -33,20 +33,10 @@ export function TrendingSection({ title, description, repos, onRepoClick }: Tren
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => scroll("left")}
-          >
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll("left")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => scroll("right")}
-          >
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll("right")}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -61,10 +51,7 @@ export function TrendingSection({ title, description, repos, onRepoClick }: Tren
         }}
       >
         {repos.map((repo) => (
-          <div
-            key={repo.id}
-            className="w-[320px] flex-shrink-0 h-[280px]"
-          >
+          <div key={repo.id} className="w-[320px] flex-shrink-0 h-[280px]">
             <RepoCard repo={repo} onClick={() => onRepoClick(repo)} />
           </div>
         ))}

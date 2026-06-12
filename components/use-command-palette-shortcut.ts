@@ -6,15 +6,12 @@ function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
   return Boolean(
     target.closest(
-      'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
-    )
+      'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]',
+    ),
   )
 }
 
-export function useCommandPaletteShortcut(
-  open: boolean,
-  onOpenChange: (open: boolean) => void
-) {
+export function useCommandPaletteShortcut(open: boolean, onOpenChange: (open: boolean) => void) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {

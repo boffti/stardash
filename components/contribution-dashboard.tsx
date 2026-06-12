@@ -221,9 +221,7 @@ function selectIssueDiscoveryRepos(repos: StarredRepo[]) {
 }
 
 function getIssueDiscoverySignature(repos: StarredRepo[]) {
-  return repos
-    .map((repo) => `${repo.id}:${repo.openIssuesCount}:${repo.pushedAt}`)
-    .join("|")
+  return repos.map((repo) => `${repo.id}:${repo.openIssuesCount}:${repo.pushedAt}`).join("|")
 }
 
 function isRepoDataStale(lastSynced: string | undefined) {
@@ -249,7 +247,9 @@ function InlineMd({ children }: { children: string }) {
       components={{
         p: ({ children }) => <span>{children}</span>,
         code: ({ children }) => (
-          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">{children}</code>
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
+            {children}
+          </code>
         ),
       }}
     >
@@ -277,7 +277,13 @@ function OpportunitySkeleton() {
   )
 }
 
-function EmptyOpportunities({ onRefresh, disabled }: { onRefresh: () => void; disabled?: boolean }) {
+function EmptyOpportunities({
+  onRefresh,
+  disabled,
+}: {
+  onRefresh: () => void
+  disabled?: boolean
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20">
@@ -286,7 +292,8 @@ function EmptyOpportunities({ onRefresh, disabled }: { onRefresh: () => void; di
       <div className="flex max-w-md flex-col gap-2">
         <h3 className="text-lg font-semibold tracking-tight">No matching issues found</h3>
         <p className="text-sm leading-6 text-muted-foreground">
-          Try broadening the filters or syncing your starred repos first. The MVP scans active starred repos with open issues.
+          Try broadening the filters or syncing your starred repos first. The MVP scans active
+          starred repos with open issues.
         </p>
       </div>
       <Button variant="outline" onClick={onRefresh} disabled={disabled}>
@@ -321,17 +328,27 @@ function OpportunityCard({
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">
               {opportunity.repoLanguage && (
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: langColor }} />
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: langColor }}
+                />
               )}
-              <span className="truncate text-sm font-semibold text-foreground">{opportunity.repoFullName}</span>
+              <span className="truncate text-sm font-semibold text-foreground">
+                {opportunity.repoFullName}
+              </span>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               {opportunity.repoLanguage && <span>{opportunity.repoLanguage}</span>}
               <span>#{opportunity.issueNumber}</span>
-              <span>Updated {formatDistanceToNow(new Date(opportunity.updatedAt), { addSuffix: true })}</span>
+              <span>
+                Updated {formatDistanceToNow(new Date(opportunity.updatedAt), { addSuffix: true })}
+              </span>
             </div>
           </div>
-          <Badge variant="outline" className={cn("shrink-0 tabular-nums", scoreTone(opportunity.score))}>
+          <Badge
+            variant="outline"
+            className={cn("shrink-0 tabular-nums", scoreTone(opportunity.score))}
+          >
             {opportunity.score}%
           </Badge>
         </div>
@@ -345,10 +362,7 @@ function OpportunityCard({
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-4 pt-2">
-        <button
-          onClick={() => onViewIssue(opportunity)}
-          className="group text-left"
-        >
+        <button onClick={() => onViewIssue(opportunity)} className="group text-left">
           <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground transition-colors group-hover:text-muted-foreground/80">
             {opportunity.bodyPreview}
           </p>
@@ -370,7 +384,9 @@ function OpportunityCard({
 
         <div className="mt-auto flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary" className="text-xs">{opportunity.difficulty}</Badge>
+            <Badge variant="secondary" className="text-xs">
+              {opportunity.difficulty}
+            </Badge>
             {opportunity.contributionTypes.map((type) => {
               const Icon = typeIcons[type]
               return (
@@ -406,7 +422,11 @@ function OpportunityCard({
                       disabled={isBriefLoading || isBriefLimited}
                       className="h-7 px-2.5 text-xs"
                     >
-                      {isBriefLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
+                      {isBriefLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Bot className="h-3 w-3" />
+                      )}
                       <span className="ml-1">Brief</span>
                     </Button>
                   </span>
@@ -446,14 +466,19 @@ export function ContributionDashboard() {
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
   const [opportunityError, setOpportunityError] = useState<string | null>(null)
   const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(false)
-  const [selectedOpportunity, setSelectedOpportunity] = useState<ContributionOpportunity | null>(null)
+  const [selectedOpportunity, setSelectedOpportunity] = useState<ContributionOpportunity | null>(
+    null,
+  )
   const [selectedIssue, setSelectedIssue] = useState<ContributionOpportunity | null>(null)
   const [brief, setBrief] = useState<ContributionBrief | null>(null)
   const [briefError, setBriefError] = useState<string | null>(null)
   const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
   const { getHeaders } = useAIKey()
-  const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
+  const [briefLimit, setBriefLimit] = useState<{
+    remaining: number | null
+    nextAllowedAt: string | null
+  }>({ remaining: null, nextAllowedAt: null })
   const [scanCooldownSeconds, setScanCooldownSeconds] = useState<number | null>(null)
 
   const repos = useMemo(() => {
@@ -495,9 +520,12 @@ export function ContributionDashboard() {
   const issueCacheKey = getCacheKey(user?.id)
   const collections = metadata?.collections ?? []
   const tags = metadata?.tags ?? []
-  const uncategorizedCount = repos.filter((repo) => repo.tags.length === 0 && repo.collections.length === 0).length
+  const uncategorizedCount = repos.filter(
+    (repo) => repo.tags.length === 0 && repo.collections.length === 0,
+  ).length
   const lastSynced = data?.lastSynced
-    ? (data.fromCache ? "Cached " : "Synced ") + formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
+    ? (data.fromCache ? "Cached " : "Synced ") +
+      formatDistanceToNow(new Date(data.lastSynced), { addSuffix: true })
     : null
 
   const loadOpportunities = async ({ force = false }: { force?: boolean } = {}) => {
@@ -521,7 +549,9 @@ export function ContributionDashboard() {
         reposForScan = selectIssueDiscoveryRepos(refreshed.repos)
         repoSignature = getIssueDiscoverySignature(reposForScan)
       } catch (loadError) {
-        setOpportunityError(loadError instanceof Error ? loadError.message : "Failed to refresh repositories")
+        setOpportunityError(
+          loadError instanceof Error ? loadError.message : "Failed to refresh repositories",
+        )
         setIsLoadingOpportunities(false)
         return
       }
@@ -560,7 +590,9 @@ export function ContributionDashboard() {
           },
         }),
       })
-      const result = (await response.json()) as OpportunitiesResponse & { retryAfterSeconds?: number }
+      const result = (await response.json()) as OpportunitiesResponse & {
+        retryAfterSeconds?: number
+      }
 
       if (response.status === 429) {
         // Cooldown — not a hard error. Keep existing results and show a subtle notice.
@@ -584,7 +616,9 @@ export function ContributionDashboard() {
         cachedAt: new Date().toISOString(),
       })
     } catch (loadError) {
-      setOpportunityError(loadError instanceof Error ? loadError.message : "Failed to load opportunities")
+      setOpportunityError(
+        loadError instanceof Error ? loadError.message : "Failed to load opportunities",
+      )
     } finally {
       setIsLoadingOpportunities(false)
     }
@@ -611,10 +645,10 @@ export function ContributionDashboard() {
   }
 
   const isTokenExpired = Boolean(
-    error?.message?.includes('token') ||
-    error?.message?.includes('expired') ||
-    error?.message?.includes('re-authenticate') ||
-    data?.error
+    error?.message?.includes("token") ||
+    error?.message?.includes("expired") ||
+    error?.message?.includes("re-authenticate") ||
+    data?.error,
   )
 
   const handleBrief = async (opportunity: ContributionOpportunity) => {
@@ -659,7 +693,9 @@ export function ContributionDashboard() {
       setBrief(brief)
       writeCachedBrief(opportunity.id, brief)
     } catch (loadError) {
-      setBriefError(loadError instanceof Error ? loadError.message : "Failed to generate contribution brief")
+      setBriefError(
+        loadError instanceof Error ? loadError.message : "Failed to generate contribution brief",
+      )
     } finally {
       setBriefLoadingId(null)
     }
@@ -670,7 +706,8 @@ export function ContributionDashboard() {
     return opportunities.filter((opportunity) => {
       if (language !== "all" && opportunity.repoLanguage !== language) return false
       if (difficulty !== "all" && opportunity.difficulty !== difficulty) return false
-      if (contributionType !== "all" && !opportunity.contributionTypes.includes(contributionType)) return false
+      if (contributionType !== "all" && !opportunity.contributionTypes.includes(contributionType))
+        return false
       if (q) {
         const matchesText =
           opportunity.repoFullName.toLowerCase().includes(q) ||
@@ -682,9 +719,14 @@ export function ContributionDashboard() {
   }, [opportunities, language, difficulty, contributionType, search])
 
   const topStats = {
-    starter: filteredOpportunities.filter((opportunity) => opportunity.difficulty === "beginner").length,
-    docs: filteredOpportunities.filter((opportunity) => opportunity.contributionTypes.includes("docs")).length,
-    bugfix: filteredOpportunities.filter((opportunity) => opportunity.contributionTypes.includes("bugfix")).length,
+    starter: filteredOpportunities.filter((opportunity) => opportunity.difficulty === "beginner")
+      .length,
+    docs: filteredOpportunities.filter((opportunity) =>
+      opportunity.contributionTypes.includes("docs"),
+    ).length,
+    bugfix: filteredOpportunities.filter((opportunity) =>
+      opportunity.contributionTypes.includes("bugfix"),
+    ).length,
   }
 
   const clearFilters = () => {
@@ -695,14 +737,16 @@ export function ContributionDashboard() {
   }
 
   const isBriefLimited = briefLimit.remaining === 0
-  const briefTooltip = isBriefLimited && briefLimit.nextAllowedAt
-    ? `Brief limit reached (10/week). Resets ${new Date(briefLimit.nextAllowedAt).toLocaleDateString()}`
-    : briefLimit.remaining !== null
-      ? `Generate AI brief (${briefLimit.remaining}/10 remaining this week)`
-      : "Generate AI brief"
-  const cachedRepoOnlyMessage = opportunities.length > 0
-    ? "Your GitHub session has expired. Showing cached data — live sync is unavailable."
-    : "Your GitHub session has expired. Starred repos are cached, but contribution scans need a live GitHub token."
+  const briefTooltip =
+    isBriefLimited && briefLimit.nextAllowedAt
+      ? `Brief limit reached (10/week). Resets ${new Date(briefLimit.nextAllowedAt).toLocaleDateString()}`
+      : briefLimit.remaining !== null
+        ? `Generate AI brief (${briefLimit.remaining}/10 remaining this week)`
+        : "Generate AI brief"
+  const cachedRepoOnlyMessage =
+    opportunities.length > 0
+      ? "Your GitHub session has expired. Showing cached data — live sync is unavailable."
+      : "Your GitHub session has expired. Starred repos are cached, but contribution scans need a live GitHub token."
 
   return (
     <SidebarProvider>
@@ -730,7 +774,10 @@ export function ContributionDashboard() {
           desktopControls={
             <>
               <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger aria-label="Language filter" className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground">
+                <SelectTrigger
+                  aria-label="Language filter"
+                  className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                >
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
@@ -742,8 +789,14 @@ export function ContributionDashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={difficulty} onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}>
-                <SelectTrigger aria-label="Difficulty filter" className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground">
+              <Select
+                value={difficulty}
+                onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}
+              >
+                <SelectTrigger
+                  aria-label="Difficulty filter"
+                  className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                >
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -753,8 +806,14 @@ export function ContributionDashboard() {
                   <SelectItem value="advanced">Advanced</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={contributionType} onValueChange={(value) => setContributionType(value as SelectableType)}>
-                <SelectTrigger aria-label="Contribution type filter" className="w-36 lg:w-40 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground">
+              <Select
+                value={contributionType}
+                onValueChange={(value) => setContributionType(value as SelectableType)}
+              >
+                <SelectTrigger
+                  aria-label="Contribution type filter"
+                  className="w-36 lg:w-40 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                >
                   <SelectValue placeholder="Contribution type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -771,7 +830,10 @@ export function ContributionDashboard() {
           mobileControls={
             <>
               <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger aria-label="Language filter" className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground">
+                <SelectTrigger
+                  aria-label="Language filter"
+                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                >
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
@@ -783,8 +845,14 @@ export function ContributionDashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={difficulty} onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}>
-                <SelectTrigger aria-label="Difficulty filter" className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground">
+              <Select
+                value={difficulty}
+                onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}
+              >
+                <SelectTrigger
+                  aria-label="Difficulty filter"
+                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                >
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -794,8 +862,14 @@ export function ContributionDashboard() {
                   <SelectItem value="advanced">Advanced</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={contributionType} onValueChange={(value) => setContributionType(value as SelectableType)}>
-                <SelectTrigger aria-label="Contribution type filter" className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground">
+              <Select
+                value={contributionType}
+                onValueChange={(value) => setContributionType(value as SelectableType)}
+              >
+                <SelectTrigger
+                  aria-label="Contribution type filter"
+                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                >
                   <SelectValue placeholder="Contribution type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -830,15 +904,23 @@ export function ContributionDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => loadOpportunities({ force: true })}
-                      disabled={isLoadingOpportunities || repos.length === 0 || scanCooldownSeconds !== null}
+                      disabled={
+                        isLoadingOpportunities || repos.length === 0 || scanCooldownSeconds !== null
+                      }
                     >
-                      {isLoadingOpportunities ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+                      {isLoadingOpportunities ? (
+                        <Loader2 className="animate-spin" data-icon="inline-start" />
+                      ) : (
+                        <RefreshCw data-icon="inline-start" />
+                      )}
                       <span className="hidden sm:inline">Scan issues</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
                 {scanCooldownSeconds !== null && (
-                  <TooltipContent>Next scan available in {Math.ceil(scanCooldownSeconds / 60)} min</TooltipContent>
+                  <TooltipContent>
+                    Next scan available in {Math.ceil(scanCooldownSeconds / 60)} min
+                  </TooltipContent>
                 )}
               </Tooltip>
             )
@@ -848,14 +930,19 @@ export function ContributionDashboard() {
         <main className="flex-1 p-6">
           <section className="mb-8 space-y-4">
             <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Turn starred repos into open-source work</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Turn starred repos into open-source work
+              </h1>
               <p className="text-sm text-muted-foreground">
-                Contribution opportunities. Ranked open issues from repositories you already care about, filtered by stack, difficulty, and contribution style.
+                Contribution opportunities. Ranked open issues from repositories you already care
+                about, filtered by stack, difficulty, and contribution style.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
-                <span className="text-sm font-semibold tabular-nums">{filteredOpportunities.length}</span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {filteredOpportunities.length}
+                </span>
                 <span className="ml-1.5 text-xs text-muted-foreground">Matches</span>
               </div>
               <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
@@ -867,7 +954,9 @@ export function ContributionDashboard() {
                 <span className="ml-1.5 text-xs text-muted-foreground">Repos scanned</span>
               </div>
               <span className="ml-1 text-xs text-muted-foreground">
-                {generatedAt ? `Updated ${formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}` : "Not scanned yet"}
+                {generatedAt
+                  ? `Updated ${formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}`
+                  : "Not scanned yet"}
               </span>
             </div>
           </section>
@@ -886,7 +975,9 @@ export function ContributionDashboard() {
             <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">
-                {isTokenExpired ? 'Your GitHub session has expired.' : 'Failed to load starred repositories'}
+                {isTokenExpired
+                  ? "Your GitHub session has expired."
+                  : "Failed to load starred repositories"}
               </p>
               {isTokenExpired ? (
                 <Button variant="outline" onClick={handleReconnect}>
@@ -894,7 +985,9 @@ export function ContributionDashboard() {
                   Reconnect GitHub
                 </Button>
               ) : (
-                <Button variant="outline" onClick={handleRefreshRepos}>Try again</Button>
+                <Button variant="outline" onClick={handleRefreshRepos}>
+                  Try again
+                </Button>
               )}
             </div>
           )}
@@ -906,25 +999,28 @@ export function ContributionDashboard() {
           {scanCooldownSeconds !== null && !opportunityError && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
               <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-              Showing cached results — next scan available in {Math.ceil(scanCooldownSeconds / 60)} min.
+              Showing cached results — next scan available in {Math.ceil(
+                scanCooldownSeconds / 60,
+              )}{" "}
+              min.
             </div>
           )}
 
-          {opportunityError && (
+          {opportunityError &&
             (() => {
-              const isOpportunityTokenError = opportunityError.toLowerCase().includes('token') ||
-                opportunityError.toLowerCase().includes('expired') ||
-                opportunityError.toLowerCase().includes('sign in') ||
-                opportunityError.toLowerCase().includes('unauthorized')
-              return isOpportunityTokenError
-                ? <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
-                : (
-                  <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {opportunityError}
-                  </div>
-                )
-            })()
-          )}
+              const isOpportunityTokenError =
+                opportunityError.toLowerCase().includes("token") ||
+                opportunityError.toLowerCase().includes("expired") ||
+                opportunityError.toLowerCase().includes("sign in") ||
+                opportunityError.toLowerCase().includes("unauthorized")
+              return isOpportunityTokenError ? (
+                <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
+              ) : (
+                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {opportunityError}
+                </div>
+              )
+            })()}
 
           {isLoadingOpportunities && opportunities.length === 0 && (
             <div className="columns-1 gap-4 md:columns-2">
@@ -936,9 +1032,15 @@ export function ContributionDashboard() {
             </div>
           )}
 
-          {!isLoadingOpportunities && data && filteredOpportunities.length === 0 && opportunities.length === 0 && (
-            <EmptyOpportunities onRefresh={() => loadOpportunities({ force: true })} disabled={isTokenExpired} />
-          )}
+          {!isLoadingOpportunities &&
+            data &&
+            filteredOpportunities.length === 0 &&
+            opportunities.length === 0 && (
+              <EmptyOpportunities
+                onRefresh={() => loadOpportunities({ force: true })}
+                disabled={isTokenExpired}
+              />
+            )}
 
           {filteredOpportunities.length > 0 && (
             <div className="columns-1 gap-4 md:columns-2">
@@ -959,12 +1061,17 @@ export function ContributionDashboard() {
         </main>
       </SidebarInset>
 
-      <Dialog open={Boolean(selectedOpportunity)} onOpenChange={(open) => !open && setSelectedOpportunity(null)}>
+      <Dialog
+        open={Boolean(selectedOpportunity)}
+        onOpenChange={(open) => !open && setSelectedOpportunity(null)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Contribution brief</DialogTitle>
             <DialogDescription>
-              {selectedOpportunity ? `${selectedOpportunity.repoFullName} #${selectedOpportunity.issueNumber}` : "Issue plan"}
+              {selectedOpportunity
+                ? `${selectedOpportunity.repoFullName} #${selectedOpportunity.issueNumber}`
+                : "Issue plan"}
             </DialogDescription>
           </DialogHeader>
 
@@ -1016,7 +1123,9 @@ export function ContributionDashboard() {
                 <h3 className="font-medium">First steps</h3>
                 <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
                   {brief.firstSteps.map((item) => (
-                    <li key={item}><InlineMd>{item}</InlineMd></li>
+                    <li key={item}>
+                      <InlineMd>{item}</InlineMd>
+                    </li>
                   ))}
                 </ol>
               </div>
@@ -1048,14 +1157,19 @@ export function ContributionDashboard() {
                           setTimeout(() => setCopiedPrompt(false), 2000)
                         }}
                       >
-                        {copiedPrompt ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copiedPrompt ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{copiedPrompt ? "Copied!" : "Copy prompt"}</TooltipContent>
                   </Tooltip>
                 </div>
                 <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                  <article className="prose dark:prose-invert prose-sm max-w-full
+                  <article
+                    className="prose dark:prose-invert prose-sm max-w-full
                     prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-1
                     prose-headings:font-semibold prose-headings:text-foreground
                     prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
@@ -1065,7 +1179,8 @@ export function ContributionDashboard() {
                     prose-li:text-muted-foreground prose-li:my-0.5
                     prose-ul:my-1 prose-ol:my-1
                     prose-strong:text-foreground
-                    prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground">
+                    prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground"
+                  >
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -1086,7 +1201,13 @@ export function ContributionDashboard() {
                                   whiteSpace: "pre-wrap",
                                   overflowWrap: "anywhere",
                                 }}
-                                codeTagProps={{ style: { fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", wordBreak: "break-word" } }}
+                                codeTagProps={{
+                                  style: {
+                                    fontFamily: "var(--font-mono)",
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                  },
+                                }}
                               >
                                 {block.code}
                               </SyntaxHighlighter>

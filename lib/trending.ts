@@ -20,12 +20,10 @@ const RECENT_STAR_COUNT = 25
  * Analyzes the user's last N starred repos and generates recommendations
  * based on patterns found in those repos.
  */
-export function analyzeTrending(
-  allRepos: StarredRepo[]
-): TrendingAnalysis {
+export function analyzeTrending(allRepos: StarredRepo[]): TrendingAnalysis {
   // Sort by starred_at descending (most recent first)
   const sortedRepos = [...allRepos].sort(
-    (a, b) => new Date(b.starredAt).getTime() - new Date(a.starredAt).getTime()
+    (a, b) => new Date(b.starredAt).getTime() - new Date(a.starredAt).getTime(),
   )
 
   // Get last N starred repos for analysis
@@ -83,7 +81,7 @@ export function analyzeTrending(
  */
 function generatePopularCategory(
   allRepos: StarredRepo[],
-  recentRepos: StarredRepo[]
+  recentRepos: StarredRepo[],
 ): TrendingCategory {
   const recentIds = new Set(recentRepos.map((r) => r.id))
 
@@ -107,7 +105,7 @@ function generatePopularCategory(
  */
 function generateUpcomingCategory(
   allRepos: StarredRepo[],
-  recentRepos: StarredRepo[]
+  recentRepos: StarredRepo[],
 ): TrendingCategory {
   const recentIds = new Set(recentRepos.map((r) => r.id))
   const thirtyDaysAgo = new Date()
@@ -142,7 +140,7 @@ function generateUpcomingCategory(
  */
 function generateHiddenGemsCategory(
   allRepos: StarredRepo[],
-  recentRepos: StarredRepo[]
+  recentRepos: StarredRepo[],
 ): TrendingCategory {
   const recentIds = new Set(recentRepos.map((r) => r.id))
 
@@ -179,7 +177,8 @@ export function calculateTrendScore(repo: StarredRepo): number {
   const starWeight = Math.log(repo.stargazersCount + 1)
   const forkWeight = Math.log(repo.forksCount + 1) * 0.5
   const recentBonus = repo.pushedAt
-    ? Math.max(0, 30 - (Date.now() - new Date(repo.pushedAt).getTime()) / (1000 * 60 * 60 * 24)) / 30
+    ? Math.max(0, 30 - (Date.now() - new Date(repo.pushedAt).getTime()) / (1000 * 60 * 60 * 24)) /
+      30
     : 0
 
   return starWeight + forkWeight + recentBonus

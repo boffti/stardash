@@ -35,9 +35,7 @@ function StarNoteToastContent({ repoName, onSaveNote }: StarNoteToastProps) {
         <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
         <span className="font-medium text-sm">Saved to your stars</span>
       </div>
-      <p className="text-xs text-muted-foreground mb-2">
-        {repoName} — add a note?
-      </p>
+      <p className="text-xs text-muted-foreground mb-2">{repoName} — add a note?</p>
       <div className="flex gap-2">
         <Input
           placeholder="Why did you star this?"
@@ -59,11 +57,7 @@ function StarNoteToastContent({ repoName, onSaveNote }: StarNoteToastProps) {
           onClick={handleSave}
           disabled={!note.trim() || isSaving}
         >
-          {isSaving ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            "Add"
-          )}
+          {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
         </Button>
       </div>
     </div>
@@ -87,7 +81,7 @@ export function showStarNoteToast(repoName: string, onSaveNote: (note: string) =
     {
       duration: 5000,
       position: "bottom-right",
-    }
+    },
   )
 
   return toastId

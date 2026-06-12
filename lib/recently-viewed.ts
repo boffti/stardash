@@ -21,7 +21,9 @@ function isRecentlyViewedEntry(value: unknown): value is RecentlyViewedEntry {
   return (
     typeof candidate.viewedAt === "string" &&
     typeof candidate.source === "string" &&
-    Boolean(candidate.repo && typeof candidate.repo === "object" && typeof candidate.repo.id === "string")
+    Boolean(
+      candidate.repo && typeof candidate.repo === "object" && typeof candidate.repo.id === "string",
+    )
   )
 }
 

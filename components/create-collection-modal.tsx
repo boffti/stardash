@@ -24,23 +24,39 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 const EMOJI_GROUPS = [
-  { label: "Tech", items: ["💻", "⚡", "🚀", "🤖", "📱", "💾", "🌐", "🔧", "⚙️", "🎮", "💡", "🔌"] },
-  { label: "Organization", items: ["📁", "📂", "🗂️", "📋", "📊", "📈", "📉", "📝", "📌", "📍", "🏷️", "🔖"] },
-  { label: "Misc", items: ["⭐", "🔥", "💎", "🎯", "🎨", "🎬", "🎵", "📚", "🏠", "🌍", "🔒", "🔓"] },
-  { label: "Smileys", items: ["😀", "😎", "👍", "❤️", "🎉", "✨", "🔥", "💯", "🆒", "🤩", "👋", "🙌"] },
+  {
+    label: "Tech",
+    items: ["💻", "⚡", "🚀", "🤖", "📱", "💾", "🌐", "🔧", "⚙️", "🎮", "💡", "🔌"],
+  },
+  {
+    label: "Organization",
+    items: ["📁", "📂", "🗂️", "📋", "📊", "📈", "📉", "📝", "📌", "📍", "🏷️", "🔖"],
+  },
+  {
+    label: "Misc",
+    items: ["⭐", "🔥", "💎", "🎯", "🎨", "🎬", "🎵", "📚", "🏠", "🌍", "🔒", "🔓"],
+  },
+  {
+    label: "Smileys",
+    items: ["😀", "😎", "👍", "❤️", "🎉", "✨", "🔥", "💯", "🆒", "🤩", "👋", "🙌"],
+  },
 ]
 
 const TAG_PALETTE = [
-  "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ec4899",
-  "#06b6d4", "#ef4444", "#84cc16", "#f97316", "#6366f1",
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+  "#f97316",
+  "#6366f1",
 ]
 
 const formSchema = z.object({
@@ -117,11 +133,7 @@ export function CreateCollectionModal({
                 <FormItem>
                   <FormLabel>Name *</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="e.g., AI Tools"
-                      {...field}
-                      disabled={isSubmitting}
-                    />
+                    <Input placeholder="e.g., AI Tools" {...field} disabled={isSubmitting} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -165,7 +177,7 @@ export function CreateCollectionModal({
                                     onClick={() => field.onChange(emoji)}
                                     className={cn(
                                       "h-8 w-8 flex items-center justify-center rounded text-lg hover:bg-accent transition-colors",
-                                      field.value === emoji && "bg-accent ring-1 ring-primary"
+                                      field.value === emoji && "bg-accent ring-1 ring-primary",
                                     )}
                                   >
                                     {emoji}
@@ -200,7 +212,7 @@ export function CreateCollectionModal({
                             "h-8 w-8 rounded-full transition-all",
                             selectedColor === color
                               ? "ring-2 ring-offset-2 ring-primary scale-110"
-                              : "hover:scale-105"
+                              : "hover:scale-105",
                           )}
                           style={{ backgroundColor: color }}
                           aria-label={`Select color ${color}`}

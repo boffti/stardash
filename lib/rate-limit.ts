@@ -26,11 +26,11 @@ export interface RateLimitResult {
  */
 export function getRateLimitHeaders(rl: RateLimitResult): Record<string, string> {
   const headers: Record<string, string> = {
-    'X-RateLimit-Limit': String(rl.limit),
-    'X-RateLimit-Remaining': String(rl.remaining),
+    "X-RateLimit-Limit": String(rl.limit),
+    "X-RateLimit-Remaining": String(rl.remaining),
   }
   if (!rl.allowed) {
-    headers['Retry-After'] = String(rl.retryAfterSeconds)
+    headers["Retry-After"] = String(rl.retryAfterSeconds)
   }
   return headers
 }

@@ -80,7 +80,12 @@ export function RepoGrid({ repos, onRepoClick, onRemoveStar, isLoading }: RepoGr
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
       {repos.map((repo) => (
-        <RepoCard key={repo.id} repo={repo} onClick={() => onRepoClick(repo)} onRemoveStar={onRemoveStar} />
+        <RepoCard
+          key={repo.id}
+          repo={repo}
+          onClick={() => onRepoClick(repo)}
+          onRemoveStar={onRemoveStar}
+        />
       ))}
     </div>
   )

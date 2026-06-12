@@ -42,8 +42,16 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/components/providers/user-provider"
 
 const TAG_PALETTE = [
-  "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ec4899",
-  "#06b6d4", "#ef4444", "#84cc16", "#f97316", "#6366f1",
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+  "#f97316",
+  "#6366f1",
 ]
 
 const fetcher = async (url: string) => {
@@ -146,7 +154,9 @@ function CollectionEditor({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-foreground">{collection.name}</p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {collection.name}
+                      </p>
                       <Badge variant="secondary" className="h-5 rounded-full px-2 text-[11px]">
                         {repoCount} repos
                       </Badge>
@@ -191,7 +201,8 @@ function CollectionEditor({
                       onClick={() => setColor(swatch)}
                       className={cn(
                         "h-8 w-8 rounded-full border border-border/70 transition-transform hover:scale-105",
-                        color === swatch && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        color === swatch &&
+                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
                       )}
                       style={{ backgroundColor: swatch }}
                       aria-label={`Select ${swatch}`}
@@ -225,7 +236,8 @@ function CollectionEditor({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete collection?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the collection and its assignments from repos. Repositories themselves will stay in StarDash.
+              This removes the collection and its assignments from repos. Repositories themselves
+              will stay in StarDash.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -335,7 +347,8 @@ function TagEditor({
                       onClick={() => setColor(swatch)}
                       className={cn(
                         "h-8 w-8 rounded-full border border-border/70 transition-transform hover:scale-105",
-                        color === swatch && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        color === swatch &&
+                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
                       )}
                       style={{ backgroundColor: swatch }}
                       aria-label={`Select ${swatch}`}
@@ -369,7 +382,8 @@ function TagEditor({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete tag?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the tag and clears its repo assignments. The repositories themselves will not be deleted.
+              This removes the tag and clears its repo assignments. The repositories themselves will
+              not be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -399,11 +413,13 @@ export function SettingsPage() {
   const [createTagOpen, setCreateTagOpen] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
 
-  const { data: metadata, mutate, isLoading } = useSWR<UserMetadata>(
-    user.id ? "/api/user/metadata" : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  )
+  const {
+    data: metadata,
+    mutate,
+    isLoading,
+  } = useSWR<UserMetadata>(user.id ? "/api/user/metadata" : null, fetcher, {
+    revalidateOnFocus: false,
+  })
 
   const tagCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -428,17 +444,17 @@ export function SettingsPage() {
   const uncategorizedCount = useMemo(
     () =>
       Object.values(metadata?.repoMeta ?? {}).filter(
-        (repoMeta) => repoMeta.tagIds.length === 0 && repoMeta.collectionIds.length === 0
+        (repoMeta) => repoMeta.tagIds.length === 0 && repoMeta.collectionIds.length === 0,
       ).length,
-    [metadata]
+    [metadata],
   )
   const assignmentCount = useMemo(
     () =>
       Object.values(metadata?.repoMeta ?? {}).reduce(
         (sum, repoMeta) => sum + repoMeta.collectionIds.length + repoMeta.tagIds.length,
-        0
+        0,
       ),
-    [metadata]
+    [metadata],
   )
 
   const handleCreateCollection = async (name: string, emoji: string, color: string) => {
@@ -448,7 +464,9 @@ export function SettingsPage() {
       toast.success("Collection created")
     } catch (error) {
       const message = (error as Error).message
-      toast.error(message.includes("unique") ? "Collection already exists" : "Failed to create collection")
+      toast.error(
+        message.includes("unique") ? "Collection already exists" : "Failed to create collection",
+      )
       throw error
     }
   }
@@ -489,10 +507,16 @@ export function SettingsPage() {
             hideNavActions
             actions={
               <>
-                <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">
+                <Badge
+                  variant="outline"
+                  className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex"
+                >
                   {collections.length} collections
                 </Badge>
-                <Badge variant="outline" className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex">
+                <Badge
+                  variant="outline"
+                  className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex"
+                >
                   {tags.length} tags
                 </Badge>
               </>
@@ -507,10 +531,15 @@ export function SettingsPage() {
               <Separator />
               <section className="space-y-3">
                 <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">Workspace Settings</p>
-                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">Collections & Tags</h1>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">
+                    Workspace Settings
+                  </p>
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                    Collections & Tags
+                  </h1>
                   <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Tune the labels and buckets that power organization and filtering across StarDash.
+                    Tune the labels and buckets that power organization and filtering across
+                    StarDash.
                   </p>
                 </div>
 
@@ -518,8 +547,12 @@ export function SettingsPage() {
                   <Card className="border-border/60 bg-card/80 shadow-sm">
                     <CardContent className="flex items-center justify-between gap-3 p-4">
                       <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">Collections</p>
-                        <p className="text-xl font-semibold tracking-tight text-foreground">{collections.length}</p>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
+                          Collections
+                        </p>
+                        <p className="text-xl font-semibold tracking-tight text-foreground">
+                          {collections.length}
+                        </p>
                         <p className="text-xs text-muted-foreground">Long-lived groups</p>
                       </div>
                       <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
@@ -531,8 +564,12 @@ export function SettingsPage() {
                   <Card className="border-border/60 bg-card/80 shadow-sm">
                     <CardContent className="flex items-center justify-between gap-3 p-4">
                       <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">Tags</p>
-                        <p className="text-xl font-semibold tracking-tight text-foreground">{tags.length}</p>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
+                          Tags
+                        </p>
+                        <p className="text-xl font-semibold tracking-tight text-foreground">
+                          {tags.length}
+                        </p>
                         <p className="text-xs text-muted-foreground">Cross-cutting labels</p>
                       </div>
                       <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
@@ -544,9 +581,15 @@ export function SettingsPage() {
                   <Card className="border-border/60 bg-card/80 shadow-sm">
                     <CardContent className="flex items-center justify-between gap-3 p-4">
                       <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">Coverage</p>
-                        <p className="text-xl font-semibold tracking-tight text-foreground">{assignmentCount}</p>
-                        <p className="text-xs text-muted-foreground">{uncategorizedCount} uncategorized repos</p>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
+                          Coverage
+                        </p>
+                        <p className="text-xl font-semibold tracking-tight text-foreground">
+                          {assignmentCount}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {uncategorizedCount} uncategorized repos
+                        </p>
                       </div>
                       <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
                         <Layers3 className="h-4 w-4" />
@@ -566,20 +609,31 @@ export function SettingsPage() {
                           Taxonomy Management
                         </CardTitle>
                         <CardDescription className="max-w-2xl">
-                          Refine the labels and buckets that shape your starred repo workspace. Edits here update the same metadata layer used throughout the dashboard.
+                          Refine the labels and buckets that shape your starred repo workspace.
+                          Edits here update the same metadata layer used throughout the dashboard.
                         </CardDescription>
                         <div className="flex flex-wrap gap-2 pt-1">
-                          <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px]">
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full px-2.5 py-1 text-[11px]"
+                          >
                             {assignmentCount} active assignments
                           </Badge>
-                          <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px]">
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full px-2.5 py-1 text-[11px]"
+                          >
                             @{username}
                           </Badge>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" className="rounded-xl" onClick={() => setCreateCollectionOpen(true)}>
+                        <Button
+                          variant="outline"
+                          className="rounded-xl"
+                          onClick={() => setCreateCollectionOpen(true)}
+                        >
                           <Plus className="h-4 w-4" />
                           New Collection
                         </Button>
@@ -636,12 +690,22 @@ export function SettingsPage() {
                                   onSave={async ({ name, emoji, color }) => {
                                     setBusyKey(saveKey)
                                     try {
-                                      await updateCollection(supabase, collection.id, name, emoji, color)
+                                      await updateCollection(
+                                        supabase,
+                                        collection.id,
+                                        name,
+                                        emoji,
+                                        color,
+                                      )
                                       await mutate()
                                       toast.success("Collection updated")
                                     } catch (error) {
                                       const message = (error as Error).message
-                                      toast.error(message.includes("unique") ? "Collection already exists" : "Failed to update collection")
+                                      toast.error(
+                                        message.includes("unique")
+                                          ? "Collection already exists"
+                                          : "Failed to update collection",
+                                      )
                                       throw error
                                     } finally {
                                       setBusyKey(null)
@@ -698,7 +762,11 @@ export function SettingsPage() {
                                       toast.success("Tag updated")
                                     } catch (error) {
                                       const message = (error as Error).message
-                                      toast.error(message.includes("unique") ? "Tag already exists" : "Failed to update tag")
+                                      toast.error(
+                                        message.includes("unique")
+                                          ? "Tag already exists"
+                                          : "Failed to update tag",
+                                      )
                                       throw error
                                     } finally {
                                       setBusyKey(null)
@@ -737,13 +805,16 @@ export function SettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm text-muted-foreground">
                       <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Use collections for long-lived buckets like AI, DevTools, Design, or Reading List.
+                        Use collections for long-lived buckets like AI, DevTools, Design, or Reading
+                        List.
                       </div>
                       <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Use tags for cross-cutting labels such as `react`, `cli`, `database`, or `agentic`.
+                        Use tags for cross-cutting labels such as `react`, `cli`, `database`, or
+                        `agentic`.
                       </div>
                       <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Delete duplicates aggressively. Fewer, stronger labels make the dashboard easier to scan.
+                        Delete duplicates aggressively. Fewer, stronger labels make the dashboard
+                        easier to scan.
                       </div>
                     </CardContent>
                   </Card>
@@ -767,7 +838,8 @@ export function SettingsPage() {
                         <span className="font-medium text-foreground">@{username}</span>
                       </div>
                       <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-                        Changes here flow straight into filtering, repo detail panels, and dashboard organization.
+                        Changes here flow straight into filtering, repo detail panels, and dashboard
+                        organization.
                       </div>
                     </CardContent>
                   </Card>
@@ -776,12 +848,14 @@ export function SettingsPage() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm">Design Intent</CardTitle>
                       <CardDescription>
-                        The strongest setups usually use a small number of durable collections and lightweight tags.
+                        The strongest setups usually use a small number of durable collections and
+                        lightweight tags.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm text-muted-foreground">
                       <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Start broad with collections, then add tags only where they improve search and scanning.
+                        Start broad with collections, then add tags only where they improve search
+                        and scanning.
                       </div>
                       <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
                         If a label stops being obvious after a week, merge it or delete it.

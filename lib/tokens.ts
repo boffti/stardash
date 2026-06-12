@@ -1,15 +1,15 @@
-import { cookies } from 'next/headers'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { cookies } from "next/headers"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 
 export interface TokenResult {
   token: string | null
-  error?: 'expired' | 'not_found' | 'server'
-  source?: 'cookie' | 'stored' | 'refreshed'
+  error?: "expired" | "not_found" | "server"
+  source?: "cookie" | "stored" | "refreshed"
   reauthRequired?: boolean
 }
 
-export const GH_TOKEN_COOKIE = 'gh_token'
+export const GH_TOKEN_COOKIE = "gh_token"
 export const GH_TOKEN_MAX_AGE = 60 * 60 * 8 // 8 hours
 const GH_REFRESH_TOKEN_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 180 // 6 months
 
@@ -31,16 +31,19 @@ interface GitHubRefreshResponse {
 function cookieOptions(maxAge = GH_TOKEN_MAX_AGE) {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development',
-    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV !== "development",
+    sameSite: "lax" as const,
     maxAge,
-    path: '/',
+    path: "/",
   }
 }
 
 async function getCurrentUserId() {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
   if (error || !user) return null
   return user.id
 }
@@ -52,13 +55,13 @@ function isExpired(value: string | null | undefined) {
 async function readStoredToken(userId: string) {
   const admin = createAdminClient()
   const { data, error } = await admin
-    .from('github_oauth_tokens')
-    .select('provider_token, provider_refresh_token, token_expires_at, refresh_token_expires_at')
-    .eq('user_id', userId)
+    .from("github_oauth_tokens")
+    .select("provider_token, provider_refresh_token, token_expires_at, refresh_token_expires_at")
+    .eq("user_id", userId)
     .maybeSingle()
 
   if (error) {
-    console.error('[github-token] stored token lookup failed:', error)
+    console.error("[github-token] stored token lookup failed:", error)
     return null
   }
 
@@ -74,26 +77,29 @@ async function updateStoredToken(
 ) {
   const admin = createAdminClient()
   const now = new Date()
-  const tokenExpiresAt = typeof expiresIn === 'number'
-    ? new Date(now.getTime() + expiresIn * 1000).toISOString()
-    : null
-  const refreshTokenExpiresAt = typeof refreshExpiresIn === 'number'
-    ? new Date(now.getTime() + refreshExpiresIn * 1000).toISOString()
-    : refreshToken
-      ? new Date(now.getTime() + GH_REFRESH_TOKEN_MAX_AGE_MS).toISOString()
-      : null
+  const tokenExpiresAt =
+    typeof expiresIn === "number" ? new Date(now.getTime() + expiresIn * 1000).toISOString() : null
+  const refreshTokenExpiresAt =
+    typeof refreshExpiresIn === "number"
+      ? new Date(now.getTime() + refreshExpiresIn * 1000).toISOString()
+      : refreshToken
+        ? new Date(now.getTime() + GH_REFRESH_TOKEN_MAX_AGE_MS).toISOString()
+        : null
 
-  const { error } = await admin.from('github_oauth_tokens').upsert({
-    user_id: userId,
-    provider_token: token,
-    provider_refresh_token: refreshToken ?? null,
-    token_expires_at: tokenExpiresAt,
-    refresh_token_expires_at: refreshTokenExpiresAt,
-    updated_at: now.toISOString(),
-  }, { onConflict: 'user_id' })
+  const { error } = await admin.from("github_oauth_tokens").upsert(
+    {
+      user_id: userId,
+      provider_token: token,
+      provider_refresh_token: refreshToken ?? null,
+      token_expires_at: tokenExpiresAt,
+      refresh_token_expires_at: refreshTokenExpiresAt,
+      updated_at: now.toISOString(),
+    },
+    { onConflict: "user_id" },
+  )
 
   if (error) {
-    console.error('[github-token] stored token update failed:', error)
+    console.error("[github-token] stored token update failed:", error)
   }
 }
 
@@ -106,22 +112,22 @@ async function refreshStoredGitHubToken(userId: string, refreshToken: string) {
   const params = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
-    grant_type: 'refresh_token',
+    grant_type: "refresh_token",
     refresh_token: refreshToken,
   })
 
-  const res = await fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
+  const res = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
     headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
     },
     body: params,
   })
 
   if (!res.ok) return null
 
-  const data = await res.json() as GitHubRefreshResponse
+  const data = (await res.json()) as GitHubRefreshResponse
   if (!data.access_token || data.error) return null
 
   await updateStoredToken(
@@ -169,38 +175,38 @@ export async function getValidGitHubToken(userId?: string): Promise<TokenResult>
     const cookieStore = await cookies()
     const token = cookieStore.get(GH_TOKEN_COOKIE)?.value
     if (token) {
-      return { token, source: 'cookie' }
+      return { token, source: "cookie" }
     }
 
-    const resolvedUserId = userId ?? await getCurrentUserId()
+    const resolvedUserId = userId ?? (await getCurrentUserId())
     if (!resolvedUserId) {
-      return { token: null, error: 'not_found', reauthRequired: true }
+      return { token: null, error: "not_found", reauthRequired: true }
     }
 
     const stored = await readStoredToken(resolvedUserId)
     if (!stored?.provider_token) {
-      return { token: null, error: 'not_found', reauthRequired: true }
+      return { token: null, error: "not_found", reauthRequired: true }
     }
 
     if (!isExpired(stored.token_expires_at)) {
       await setGitHubTokenCookie(stored.provider_token)
-      return { token: stored.provider_token, source: 'stored' }
+      return { token: stored.provider_token, source: "stored" }
     }
 
-    if (
-      stored.provider_refresh_token &&
-      !isExpired(stored.refresh_token_expires_at)
-    ) {
-      const refreshedToken = await refreshStoredGitHubToken(resolvedUserId, stored.provider_refresh_token)
+    if (stored.provider_refresh_token && !isExpired(stored.refresh_token_expires_at)) {
+      const refreshedToken = await refreshStoredGitHubToken(
+        resolvedUserId,
+        stored.provider_refresh_token,
+      )
       if (refreshedToken) {
         await setGitHubTokenCookie(refreshedToken)
-        return { token: refreshedToken, source: 'refreshed' }
+        return { token: refreshedToken, source: "refreshed" }
       }
     }
 
-    return { token: null, error: 'expired', reauthRequired: true }
+    return { token: null, error: "expired", reauthRequired: true }
   } catch {
-    return { token: null, error: 'server' }
+    return { token: null, error: "server" }
   }
 }
 
@@ -212,7 +218,7 @@ export async function getValidGitHubToken(userId?: string): Promise<TokenResult>
 export async function getAnyValidGitHubToken(): Promise<TokenResult> {
   const pat = process.env.GITHUB_PAT
   if (!pat) {
-    return { token: null, error: 'not_found' }
+    return { token: null, error: "not_found" }
   }
   return { token: pat }
 }

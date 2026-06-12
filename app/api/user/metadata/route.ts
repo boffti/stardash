@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
 
 interface UserRepoMetadataRow {
   github_repo_id: number
@@ -14,38 +14,40 @@ interface UserRepoMetadataRow {
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
     if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const [repoMetaResult, tagsResult, collectionsResult] = await Promise.all([
-      supabase.rpc('get_user_repo_metadata'),
+      supabase.rpc("get_user_repo_metadata"),
+      supabase.from("tags").select("id, label, color").eq("user_id", user.id).order("label"),
       supabase
-        .from('tags')
-        .select('id, label, color')
-        .eq('user_id', user.id)
-        .order('label'),
-      supabase
-        .from('collections')
-        .select('id, name, emoji, color')
-        .eq('user_id', user.id)
-        .order('name'),
+        .from("collections")
+        .select("id, name, emoji, color")
+        .eq("user_id", user.id)
+        .order("name"),
     ])
 
     if (repoMetaResult.error || tagsResult.error || collectionsResult.error) {
       throw repoMetaResult.error || tagsResult.error || collectionsResult.error
     }
 
-    const repoMeta: Record<string, {
-      dbId: string
-      status: string | null
-      isPinned: boolean
-      notes: string | null
-      tagIds: string[]
-      collectionIds: string[]
-    }> = {}
+    const repoMeta: Record<
+      string,
+      {
+        dbId: string
+        status: string | null
+        isPinned: boolean
+        notes: string | null
+        tagIds: string[]
+        collectionIds: string[]
+      }
+    > = {}
     const collectionRepoCounts: Record<string, number> = {}
 
     for (const row of (repoMetaResult.data ?? []) as UserRepoMetadataRow[]) {
@@ -72,13 +74,13 @@ export async function GET() {
     const collections = (collectionsResult.data || []).map((collection) => ({
       id: collection.id,
       name: collection.name,
-      emoji: collection.emoji || '',
-      color: collection.color || '#64748b',
+      emoji: collection.emoji || "",
+      color: collection.color || "#64748b",
       repoCount: collectionRepoCounts[collection.id] || 0,
     }))
 
     return NextResponse.json({ tags, collections, repoMeta })
   } catch {
-    return NextResponse.json({ error: 'Failed to fetch metadata' }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch metadata" }, { status: 500 })
   }
 }

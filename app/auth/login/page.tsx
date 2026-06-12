@@ -1,20 +1,20 @@
-'use client'
+"use client"
 
-import { Suspense, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, Loader2, Star, Sparkles, FolderOpen, Tag } from 'lucide-react'
-import { GitHubIcon } from '@/components/icons/github-icon'
-import { useSearchParams } from 'next/navigation'
+import { Suspense, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AlertCircle, Loader2, Star, Sparkles, FolderOpen, Tag } from "lucide-react"
+import { GitHubIcon } from "@/components/icons/github-icon"
+import { useSearchParams } from "next/navigation"
 
 function LoginContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const nextPath = searchParams.get('next')
-  const safeNextPath = nextPath?.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/'
-  const isReauth = searchParams.get('reauth') === 'github'
+  const nextPath = searchParams.get("next")
+  const safeNextPath = nextPath?.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/"
+  const isReauth = searchParams.get("reauth") === "github"
 
   const handleGitHubLogin = async () => {
     try {
@@ -23,10 +23,10 @@ function LoginContent() {
       const supabase = createClient()
 
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
+        provider: "github",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNextPath)}`,
-          scopes: 'read:user user:email public_repo read:org notifications',
+          scopes: "read:user user:email public_repo read:org notifications",
         },
       })
 
@@ -34,19 +34,19 @@ function LoginContent() {
         setError(error.message)
       }
     } catch {
-      setError('An unexpected error occurred. Please try again.')
+      setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const errorMessage = searchParams.get('error')
+  const errorMessage = searchParams.get("error")
 
   const features = [
-    { icon: Star, label: 'Sync your starred repos' },
-    { icon: Tag, label: 'Add custom tags & notes' },
-    { icon: FolderOpen, label: 'Organize into collections' },
-    { icon: Sparkles, label: 'Smart categorization' },
+    { icon: Star, label: "Sync your starred repos" },
+    { icon: Tag, label: "Add custom tags & notes" },
+    { icon: FolderOpen, label: "Organize into collections" },
+    { icon: Sparkles, label: "Smart categorization" },
   ]
 
   return (
@@ -69,8 +69,8 @@ function LoginContent() {
             <CardTitle className="text-xl">Welcome back</CardTitle>
             <CardDescription>
               {isReauth
-                ? 'Reconnect GitHub to continue with authenticated API access'
-                : 'Sign in with your GitHub account to continue'}
+                ? "Reconnect GitHub to continue with authenticated API access"
+                : "Sign in with your GitHub account to continue"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -106,9 +106,7 @@ function LoginContent() {
                 <div className="w-full border-t border-border/50" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  What you can do
-                </span>
+                <span className="bg-card px-2 text-muted-foreground">What you can do</span>
               </div>
             </div>
 
@@ -129,11 +127,11 @@ function LoginContent() {
 
         {/* Footer */}
         <p className="text-xs text-muted-foreground text-center">
-          By signing in, you agree to our{' '}
+          By signing in, you agree to our{" "}
           <a href="#" className="underline hover:text-foreground transition-colors">
             Terms of Service
-          </a>{' '}
-          and{' '}
+          </a>{" "}
+          and{" "}
           <a href="#" className="underline hover:text-foreground transition-colors">
             Privacy Policy
           </a>
@@ -145,11 +143,13 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   )
