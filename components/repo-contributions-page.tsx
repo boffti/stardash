@@ -28,7 +28,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -90,7 +96,10 @@ function repoCacheKey(userId: string, fullName: string) {
   return `${REPO_CONTRIBUTION_CACHE_PREFIX}-${userId}-${fullName}`
 }
 
-function readCachedRepoScan(userId: string | undefined, fullName: string): OpportunitiesResponse | undefined {
+function readCachedRepoScan(
+  userId: string | undefined,
+  fullName: string,
+): OpportunitiesResponse | undefined {
   if (!userId || typeof window === "undefined") return undefined
   try {
     const raw = window.localStorage.getItem(repoCacheKey(userId, fullName))
@@ -103,7 +112,11 @@ function readCachedRepoScan(userId: string | undefined, fullName: string): Oppor
   }
 }
 
-function writeCachedRepoScan(userId: string | undefined, fullName: string, data: OpportunitiesResponse) {
+function writeCachedRepoScan(
+  userId: string | undefined,
+  fullName: string,
+  data: OpportunitiesResponse,
+) {
   if (!userId || typeof window === "undefined") return
   try {
     window.localStorage.setItem(
@@ -141,7 +154,8 @@ function writeCachedBrief(opportunityId: string, brief: ContributionBrief) {
 }
 
 function scoreTone(score: number) {
-  if (score >= 80) return "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+  if (score >= 80)
+    return "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
   if (score >= 60) return "border-sky-500/35 bg-sky-500/10 text-sky-600 dark:text-sky-400"
   return "border-amber-500/35 bg-amber-500/10 text-amber-600 dark:text-amber-400"
 }
@@ -173,7 +187,7 @@ function OpportunityIssueRow({
       ref={rowRef}
       className={cn(
         "grid gap-4 border-b border-border/60 px-4 py-4 last:border-b-0 lg:grid-cols-[minmax(0,1fr)_220px]",
-        isSelected && "bg-primary/5"
+        isSelected && "bg-primary/5",
       )}
     >
       <div className="min-w-0">
@@ -182,7 +196,9 @@ function OpportunityIssueRow({
             {opportunity.score}% fit
           </Badge>
           <span>#{opportunity.issueNumber}</span>
-          <span>Updated {formatDistanceToNow(new Date(opportunity.updatedAt), { addSuffix: true })}</span>
+          <span>
+            Updated {formatDistanceToNow(new Date(opportunity.updatedAt), { addSuffix: true })}
+          </span>
           <span>{opportunity.comments} comments</span>
         </div>
         <button
@@ -195,16 +211,24 @@ function OpportunityIssueRow({
           <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground group-hover:text-muted-foreground/80">
             {opportunity.bodyPreview}
           </p>
-          <span className="mt-1 block text-xs text-muted-foreground/60 group-hover:text-muted-foreground">Read full issue</span>
+          <span className="mt-1 block text-xs text-muted-foreground/60 group-hover:text-muted-foreground">
+            Read full issue
+          </span>
         </button>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <Badge variant="secondary" className="text-xs">{opportunity.difficulty}</Badge>
+          <Badge variant="secondary" className="text-xs">
+            {opportunity.difficulty}
+          </Badge>
           {opportunity.contributionTypes.map((type) => (
-            <Badge key={type} variant="outline" className="text-xs">{typeLabels[type]}</Badge>
+            <Badge key={type} variant="outline" className="text-xs">
+              {typeLabels[type]}
+            </Badge>
           ))}
           {opportunity.labels.slice(0, 5).map((label) => (
-            <Badge key={label} variant="secondary" className="max-w-40 truncate text-xs">{label}</Badge>
+            <Badge key={label} variant="secondary" className="max-w-40 truncate text-xs">
+              {label}
+            </Badge>
           ))}
         </div>
 
@@ -232,7 +256,11 @@ function OpportunityIssueRow({
             onClick={() => onBrief(opportunity)}
             disabled={isBriefLoading || isBriefLimited}
           >
-            {isBriefLoading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Bot data-icon="inline-start" />}
+            {isBriefLoading ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Bot data-icon="inline-start" />
+            )}
             {isSelected ? "Selected" : "Brief"}
           </Button>
           <Button asChild size="sm">
@@ -270,7 +298,9 @@ function BriefPanel({
         <div className="min-w-0">
           <p className="text-sm font-medium">AI contribution brief</p>
           <p className="truncate text-xs text-muted-foreground">
-            {opportunity ? `${opportunity.repoFullName} #${opportunity.issueNumber}` : "Select an issue to generate a plan"}
+            {opportunity
+              ? `${opportunity.repoFullName} #${opportunity.issueNumber}`
+              : "Select an issue to generate a plan"}
           </p>
         </div>
         {opportunity && (
@@ -315,28 +345,36 @@ function BriefPanel({
             <section>
               <h3 className="font-medium">Why it fits</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-muted-foreground">
-                {brief.whyItFits.map((item) => <li key={item}>- {item}</li>)}
+                {brief.whyItFits.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
               </ul>
             </section>
 
             <section>
               <h3 className="font-medium">Likely files</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-muted-foreground">
-                {brief.likelyFiles.map((item) => <li key={item}>- {item}</li>)}
+                {brief.likelyFiles.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
               </ul>
             </section>
 
             <section>
               <h3 className="font-medium">First steps</h3>
               <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
-                {brief.firstSteps.map((item) => <li key={item}>{item}</li>)}
+                {brief.firstSteps.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ol>
             </section>
 
             <section>
               <h3 className="font-medium">Questions to ask</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-muted-foreground">
-                {brief.questionsToAsk.map((item) => <li key={item}>- {item}</li>)}
+                {brief.questionsToAsk.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
               </ul>
             </section>
 
@@ -346,7 +384,11 @@ function BriefPanel({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={onCopyPrompt}>
-                      {copiedPrompt ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
+                      {copiedPrompt ? (
+                        <Check className="size-4 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{copiedPrompt ? "Copied" : "Copy prompt"}</TooltipContent>
@@ -414,7 +456,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<OpportunitiesResponse>(
     repo ? ["repo-contributions", repo.fullName] : null,
-    () => scanRepo(repo!, false),
+    () => scanRepo(repo!),
     {
       revalidateOnMount: false, // handled by the mount effect below
       revalidateOnFocus: false,
@@ -445,11 +487,16 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
   const [difficulty, setDifficulty] = useState<SelectableDifficulty>("all")
   const [type, setType] = useState<SelectableType>("all")
   const [selectedIssue, setSelectedIssue] = useState<ContributionOpportunity | null>(null)
-  const [selectedOpportunity, setSelectedOpportunity] = useState<ContributionOpportunity | null>(null)
+  const [selectedOpportunity, setSelectedOpportunity] = useState<ContributionOpportunity | null>(
+    null,
+  )
   const [brief, setBrief] = useState<ContributionBrief | null>(null)
   const [briefError, setBriefError] = useState<string | null>(null)
   const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null)
-  const [briefLimit, setBriefLimit] = useState<{ remaining: number | null; nextAllowedAt: string | null }>({ remaining: null, nextAllowedAt: null })
+  const [briefLimit, setBriefLimit] = useState<{
+    remaining: number | null
+    nextAllowedAt: string | null
+  }>({ remaining: null, nextAllowedAt: null })
   const [copiedPrompt, setCopiedPrompt] = useState(false)
 
   const rowRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -512,12 +559,17 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
 
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || "Failed to generate contribution brief")
-      if (typeof result.remaining === "number") setBriefLimit({ remaining: result.remaining, nextAllowedAt: null })
+      if (typeof result.remaining === "number")
+        setBriefLimit({ remaining: result.remaining, nextAllowedAt: null })
       const nextBrief = result.brief as ContributionBrief
       setBrief(nextBrief)
       writeCachedBrief(opportunity.id, nextBrief)
     } catch (briefLoadError) {
-      setBriefError(briefLoadError instanceof Error ? briefLoadError.message : "Failed to generate contribution brief")
+      setBriefError(
+        briefLoadError instanceof Error
+          ? briefLoadError.message
+          : "Failed to generate contribution brief",
+      )
     } finally {
       setBriefLoadingId(null)
     }
@@ -599,8 +651,17 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
               <span className="text-border">/</span>
               <span className="text-sm font-medium">contributions</span>
             </div>
-            <Button variant="outline" size="sm" onClick={handleScanAgain} disabled={!repo || isValidating}>
-              {isValidating ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <RefreshCw data-icon="inline-start" />}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleScanAgain}
+              disabled={!repo || isValidating}
+            >
+              {isValidating ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <RefreshCw data-icon="inline-start" />
+              )}
               Scan issues
             </Button>
           </div>
@@ -611,7 +672,9 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                 <div className="flex min-w-0 gap-3">
                   <Avatar className="size-11 shrink-0 rounded-lg">
                     <AvatarImage src={repo?.avatarUrl} alt={owner} />
-                    <AvatarFallback className="rounded-lg">{owner[0]?.toUpperCase()}</AvatarFallback>
+                    <AvatarFallback className="rounded-lg">
+                      {owner[0]?.toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Contribution workspace</p>
@@ -647,7 +710,10 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                 </span>
                 {repo?.language && (
                   <span className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-full" style={{ backgroundColor: LANGUAGE_COLORS[repo.language] ?? "#64748b" }} />
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: LANGUAGE_COLORS[repo.language] ?? "#64748b" }}
+                    />
                     {repo.language}
                   </span>
                 )}
@@ -665,11 +731,17 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
             {[
               ["Ranked issues", stats.total],
               ["Beginner-friendly", stats.beginner],
-              ["Docs/tests", stats.docs + opportunities.filter((item) => item.contributionTypes.includes("tests")).length],
+              [
+                "Docs/tests",
+                stats.docs +
+                  opportunities.filter((item) => item.contributionTypes.includes("tests")).length,
+              ],
               ["Bugfixes", stats.bugfix],
             ].map(([label, value]) => (
               <div key={label} className="rounded-lg border border-border/60 bg-card px-4 py-3">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  {label}
+                </p>
                 <p className="mt-1 font-mono text-xl font-semibold">{value}</p>
               </div>
             ))}
@@ -678,10 +750,20 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search issues, labels, and context..." className="pl-9" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search issues, labels, and context..."
+                className="pl-9"
+              />
             </div>
-            <Select value={difficulty} onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}>
-              <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Difficulty" /></SelectTrigger>
+            <Select
+              value={difficulty}
+              onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}
+            >
+              <SelectTrigger className="w-full md:w-44">
+                <SelectValue placeholder="Difficulty" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All difficulty</SelectItem>
                 <SelectItem value="beginner">Beginner</SelectItem>
@@ -690,11 +772,15 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
               </SelectContent>
             </Select>
             <Select value={type} onValueChange={(value) => setType(value as SelectableType)}>
-              <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectTrigger className="w-full md:w-44">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
                 {Object.entries(typeLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -717,7 +803,9 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           {!reposLoading && !repo && (
             <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center">
               <p className="font-medium">Repository not found</p>
-              <p className="mt-1 text-sm text-muted-foreground">This repository is not in your starred repo cache.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                This repository is not in your starred repo cache.
+              </p>
             </div>
           )}
 
@@ -725,7 +813,9 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
             <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center">
               <GitPullRequestArrow className="mx-auto size-8 text-muted-foreground" />
               <p className="mt-3 font-medium">No matching opportunities</p>
-              <p className="mt-1 text-sm text-muted-foreground">Try clearing filters or scanning again.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try clearing filters or scanning again.
+              </p>
             </div>
           )}
 
@@ -740,7 +830,9 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                         Sorted by fit score, then recent activity.
                       </p>
                     </div>
-                    <Badge variant="outline" className="font-mono">{filtered.length} shown</Badge>
+                    <Badge variant="outline" className="font-mono">
+                      {filtered.length} shown
+                    </Badge>
                   </div>
                   {filtered.map((opportunity) => (
                     <OpportunityIssueRow
@@ -773,7 +865,11 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
         </main>
       </SidebarInset>
 
-      <IssueViewer opportunity={selectedIssue} open={Boolean(selectedIssue)} onClose={() => setSelectedIssue(null)} />
+      <IssueViewer
+        opportunity={selectedIssue}
+        open={Boolean(selectedIssue)}
+        onClose={() => setSelectedIssue(null)}
+      />
     </SidebarProvider>
   )
 }
