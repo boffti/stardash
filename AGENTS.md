@@ -13,7 +13,7 @@ pnpm lint       # ESLint
 pnpm start      # Start production server
 ```
 
-No test suite is configured. Use `pnpm lint` to catch issues before committing.
+No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:radar` runs the Radar scoring self-check.
 
 ## Mandatory Workflows
 
@@ -66,7 +66,11 @@ app/
 ├── (authenticated)/          # Auth-enforced layout
 │   ├── dashboard/            # Main starred repos view
 │   ├── settings/             # Tags + collections management
-│   ├── trending/             # Trending recommendations
+│   ├── radar/                # Inbound feed: new/rising repos ranked by taste (lib/radar.ts)
+│   ├── trending/             # Recommendations drawn from your own stars
+│   ├── search/               # Discover: AI query expansion over GitHub search
+│   ├── intel/                # AI repo health reports
+│   ├── contribute/           # Good-first-issue discovery
 │   └── recently-viewed/
 ├── auth/
 │   ├── login/                # GitHub OAuth entry
@@ -77,6 +81,10 @@ app/
 │   ├── ai/categorize/        # Two-phase AI taxonomy + classification
 │   ├── user/metadata|repo-id
 │   ├── cron/star-snapshots   # Daily snapshots (Vercel cron @ 2AM UTC)
+│   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (@ 2:30AM UTC, needs GITHUB_PAT)
+│   ├── radar/                # GET feed · action (dismiss/snooze/undo) · scan (user-triggered ingest)
+│   ├── search/repos|personalized|saved
+│   ├── ai/repo-intel|contribution-brief
 │   └── test-observability
 └── global-error.tsx
 ```
@@ -107,12 +115,18 @@ GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table
 
 ### AI Categorization
 
-`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter + `google/gemini-2.0-flash-001` via Vercel AI SDK `generateObject()`.
+`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter + `google/gemini-3-flash-preview` (see `lib/ai-provider.ts`; users may bring OpenAI/Anthropic keys) via Vercel AI SDK `generateObject()`.
 
 1. **Taxonomy** — up to 500 repo summaries → 5–12 collections + 15–25 tags
 2. **Classification** — batches of 100 → 1–3 collections + 1–3 tags per repo
 
 24h rate limit per user (`profiles.last_ai_categorization_at`). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
+
+### Radar
+
+Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub search (`created:>7d stars:>50`, `created:>30d stars:>300`), Hacker News stories linking to GitHub (Algolia API), and each user's `received_events` (WatchEvents = stars by people they follow). Candidates land in `radar_candidates` (global) with a same-day row in `repo_star_snapshots` so velocity works without a second job.
+
+`GET /api/radar` builds a taste profile from the user's stars (`lib/radar.ts`: topic/language weights × status, `tried-dropped` is negative) and scores every candidate. Social signal outranks a full topic match. Reasons are returned as plain-language strings and rendered as the row's evidence line. Triage actions live in `radar_actions`; starring uses the existing `/api/github/star` route.
 
 ### Database Schema
 
@@ -123,7 +137,12 @@ GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table
 | `user_starred_repos`                      | Per-user: status, notes, pinned                             |
 | `tags` / `collections`                    | User-owned taxonomy                                         |
 | `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                      |
-| `repo_star_snapshots`                     | Daily star history for trending                             |
+| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)  |
+| `radar_candidates`                        | Global pool of new/rising repos (admin-written, auth-read)  |
+| `radar_signals`                           | Per-user: people you follow starred repo X                  |
+| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred              |
+| `discover_searches`                       | Cached Discover search results per user                     |
+| `repo_insights`                           | Shared AI repo intel cache (7d)                             |
 
 **RLS:** All user tables enforce `auth.uid() = user_id`. `repos` is authenticated-read, admin-write only (`lib/supabase/admin.ts`).
 
@@ -150,6 +169,7 @@ SUPABASE_SERVICE_ROLE_KEY       # Server only — never expose to client
 
 OPENROUTER_API_KEY
 CRON_SECRET                     # Bearer token for /api/cron/* routes
+GITHUB_PAT                      # Cron-only GitHub token (star snapshots, Radar ingest)
 
 NEXT_PUBLIC_SENTRY_DSN
 SENTRY_ORG

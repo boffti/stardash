@@ -35,6 +35,9 @@
 
 ---
 
+> [!IMPORTANT]
+> **v1 rewrite in progress.** StarDash is becoming a single-container, local-first tool: SQLite instead of Supabase, paste-a-PAT login, an MCP server for agents, and Radar front and center. The hosted instance is down during the rewrite. Star the repo to follow along; the plan and progress are in the pinned roadmap issue.
+
 ## 📋 Overview
 
 StarDash is an open-source personal dashboard for developers who use GitHub stars as a discovery and bookmarking system. It turns your stars into a searchable, organized, AI-assisted workspace — with deep repo intelligence, contribution discovery, and proactive health alerts built in.
@@ -48,6 +51,7 @@ Sign in with GitHub, sync your stars once, and get a full workspace across six v
 | **Contribute**      | Find and prioritize real open issues you could work on                 |
 | **Repo Workspace**  | Deep-dive into a single repo's issues and get an AI contribution brief |
 | **Discover**        | AI-powered semantic search to find new repos to star                   |
+| **Radar**           | Daily inbox of new and rising repos, ranked by how well they fit you   |
 | **Trending**        | Discover repos gaining momentum in your starred collection             |
 | **Recently Viewed** | Jump back to repos you've been exploring                               |
 
@@ -87,6 +91,14 @@ Sign in with GitHub, sync your stars once, and get a full workspace across six v
 - Per-user 5-minute scan cooldown to protect GitHub API rate limits
 - **Hosted app:** generous weekly free brief quota included — add your own API key in Settings to remove all limits
 - **Self-hosted:** no brief quota enforced when using your own key
+
+### Radar
+
+- Pulls new repos from GitHub search, Hacker News front-page links, and stars by people you follow
+- Ranks them against your own stars: topics, languages, and statuses (`tried-dropped` counts against)
+- Every row says why it's there: "3 people you follow starred this", "+2.1k stars this week", "Matches local-first, sqlite"
+- Star, snooze a week, or dismiss. Keyboard: `j` `k` `x` `z` `o`
+- Refreshes nightly; "Scan now" pulls fresh signals with your own token
 
 ### Trending
 
@@ -185,7 +197,7 @@ flowchart LR
 
 ### Daily star snapshots
 
-A cron job calls `/api/cron/star-snapshots` daily at `0 2 * * *` (02:00 UTC) to record star counts in `repo_star_snapshots`, which powers the trending view.
+A cron job calls `/api/cron/star-snapshots` daily at `0 2 * * *` (02:00 UTC) to record star counts in `repo_star_snapshots`, which powers the trending view. A second job, `/api/cron/radar-ingest` at `30 2 * * *`, fills the Radar feed. Both need `GITHUB_PAT`.
 
 - **Vercel:** configured in `vercel.json`
 - **Self-hosted:** managed by the Ofelia container in `docker-compose.yml`
@@ -235,6 +247,7 @@ The current schema evolved from an earlier `starred_repos` table into a split gl
 - `user_starred_repo_collections`
   - junction table between starred repos and collections
 - `repo_star_snapshots`
+- `radar_candidates`, `radar_signals`, `radar_actions`
   - daily star count history for trend detection
 
 ### Important design detail
@@ -281,6 +294,8 @@ Important implementation detail:
 - `POST /api/ai/categorize`
   - categorizes repos with AI and persists results
 - `GET /api/cron/star-snapshots`
+- `GET /api/cron/radar-ingest`
+- `GET /api/radar` · `POST /api/radar/action` · `POST /api/radar/scan`
   - cron-only route for daily star snapshots
 - `GET /api/test-observability`
   - smoke test for Langfuse setup
