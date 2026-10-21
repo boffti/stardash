@@ -80,10 +80,7 @@ export interface StarredRepo {
 }
 
 export type MaintenanceVerdict =
-  | "actively-maintained"
-  | "lightly-maintained"
-  | "stale"
-  | "abandoned"
+  "actively-maintained" | "lightly-maintained" | "stale" | "abandoned"
 
 export type MaintenanceSignalStrength = "strong" | "ok" | "weak" | "bad" | "unknown"
 

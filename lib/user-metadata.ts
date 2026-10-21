@@ -120,7 +120,7 @@ async function upsertUserStarredRepoBatch(
         starred_at: repo.starredAt,
       }
     })
-    .filter(Boolean)
+    .filter((row) => row !== null)
 
   if (rows.length === 0) return new Map()
 

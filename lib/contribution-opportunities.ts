@@ -2,14 +2,7 @@ import type { StarredRepo } from "@/lib/types"
 
 export type ContributionDifficulty = "beginner" | "intermediate" | "advanced"
 export type ContributionType =
-  | "bugfix"
-  | "docs"
-  | "tests"
-  | "frontend"
-  | "backend"
-  | "infra"
-  | "feature"
-  | "maintenance"
+  "bugfix" | "docs" | "tests" | "frontend" | "backend" | "infra" | "feature" | "maintenance"
 
 export interface ContributionPreferences {
   languages?: string[]
