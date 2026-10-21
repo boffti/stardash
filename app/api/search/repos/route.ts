@@ -80,9 +80,7 @@ export interface SearchPipelineErrorEvent {
 }
 
 export type SearchPipelineEvent =
-  | SearchPipelineStepEvent
-  | SearchPipelineResultEvent
-  | SearchPipelineErrorEvent
+  SearchPipelineStepEvent | SearchPipelineResultEvent | SearchPipelineErrorEvent
 
 const QueryExpansionSchema = z.object({
   queries: z
