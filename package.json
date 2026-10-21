@@ -1,5 +1,5 @@
 {
-  "name": "my-project",
+  "name": "stardash",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.28.2",
@@ -13,7 +13,8 @@
     "format:check": "prettier --check .",
     "clean": "rm -rf .next",
     "clean:cache": "rm -rf .next/dev/cache/turbopack",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:radar": "node --experimental-strip-types scripts/radar-score.check.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

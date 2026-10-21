@@ -15,8 +15,11 @@ import {
   Sparkles,
   Settings,
   Radar,
+  Telescope,
 } from "lucide-react"
 import { useDroppable } from "@dnd-kit/core"
+import useSWR from "swr"
+import { RADAR_ENABLED } from "@/lib/flags"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -175,6 +178,13 @@ export function AppSidebar({
   const hiddenCount = filteredTags.length - visibleTags.length
   const isHomeRoute = pathname === "/dashboard"
   const isRecentlyViewedRoute = pathname === "/recently-viewed"
+  const isRadarRoute = pathname === "/radar"
+  const { data: radar } = useSWR<{ total?: number }>(
+    RADAR_ENABLED && userId ? "/api/radar" : null,
+    (url: string) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 },
+  )
+  const radarCount = radar?.total ?? 0
   const isTrendingRoute = pathname === "/trending"
   const isIntelRoute = pathname === "/intel"
   const isContributeRoute = pathname === "/contribute"
@@ -240,6 +250,21 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
+              {RADAR_ENABLED && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isRadarRoute}>
+                    <Link href="/radar">
+                      <Telescope className="h-4 w-4" />
+                      <span>Radar</span>
+                      {radarCount > 0 && (
+                        <SidebarMenuBadge className="bg-accent/15 text-accent">
+                          {radarCount}
+                        </SidebarMenuBadge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isSearchRoute}>
                   <Link href="/search">
