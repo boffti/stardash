@@ -2,7 +2,13 @@
   "name": "stardash",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "stardash": "bin/stardash.mjs"
+  },
   "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=22.5"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +20,8 @@
     "clean": "rm -rf .next",
     "clean:cache": "rm -rf .next/dev/cache/turbopack",
     "prepare": "husky",
-    "check:radar": "node --experimental-strip-types scripts/radar-score.check.ts"
+    "check:radar": "node --experimental-strip-types scripts/radar-score.check.ts",
+    "check:db": "node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/db.check.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -30,6 +37,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.9.1",
     "@langfuse/otel": "^5.0.1",
+    "@modelcontextprotocol/sdk": "1.26.0",
     "@openrouter/ai-sdk-provider": "^2.8.1",
     "@opentelemetry/sdk-trace-node": "^2.8.0",
     "@radix-ui/react-accordion": "1.2.12",
@@ -61,8 +69,6 @@
     "@radix-ui/react-toggle-group": "1.1.11",
     "@radix-ui/react-tooltip": "1.2.8",
     "@sentry/nextjs": "^10.49.0",
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.108.2",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vercel/analytics": "1.6.1",
@@ -76,6 +82,7 @@
     "input-otp": "1.4.2",
     "langfuse": "^3.38.20",
     "lucide-react": "^1.18.0",
+    "mcp-handler": "1.1.0",
     "motion": "^12.38.0",
     "next": "16.3.3",
     "next-themes": "^0.4.6",

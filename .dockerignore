@@ -11,3 +11,4 @@ docker
 Dockerfile
 docker-compose.yml
 .dockerignore
+data

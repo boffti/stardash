@@ -6,7 +6,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props) {
   const { owner, repo } = await params
-  return { title: `${owner}/${repo} — Repo Intel · StarDash` }
+  return { title: `${owner}/${repo} Intel · StarDash` }
 }
 
 export default async function RepoIntelDetailPage({ params }: Props) {

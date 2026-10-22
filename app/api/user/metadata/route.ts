@@ -1,41 +1,11 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-
-interface UserRepoMetadataRow {
-  github_repo_id: number
-  user_starred_repo_id: string
-  status: string | null
-  is_pinned: boolean
-  notes: string | null
-  tag_ids: string[]
-  collection_ids: string[]
-}
+import { getUser } from "@/lib/auth"
+import { getUserRepoMetadata, listCollections, listTags } from "@/lib/user-metadata"
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const [repoMetaResult, tagsResult, collectionsResult] = await Promise.all([
-      supabase.rpc("get_user_repo_metadata"),
-      supabase.from("tags").select("id, label, color").eq("user_id", user.id).order("label"),
-      supabase
-        .from("collections")
-        .select("id, name, emoji, color")
-        .eq("user_id", user.id)
-        .order("name"),
-    ])
-
-    if (repoMetaResult.error || tagsResult.error || collectionsResult.error) {
-      throw repoMetaResult.error || tagsResult.error || collectionsResult.error
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const repoMeta: Record<
       string,
@@ -50,33 +20,24 @@ export async function GET() {
     > = {}
     const collectionRepoCounts: Record<string, number> = {}
 
-    for (const row of (repoMetaResult.data ?? []) as UserRepoMetadataRow[]) {
+    for (const row of getUserRepoMetadata(user.id)) {
       repoMeta[String(row.github_repo_id)] = {
         dbId: row.user_starred_repo_id,
         status: row.status,
-        isPinned: row.is_pinned ?? false,
+        isPinned: row.is_pinned,
         notes: row.notes,
-        tagIds: row.tag_ids ?? [],
-        collectionIds: row.collection_ids ?? [],
+        tagIds: row.tag_ids,
+        collectionIds: row.collection_ids,
       }
-
-      for (const collectionId of row.collection_ids ?? []) {
-        collectionRepoCounts[collectionId] = (collectionRepoCounts[collectionId] || 0) + 1
+      for (const id of row.collection_ids) {
+        collectionRepoCounts[id] = (collectionRepoCounts[id] || 0) + 1
       }
     }
 
-    const tags = (tagsResult.data || []).map((tag) => ({
-      id: tag.id,
-      label: tag.label,
-      color: tag.color,
-    }))
-
-    const collections = (collectionsResult.data || []).map((collection) => ({
-      id: collection.id,
-      name: collection.name,
-      emoji: collection.emoji || "",
-      color: collection.color || "#64748b",
-      repoCount: collectionRepoCounts[collection.id] || 0,
+    const tags = listTags(user.id)
+    const collections = listCollections(user.id).map((c) => ({
+      ...c,
+      repoCount: collectionRepoCounts[c.id] || 0,
     }))
 
     return NextResponse.json({ tags, collections, repoMeta })

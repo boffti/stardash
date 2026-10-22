@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
+import { MotionProvider } from "@/components/motion-provider"
 import { Toaster } from "sonner"
 import "./globals.css"
 
@@ -54,8 +55,10 @@ export default function RootLayout({
           enableSystem
           storageKey="stardash-theme"
         >
-          {children}
-          <Toaster richColors position="bottom-right" />
+          <MotionProvider>
+            {children}
+            <Toaster richColors position="bottom-right" />
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

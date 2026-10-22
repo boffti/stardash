@@ -35,6 +35,7 @@ export function SearchPage() {
   const [personalizedThemes, setPersonalizedThemes] = useState<PersonalizedTheme[]>([])
   const [personalizedLoaded, setPersonalizedLoaded] = useState(false)
   const [isPersonalizing, setIsPersonalizing] = useState(false)
+  const [personalizedNextAt, setPersonalizedNextAt] = useState<string | null>(null)
   const personalizingRef = useRef(false)
   const searchRunRef = useRef(0)
 
@@ -130,6 +131,10 @@ export function SearchPage() {
     })
       .then(async (r) => {
         const data = await r.json()
+        if (r.status === 429) {
+          setPersonalizedNextAt(data.nextAllowedAt ?? null)
+          return
+        }
         if (!r.ok) {
           console.error("[personalized] API error:", data)
           return
@@ -380,6 +385,7 @@ export function SearchPage() {
 
                 <SearchPersonalizedSection
                   themes={personalizedThemes}
+                  nextAllowedAt={personalizedNextAt}
                   isLoading={
                     isPersonalizing ||
                     isLoadingStars ||

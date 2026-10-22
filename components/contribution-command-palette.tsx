@@ -249,7 +249,7 @@ export function ContributionCommandPalette({
                   className="rounded-md text-muted-foreground"
                 >
                   <Search className="h-4 w-4" />
-                  <span>No opportunities loaded yet — run a scan first</span>
+                  <span>No opportunities loaded yet. Run a scan first.</span>
                 </CommandItem>
               ) : (
                 visibleOpportunities.map((opp) => (

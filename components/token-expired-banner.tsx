@@ -14,7 +14,7 @@ export function TokenExpiredBanner({ onReconnect, message }: TokenExpiredBannerP
       <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
       <span className="flex-1 text-amber-700 dark:text-amber-400">
         {message ??
-          "Your GitHub session has expired. Showing cached data — live sync is unavailable."}
+          "Your GitHub session has expired. Showing cached data. Live sync is unavailable."}
       </span>
       <Button
         size="sm"

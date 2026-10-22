@@ -35,7 +35,7 @@ function StarNoteToastContent({ repoName, onSaveNote }: StarNoteToastProps) {
         <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
         <span className="font-medium text-sm">Saved to your stars</span>
       </div>
-      <p className="text-xs text-muted-foreground mb-2">{repoName} — add a note?</p>
+      <p className="text-xs text-muted-foreground mb-2">Add a note to {repoName}?</p>
       <div className="flex gap-2">
         <Input
           placeholder="Why did you star this?"

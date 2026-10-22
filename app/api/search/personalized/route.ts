@@ -6,7 +6,7 @@ import { after } from "next/server"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { getAIModel, getProviderOptions } from "@/lib/ai-provider"
 import { langfuseSpanProcessor } from "@/instrumentation"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
 import { checkAndUpdatePersonalizedSearchLimit } from "@/lib/ai-weekly-limit"
 import type { SearchRepo } from "../repos/route"
 
@@ -51,14 +51,8 @@ async function searchGitHub(query: string, token: string | null) {
 export async function POST(request: Request) {
   try {
     // Auth check — this route uses the system AI key so must be authenticated
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { repos: repoSample, starredIds: rawStarredIds } = (await request.json()) as {
       repos: RepoSample[]

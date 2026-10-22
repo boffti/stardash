@@ -36,8 +36,6 @@ jobs:
     # Build with placeholder public env so it never needs real secrets — keeps
     # the job runnable on fork PRs where secrets are unavailable.
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

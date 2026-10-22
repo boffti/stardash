@@ -39,7 +39,7 @@ import { LandingThemeToggle } from "@/components/landing-theme-toggle"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
 
 const painPoints = [
   {
@@ -952,10 +952,7 @@ function FeatureCard({
 }
 
 export default async function HomePage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getUser()
 
   if (user) {
     redirect("/dashboard")

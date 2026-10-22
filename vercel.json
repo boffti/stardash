@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/star-snapshots",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/radar-ingest",
-      "schedule": "30 2 * * *"
-    }
-  ]
-}
+{ "ignoreCommand": "exit 0" }

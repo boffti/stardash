@@ -3,7 +3,7 @@ import { after } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 import { generateObject } from "ai"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import type { ContributionOpportunity } from "@/lib/contribution-opportunities"
 import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
@@ -11,12 +11,13 @@ import { checkAndIncrementWeeklyLimit } from "@/lib/ai-weekly-limit"
 
 export const maxDuration = 45
 
+// ponytail: no max() on arrays: OpenRouter-hosted models ignore maxItems and a 4th item failed validation.
 const ContributionBriefSchema = z.object({
   summary: z.string().describe("A concise plain-English explanation of the issue."),
-  whyItFits: z.array(z.string()).min(2).max(4),
-  firstSteps: z.array(z.string()).min(3).max(5),
-  likelyFiles: z.array(z.string()).min(1).max(5),
-  questionsToAsk: z.array(z.string()).min(1).max(3),
+  whyItFits: z.array(z.string()).min(1),
+  firstSteps: z.array(z.string()).min(1),
+  likelyFiles: z.array(z.string()).min(1),
+  questionsToAsk: z.array(z.string()).min(1),
   codingAssistantPrompt: z.string().describe("A ready-to-use prompt for a coding assistant."),
 })
 
@@ -26,15 +27,8 @@ interface RequestBody {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     let modelConfig: AIModelConfig
     try {

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getUser } from "@/lib/auth"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { ingestRadar } from "@/lib/radar-ingest"
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit"
@@ -17,12 +16,8 @@ const SCAN_WINDOW_MS = 6 * 60 * 60 * 1000
 export async function POST() {
   if (!RADAR_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 })
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-    if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const rl = checkRateLimit(`${user.id}:radar-scan`, SCAN_LIMIT, SCAN_WINDOW_MS)
     if (!rl.allowed) {
@@ -37,15 +32,8 @@ export async function POST() {
       return NextResponse.json({ error: "GitHub token expired" }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("github_username")
-      .eq("id", user.id)
-      .maybeSingle()
-    const login = profile?.github_username as string | null
-    const users = login ? [{ id: user.id, login }] : []
-
-    const stats = await ingestRadar({ admin: createAdminClient(), token: tokenResult.token, users })
+    const users = user.login ? [{ id: user.id, login: user.login }] : []
+    const stats = await ingestRadar({ token: tokenResult.token, users })
     return NextResponse.json(stats, { headers: getRateLimitHeaders(rl) })
   } catch (err) {
     Sentry.captureException(err)

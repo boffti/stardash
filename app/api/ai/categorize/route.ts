@@ -1,14 +1,18 @@
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { after } from "next/server"
 import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
+import { getUser } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { categorizeRepos } from "@/lib/ai-categorize"
 import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import {
+  assignCollection,
+  assignTag,
   ensureCollections,
   ensureTags,
+  listCollections,
+  listTags,
   normalizeCollectionName,
   normalizeTagLabel,
 } from "@/lib/user-metadata"
@@ -16,38 +20,13 @@ import type { CategorizationResult } from "@/lib/types"
 
 export const maxDuration = 120
 
-const ASSIGNMENT_BATCH_SIZE = 500
 const AI_CATEGORIZATION_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
 
 interface UserRepoRow {
   id: string
   starred_at: string | null
   created_at: string
-  repos:
-    | {
-        github_repo_id: number
-      }
-    | {
-        github_repo_id: number
-      }[]
-}
-
-interface ProfileCategorizationRow {
-  id: string
-  last_ai_categorization_at: string | null
-}
-
-interface ExistingTagRow {
-  id: string
-  label: string
-  color: string
-}
-
-interface ExistingCollectionRow {
-  id: string
-  name: string
-  emoji: string | null
-  color: string | null
+  github_repo_id: number
 }
 
 interface CategorizationSlotReservation {
@@ -67,21 +46,12 @@ function formatCooldownMessage(nextAllowedAt: string) {
   return `AI categorization is limited to once per week. Try again after ${nextAllowedLabel} UTC.`
 }
 
-async function reserveCategorizationSlot(
-  supabase: ReturnType<typeof createAdminClient>,
-  userId: string,
-  attempt = 0,
-): Promise<CategorizationSlotReservation> {
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, last_ai_categorization_at")
-    .eq("id", userId)
-    .maybeSingle()
+function reserveCategorizationSlot(userId: string): CategorizationSlotReservation {
+  const profile = db
+    .prepare("select last_ai_categorization_at from profiles where id = ?")
+    .get(userId) as { last_ai_categorization_at: string | null } | undefined
 
-  if (profileError) throw profileError
-
-  const previousLastCategorizedAt =
-    (profile as ProfileCategorizationRow | null)?.last_ai_categorization_at ?? null
+  const previousLastCategorizedAt = profile?.last_ai_categorization_at ?? null
   const now = Date.now()
 
   if (previousLastCategorizedAt) {
@@ -90,57 +60,16 @@ async function reserveCategorizationSlot(
     ).toISOString()
 
     if (new Date(nextAllowedAt).getTime() > now) {
-      return {
-        allowed: false,
-        claimedAt: null,
-        previousLastCategorizedAt,
-        nextAllowedAt,
-      }
+      return { allowed: false, claimedAt: null, previousLastCategorizedAt, nextAllowedAt }
     }
   }
 
   const claimedAt = new Date(now).toISOString()
-
-  if (!profile) {
-    const { data: insertedProfile, error: insertError } = await supabase
-      .from("profiles")
-      .insert({ id: userId, last_ai_categorization_at: claimedAt })
-      .select("id")
-      .maybeSingle()
-
-    if (insertError) throw insertError
-    if (!insertedProfile) {
-      throw new Error("Failed to initialize AI categorization limit for user")
-    }
-
-    return {
-      allowed: true,
-      claimedAt,
-      previousLastCategorizedAt: null,
-      nextAllowedAt: new Date(now + AI_CATEGORIZATION_COOLDOWN_MS).toISOString(),
-    }
-  }
-
-  let updateQuery = supabase
-    .from("profiles")
-    .update({ last_ai_categorization_at: claimedAt })
-    .eq("id", userId)
-
-  updateQuery = previousLastCategorizedAt
-    ? updateQuery.eq("last_ai_categorization_at", previousLastCategorizedAt)
-    : updateQuery.is("last_ai_categorization_at", null)
-
-  const { data: updatedProfile, error: updateError } = await updateQuery.select("id").maybeSingle()
-
-  if (updateError) throw updateError
-
-  if (!updatedProfile) {
-    if (attempt >= 1) {
-      throw new Error("Failed to reserve AI categorization slot")
-    }
-
-    return reserveCategorizationSlot(supabase, userId, attempt + 1)
-  }
+  // Single-process SQLite: no concurrent-claim race to guard against.
+  db.prepare(
+    `insert into profiles (id, last_ai_categorization_at) values (?, ?)
+     on conflict (id) do update set last_ai_categorization_at = excluded.last_ai_categorization_at`,
+  ).run(userId, claimedAt)
 
   return {
     allowed: true,
@@ -150,34 +79,17 @@ async function reserveCategorizationSlot(
   }
 }
 
-async function releaseCategorizationSlot(
-  supabase: ReturnType<typeof createAdminClient>,
+function releaseCategorizationSlot(
   userId: string,
   claimedAt: string,
   previousLastCategorizedAt: string | null,
 ) {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ last_ai_categorization_at: previousLastCategorizedAt })
-    .eq("id", userId)
-    .eq("last_ai_categorization_at", claimedAt)
-
-  if (error) {
+  try {
+    db.prepare(
+      "update profiles set last_ai_categorization_at = ? where id = ? and last_ai_categorization_at = ?",
+    ).run(previousLastCategorizedAt, userId, claimedAt)
+  } catch (error) {
     console.error("Failed to release AI categorization slot:", error)
-  }
-}
-
-async function upsertAssignments(
-  supabase: ReturnType<typeof createAdminClient>,
-  table: "user_starred_repo_tags" | "user_starred_repo_collections",
-  rows: Record<string, string>[],
-  onConflict: string,
-) {
-  for (let i = 0; i < rows.length; i += ASSIGNMENT_BATCH_SIZE) {
-    const batch = rows.slice(i, i + ASSIGNMENT_BATCH_SIZE)
-    const { error } = await supabase.from(table).upsert(batch, { onConflict })
-
-    if (error) throw error
   }
 }
 
@@ -207,22 +119,14 @@ export async function POST(request: Request) {
   let modelConfig: AIModelConfig | null = null
 
   try {
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     modelConfig = getAIModel(request)
 
     if (!modelConfig.isUserKey) {
       userIdForRelease = user.id
-      slotReservation = await reserveCategorizationSlot(adminSupabase, user.id)
+      slotReservation = reserveCategorizationSlot(user.id)
 
       if (!slotReservation.allowed) {
         return NextResponse.json(
@@ -245,31 +149,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Too many repos — maximum 5000" }, { status: 400 })
     }
 
-    const [userRepoResult, existingTagsResult, existingCollectionsResult] = await Promise.all([
-      adminSupabase
-        .from("user_starred_repos")
-        .select("id, starred_at, created_at, repos!inner(github_repo_id)")
-        .eq("user_id", user.id),
-      supabase.from("tags").select("id, label, color").eq("user_id", user.id),
-      supabase.from("collections").select("id, name, emoji, color").eq("user_id", user.id),
-    ])
-
-    if (userRepoResult.error || existingTagsResult.error || existingCollectionsResult.error) {
-      throw userRepoResult.error || existingTagsResult.error || existingCollectionsResult.error
-    }
+    const userRepoRows = db
+      .prepare(
+        `select usr.id, usr.starred_at, usr.created_at, r.github_repo_id
+         from user_starred_repos usr join repos r on r.id = usr.repo_id
+         where usr.user_id = ?`,
+      )
+      .all(user.id) as unknown as UserRepoRow[]
 
     const repoIdMap = new Map<number, string>()
     const reposToCategorizeIdSet = new Set<number>()
-    for (const row of (userRepoResult.data ?? []) as UserRepoRow[]) {
-      const repo = Array.isArray(row.repos) ? row.repos[0] : row.repos
-      repoIdMap.set(repo.github_repo_id, row.id)
+    for (const row of userRepoRows) {
+      repoIdMap.set(row.github_repo_id, row.id)
       if (
         repoWasStarredAfterLastCategorization(
           row,
           slotReservation?.previousLastCategorizedAt ?? null,
         )
       ) {
-        reposToCategorizeIdSet.add(repo.github_repo_id)
+        reposToCategorizeIdSet.add(row.github_repo_id)
       }
     }
 
@@ -277,25 +175,12 @@ export async function POST(request: Request) {
       reposToCategorizeIdSet.has(Number(repo.id)),
     )
 
-    const existingTags = ((existingTagsResult.data ?? []) as ExistingTagRow[]).map((tag) => ({
-      id: tag.id,
-      label: tag.label,
-      color: tag.color,
-    }))
-    const existingCollections = (
-      (existingCollectionsResult.data ?? []) as ExistingCollectionRow[]
-    ).map((collection) => ({
-      id: collection.id,
-      name: collection.name,
-      emoji: collection.emoji || "",
-      color: collection.color || "#64748b",
-      repoCount: 0,
-    }))
+    const existingTags = listTags(user.id)
+    const existingCollections = listCollections(user.id)
 
     if (reposToCategorize.length === 0) {
       if (slotReservation?.claimedAt) {
-        await releaseCategorizationSlot(
-          adminSupabase,
+        releaseCategorizationSlot(
           user.id,
           slotReservation.claimedAt,
           slotReservation.previousLastCategorizedAt,
@@ -315,13 +200,12 @@ export async function POST(request: Request) {
 
     const result = await categorizeRepos(reposToCategorize, modelConfig.model, {
       providerOptions: getProviderOptions(modelConfig.provider),
-      existingTaxonomy: slotReservation?.previousLastCategorizedAt
-        ? { collections: existingCollections, tags: existingTags }
-        : undefined,
+      // Reuse the existing taxonomy when both tags and collections exist (categorizeRepos checks); otherwise generate both.
+      existingTaxonomy: { collections: existingCollections, tags: existingTags },
     })
 
-    const persistedTags = await ensureTags(supabase, user.id, result.allTags)
-    const persistedCollections = await ensureCollections(supabase, user.id, result.collections)
+    const persistedTags = ensureTags(user.id, result.allTags)
+    const persistedCollections = ensureCollections(user.id, result.collections)
 
     const tagByLabel = new Map(persistedTags.map((tag) => [normalizeTagLabel(tag.label), tag]))
     const collectionByName = new Map(
@@ -331,83 +215,55 @@ export async function POST(request: Request) {
       ]),
     )
 
-    const tagAssignments: Array<{ user_starred_repo_id: string; user_id: string; tag_id: string }> =
-      []
-    const collectionAssignments: Array<{
-      user_starred_repo_id: string
-      user_id: string
-      collection_id: string
-    }> = []
     const persistedRepoTags: CategorizationResult["repoTags"] = {}
     const persistedRepoCollections: CategorizationResult["repoCollections"] = {}
     const collectionRepoCounts = new Map<string, number>()
 
-    for (const [repoId, tags] of Object.entries(result.repoTags)) {
-      const userStarredRepoId = repoIdMap.get(Number(repoId))
-      if (!userStarredRepoId) continue
+    db.exec("begin")
+    try {
+      for (const [repoId, tags] of Object.entries(result.repoTags)) {
+        const userStarredRepoId = repoIdMap.get(Number(repoId))
+        if (!userStarredRepoId) continue
 
-      const persistedRepoTagList = tags
-        .map((tag) => tagByLabel.get(normalizeTagLabel(tag.label)))
-        .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag))
+        const persistedRepoTagList = tags
+          .map((tag) => tagByLabel.get(normalizeTagLabel(tag.label)))
+          .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag))
 
-      if (persistedRepoTagList.length > 0) {
-        persistedRepoTags[repoId] = persistedRepoTagList
-        tagAssignments.push(
-          ...persistedRepoTagList.map((tag) => ({
-            user_starred_repo_id: userStarredRepoId,
-            user_id: user.id,
-            tag_id: tag.id,
-          })),
-        )
-      }
-    }
-
-    for (const [repoId, collectionIds] of Object.entries(result.repoCollections)) {
-      const userStarredRepoId = repoIdMap.get(Number(repoId))
-      if (!userStarredRepoId) continue
-
-      const persistedCollectionIds = collectionIds
-        .map((collectionId) => {
-          const original = result.collections.find((collection) => collection.id === collectionId)
-          if (!original) return null
-          return collectionByName.get(normalizeCollectionName(original.name)) ?? null
-        })
-        .filter((collection): collection is NonNullable<typeof collection> => Boolean(collection))
-
-      if (persistedCollectionIds.length > 0) {
-        persistedRepoCollections[repoId] = persistedCollectionIds.map((collection) => collection.id)
-        for (const collection of persistedCollectionIds) {
-          collectionRepoCounts.set(
-            collection.id,
-            (collectionRepoCounts.get(collection.id) ?? 0) + 1,
-          )
+        if (persistedRepoTagList.length > 0) {
+          persistedRepoTags[repoId] = persistedRepoTagList
+          for (const tag of persistedRepoTagList) assignTag(userStarredRepoId, user.id, tag.id)
         }
-        collectionAssignments.push(
-          ...persistedCollectionIds.map((collection) => ({
-            user_starred_repo_id: userStarredRepoId,
-            user_id: user.id,
-            collection_id: collection.id,
-          })),
-        )
       }
-    }
 
-    if (tagAssignments.length > 0) {
-      await upsertAssignments(
-        adminSupabase,
-        "user_starred_repo_tags",
-        tagAssignments,
-        "user_starred_repo_id,tag_id",
-      )
-    }
+      for (const [repoId, collectionIds] of Object.entries(result.repoCollections)) {
+        const userStarredRepoId = repoIdMap.get(Number(repoId))
+        if (!userStarredRepoId) continue
 
-    if (collectionAssignments.length > 0) {
-      await upsertAssignments(
-        adminSupabase,
-        "user_starred_repo_collections",
-        collectionAssignments,
-        "user_starred_repo_id,collection_id",
-      )
+        const persistedCollectionIds = collectionIds
+          .map((collectionId) => {
+            const original = result.collections.find((collection) => collection.id === collectionId)
+            if (!original) return null
+            return collectionByName.get(normalizeCollectionName(original.name)) ?? null
+          })
+          .filter((collection): collection is NonNullable<typeof collection> => Boolean(collection))
+
+        if (persistedCollectionIds.length > 0) {
+          persistedRepoCollections[repoId] = persistedCollectionIds.map(
+            (collection) => collection.id,
+          )
+          for (const collection of persistedCollectionIds) {
+            collectionRepoCounts.set(
+              collection.id,
+              (collectionRepoCounts.get(collection.id) ?? 0) + 1,
+            )
+            assignCollection(userStarredRepoId, user.id, collection.id)
+          }
+        }
+      }
+      db.exec("commit")
+    } catch (e) {
+      db.exec("rollback")
+      throw e
     }
 
     const persistedResult: CategorizationResult = {
@@ -428,9 +284,7 @@ export async function POST(request: Request) {
     return NextResponse.json(persistedResult)
   } catch (err) {
     if (slotReservation?.allowed && slotReservation.claimedAt && userIdForRelease) {
-      const adminSupabase = createAdminClient()
-      await releaseCategorizationSlot(
-        adminSupabase,
+      releaseCategorizationSlot(
         userIdForRelease,
         slotReservation.claimedAt,
         slotReservation.previousLastCategorizedAt,

@@ -57,8 +57,8 @@ export function AIKeySettings() {
       <div>
         <h3 className="text-sm font-medium">AI Provider</h3>
         <p className="text-xs text-muted-foreground mt-1">
-          Supply your own API key to remove usage limits. Stored locally in your browser only. Falls
-          back to the built-in key (with limits) when none is set.
+          Optional. The server key (OPENROUTER_API_KEY) is used unless you set your own here. Stored
+          in this browser only and sent with each AI request.
         </p>
       </div>
 

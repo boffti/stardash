@@ -55,12 +55,9 @@ export function UserMenu({ lastSynced }: UserMenuProps) {
     setMounted(true)
   }, [])
 
-  const username =
-    user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || "User"
-  const avatarUrl = user?.user_metadata?.avatar_url
-  const githubUrl = user?.user_metadata?.user_name
-    ? `https://github.com/${user.user_metadata.user_name}`
-    : "https://github.com"
+  const username = user?.login || "User"
+  const avatarUrl = user?.avatarUrl
+  const githubUrl = user?.login ? `https://github.com/${user.login}` : "https://github.com"
   const compactLastSynced = lastSynced ? formatCompactSyncLabel(lastSynced) : null
   const avatarButton = (
     <Button
@@ -69,7 +66,7 @@ export function UserMenu({ lastSynced }: UserMenuProps) {
       className="rounded-full focus-visible:ring-0 focus-visible:border-transparent"
     >
       <Avatar className="h-8 w-8">
-        <AvatarImage src={avatarUrl} alt={username} />
+        <AvatarImage src={avatarUrl ?? undefined} alt={username} />
         <AvatarFallback>
           <User className="h-4 w-4" />
         </AvatarFallback>

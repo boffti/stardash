@@ -29,3 +29,6 @@ next-env.d.ts
 
 .mcp.json
 supabase/.temp/
+
+# SQLite
+data/

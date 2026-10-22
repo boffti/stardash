@@ -5,12 +5,14 @@ import { SearchResultCard } from "./search-result-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
 import type { Tag, Collection } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { cn, formatWhen } from "@/lib/utils"
 
 interface SearchPersonalizedSectionProps {
   themes: PersonalizedTheme[]
   isLoading?: boolean
   hasRepoSource?: boolean
+  /** Set when the daily suggestion run is on cooldown. */
+  nextAllowedAt?: string | null
   tags: Tag[]
   collections: Collection[]
   className?: string
@@ -20,6 +22,7 @@ export function SearchPersonalizedSection({
   themes,
   isLoading = false,
   hasRepoSource = false,
+  nextAllowedAt = null,
   tags,
   collections,
   className,
@@ -41,7 +44,7 @@ export function SearchPersonalizedSection({
   }
 
   if (themes.length === 0) {
-    if (!hasRepoSource) return null
+    if (!hasRepoSource && !nextAllowedAt) return null
 
     return (
       <div className={cn("rounded-lg border border-dashed border-border/70 p-5", className)}>
@@ -50,7 +53,9 @@ export function SearchPersonalizedSection({
           <h3 className="text-sm font-medium">Based on your stars</h3>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          Suggestions are not available yet. Refresh your starred repos, then reopen Discover.
+          {nextAllowedAt
+            ? `Suggestions refresh once a day. Next run ${formatWhen(nextAllowedAt)}.`
+            : "No suggestions yet. Sync your stars, then reopen Discover."}
         </p>
       </div>
     )
