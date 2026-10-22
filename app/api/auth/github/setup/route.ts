@@ -1,13 +1,33 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { getUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appUrl, getGitHubApp, manifestFor, newState, saveGitHubApp } from "@/lib/github-app"
-import { safeEqual } from "@/lib/session"
 
-const STATE_COOKIE = "sd_setup_state"
+const STATE_TTL_MS = 10 * 60 * 1000
 
 const hasOwner = () => Boolean(db.prepare("select 1 from profiles limit 1").get())
+
+// Pending manifest states live server-side in `meta` (one-time, 10 min). The callback
+// is authorized by the existence of that row, not by comparing request values.
+function issueSetupState() {
+  const state = newState()
+  db.prepare("delete from meta where key like 'setup_state:%' and cast(value as integer) < ?").run(
+    Date.now(),
+  )
+  db.prepare("insert into meta (key, value) values (?, ?)").run(
+    `setup_state:${state}`,
+    String(Date.now() + STATE_TTL_MS),
+  )
+  return state
+}
+
+function consumeSetupState(state: string | null): boolean {
+  if (!state || !/^[0-9a-f]{32}$/.test(state)) return false
+  const row = db.prepare("select value from meta where key = ?").get(`setup_state:${state}`) as
+    { value: string } | undefined
+  db.prepare("delete from meta where key = ?").run(`setup_state:${state}`)
+  return Boolean(row) && Number(row!.value) > Date.now()
+}
 
 /**
  * GitHub App manifest flow. Without ?code: render an auto-submitting form that asks
@@ -22,7 +42,6 @@ const hasOwner = () => Boolean(db.prepare("select 1 from profiles limit 1").get(
 export async function GET(request: Request) {
   const origin = appUrl(request)
   const url = new URL(request.url)
-  const cookieStore = await cookies()
   const login = (error: string) => NextResponse.redirect(`${origin}/auth/login?error=${error}`)
 
   if (getGitHubApp()) return NextResponse.redirect(`${origin}/api/auth/github/start`)
@@ -32,9 +51,7 @@ export async function GET(request: Request) {
   if (code) {
     // GitHub's temporary manifest code is a hex-ish token; anything else never reaches the fetch.
     if (!/^[A-Za-z0-9_-]{8,128}$/.test(code)) return login("state")
-    if (!safeEqual(cookieStore.get(STATE_COOKIE)?.value, url.searchParams.get("state"))) {
-      return login("state")
-    }
+    if (!consumeSetupState(url.searchParams.get("state"))) return login("state")
 
     const res = await fetch(
       `https://api.github.com/app-manifests/${encodeURIComponent(code)}/conversions`,
@@ -48,13 +65,10 @@ export async function GET(request: Request) {
     if (hasOwner() && !(await getUser())) return login("owner")
     saveGitHubApp(app.client_id, app.client_secret, app.slug)
 
-    const next = NextResponse.redirect(`${origin}/api/auth/github/start`)
-    next.cookies.delete(STATE_COOKIE)
-    return next
+    return NextResponse.redirect(`${origin}/api/auth/github/start`)
   }
 
-  const state = newState()
-  cookieStore.set(STATE_COOKIE, state, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 600 })
+  const state = issueSetupState()
   const manifest = JSON.stringify(manifestFor(origin))
   const html = `<!doctype html><meta charset="utf-8"><title>Connecting GitHub…</title>
 <body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#0a0a0a;color:#ddd">
