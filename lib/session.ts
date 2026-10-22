@@ -16,6 +16,14 @@ function secret(): string {
   return secret()
 }
 
+/** Constant-time string equality for secrets and OAuth state values. */
+export function safeEqual(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (typeof a !== "string" || typeof b !== "string" || a.length === 0) return false
+  const ab = Buffer.from(a)
+  const bb = Buffer.from(b)
+  return ab.length === bb.length && timingSafeEqual(ab, bb)
+}
+
 const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("hex")
 
 /** Cookie value: `<userId>.<expiresAtMs>.<hmac>`; the signature covers id and expiry. */

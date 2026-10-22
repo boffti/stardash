@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { getUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appUrl, getGitHubApp, manifestFor, newState, saveGitHubApp } from "@/lib/github-app"
+import { safeEqual } from "@/lib/session"
 
 const STATE_COOKIE = "sd_setup_state"
 
@@ -31,8 +32,9 @@ export async function GET(request: Request) {
   if (code) {
     // GitHub's temporary manifest code is a hex-ish token; anything else never reaches the fetch.
     if (!/^[A-Za-z0-9_-]{8,128}$/.test(code)) return login("state")
-    const expected = cookieStore.get(STATE_COOKIE)?.value
-    if (!expected || expected !== url.searchParams.get("state")) return login("state")
+    if (!safeEqual(cookieStore.get(STATE_COOKIE)?.value, url.searchParams.get("state"))) {
+      return login("state")
+    }
 
     const res = await fetch(
       `https://api.github.com/app-manifests/${encodeURIComponent(code)}/conversions`,

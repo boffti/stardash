@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { appUrl, exchangeCode } from "@/lib/github-app"
 import { signInWithGitHubToken } from "@/lib/github-login"
 import { safeNext } from "@/lib/safe-next"
+import { safeEqual } from "@/lib/session"
 import { OAUTH_STATE_COOKIE } from "../start/route"
 
 export async function GET(request: Request) {
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   const expected = cookieStore.get(OAUTH_STATE_COOKIE)?.value
   cookieStore.delete(OAUTH_STATE_COOKIE)
 
-  if (!code || !state || state !== expected) {
+  if (!code || !state || !safeEqual(state, expected)) {
     return NextResponse.redirect(`${origin}/auth/login?error=state`)
   }
 
