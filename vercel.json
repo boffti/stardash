@@ -1,4 +1,1 @@
-{
-  "$comment": "StarDash is a single-container app (SQLite on disk) and is not deployed on Vercel. Exit 0 tells Vercel to skip every build.",
-  "ignoreCommand": "exit 0"
-}
+{ "ignoreCommand": "exit 0" }

@@ -44,7 +44,7 @@ The database is a local SQLite file via `node:sqlite` (no ORM). The whole schema
 
 ### Deployment
 
-Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime logs, and config.
+StarDash is a single-container app (SQLite on disk) and is not deployed on Vercel; `vercel.json` only carries `ignoreCommand: exit 0` so the connected Vercel project skips every build. Container image and hosted demo come in Phase 3 (see `ROADMAP.md`).
 
 ### Observability
 
