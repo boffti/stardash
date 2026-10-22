@@ -20,17 +20,24 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/api/auth/github/start`)
   }
 
+  // GitHub's temporary manifest code is a hex-ish token; anything else never reaches the fetch.
   const code = url.searchParams.get("code")
+  if (code && !/^[A-Za-z0-9_-]{8,128}$/.test(code)) {
+    return NextResponse.redirect(`${origin}/auth/login?error=state`)
+  }
   if (code) {
     const expected = cookieStore.get(STATE_COOKIE)?.value
     if (!expected || expected !== url.searchParams.get("state")) {
       return NextResponse.redirect(`${origin}/auth/login?error=state`)
     }
-    const res = await fetch(`https://api.github.com/app-manifests/${code}/conversions`, {
-      method: "POST",
-      headers: { Accept: "application/vnd.github+json" },
-      cache: "no-store",
-    })
+    const res = await fetch(
+      `https://api.github.com/app-manifests/${encodeURIComponent(code)}/conversions`,
+      {
+        method: "POST",
+        headers: { Accept: "application/vnd.github+json" },
+        cache: "no-store",
+      },
+    )
     if (!res.ok) return NextResponse.redirect(`${origin}/auth/login?error=manifest`)
     const app = (await res.json()) as { client_id: string; client_secret: string; slug: string }
     saveGitHubApp(app.client_id, app.client_secret, app.slug)
