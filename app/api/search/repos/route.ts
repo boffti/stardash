@@ -6,7 +6,8 @@ import { after } from "next/server"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
 import { langfuseSpanProcessor } from "@/instrumentation"
-import { createClient } from "@/lib/supabase/server"
+import { getUser, type User } from "@/lib/auth"
+import { db, fromJson, nowIso, toJson } from "@/lib/db"
 import {
   DISCOVER_SEARCH_CACHE_TTL_DAYS,
   DISCOVER_SEARCH_CACHE_VERSION,
@@ -16,7 +17,6 @@ import {
 } from "@/lib/search-cache"
 import type { StarredRepo } from "@/lib/types"
 import { checkAndIncrementWeeklyLimit } from "@/lib/ai-weekly-limit"
-import type { SupabaseClient, User } from "@supabase/supabase-js"
 
 export const maxDuration = 60
 
@@ -150,7 +150,6 @@ interface DiscoverSearchRow {
   normalized_query: string
   context_hash: string | null
   results: SearchRepo[]
-  pipeline_events: SearchPipelineEvent[]
   result_count: number
   cached_at: string
   last_run_at: string
@@ -174,31 +173,32 @@ function getModelId(modelConfig: AIModelConfig) {
   return model.modelId ?? null
 }
 
-async function getCachedDiscoverSearch({
-  supabase,
+function getCachedDiscoverSearch({
   userId,
   normalizedQuery,
   contextHash,
 }: {
-  supabase: SupabaseClient
   userId: string
   normalizedQuery: string
   contextHash: string | null
-}): Promise<DiscoverSearchRow | null> {
+}): DiscoverSearchRow | null {
   try {
-    const { data, error } = await supabase
-      .from("discover_searches")
-      .select(
-        "id, query, normalized_query, context_hash, results, pipeline_events, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved",
+    const raw = db
+      .prepare(
+        `select id, query, normalized_query, context_hash, results, result_count, cached_at, last_run_at, last_opened_at, expires_at, is_saved
+         from discover_searches where user_id = ? and normalized_query = ? and search_version = ?`,
       )
-      .eq("user_id", userId)
-      .eq("normalized_query", normalizedQuery)
-      .eq("search_version", DISCOVER_SEARCH_CACHE_VERSION)
-      .maybeSingle()
+      .get(userId, normalizedQuery, DISCOVER_SEARCH_CACHE_VERSION) as
+      | (Omit<DiscoverSearchRow, "results" | "is_saved"> & { results: string; is_saved: number })
+      | undefined
 
-    if (error || !data) return null
+    if (!raw) return null
 
-    const row = data as DiscoverSearchRow
+    const row: DiscoverSearchRow = {
+      ...raw,
+      results: fromJson<SearchRepo[]>(raw.results, []),
+      is_saved: raw.is_saved === 1,
+    }
 
     // Saved searches are always returned (user explicitly pinned them).
     // For non-saved rows: check TTL freshness AND context hash match.
@@ -214,11 +214,11 @@ async function getCachedDiscoverSearch({
     }
     if (!Array.isArray(row.results)) return null
 
-    await supabase
-      .from("discover_searches")
-      .update({ last_opened_at: new Date().toISOString() })
-      .eq("id", row.id)
-      .eq("user_id", userId)
+    db.prepare("update discover_searches set last_opened_at = ? where id = ? and user_id = ?").run(
+      nowIso(),
+      row.id,
+      userId,
+    )
 
     return row
   } catch (err) {
@@ -230,8 +230,7 @@ async function getCachedDiscoverSearch({
 // Max unsaved search rows per user. Saved (pinned) searches are exempt.
 const MAX_CACHED_SEARCHES_PER_USER = 50
 
-async function saveDiscoverSearch({
-  supabase,
+function saveDiscoverSearch({
   userId,
   query,
   normalizedQuery,
@@ -240,7 +239,6 @@ async function saveDiscoverSearch({
   pipelineEvents,
   modelConfig,
 }: {
-  supabase: SupabaseClient
   userId: string
   query: string
   normalizedQuery: string
@@ -248,26 +246,24 @@ async function saveDiscoverSearch({
   repos: SearchRepo[]
   pipelineEvents: SearchPipelineEvent[]
   modelConfig: AIModelConfig
-}): Promise<string | null> {
+}): string | null {
   try {
-    const { data: existing } = await supabase
-      .from("discover_searches")
-      .select("id, is_saved")
-      .eq("user_id", userId)
-      .eq("normalized_query", normalizedQuery)
-      .eq("search_version", DISCOVER_SEARCH_CACHE_VERSION)
-      .maybeSingle()
+    const existing = db
+      .prepare(
+        "select id from discover_searches where user_id = ? and normalized_query = ? and search_version = ?",
+      )
+      .get(userId, normalizedQuery, DISCOVER_SEARCH_CACHE_VERSION) as { id: string } | undefined
 
     // If this is a brand-new query, check the per-user row cap before inserting.
     // Existing rows (same normalized query) are always updated regardless of count.
     if (!existing) {
-      const { count } = await supabase
-        .from("discover_searches")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("search_version", DISCOVER_SEARCH_CACHE_VERSION)
+      const { n } = db
+        .prepare(
+          "select count(*) as n from discover_searches where user_id = ? and search_version = ?",
+        )
+        .get(userId, DISCOVER_SEARCH_CACHE_VERSION) as { n: number }
 
-      if ((count ?? 0) >= MAX_CACHED_SEARCHES_PER_USER) {
+      if (n >= MAX_CACHED_SEARCHES_PER_USER) {
         // Cap reached — skip persisting this new search to prevent unbounded growth.
         console.info(
           `[search-cache] skipping save for user ${userId}: row cap (${MAX_CACHED_SEARCHES_PER_USER}) reached`,
@@ -276,33 +272,41 @@ async function saveDiscoverSearch({
       }
     }
 
-    const now = new Date().toISOString()
-    const { data, error } = await supabase
-      .from("discover_searches")
-      .upsert(
-        {
-          user_id: userId,
-          query,
-          normalized_query: normalizedQuery,
-          context_hash: contextHash,
-          results: repos,
-          pipeline_events: pipelineEvents,
-          result_count: repos.length,
-          model_provider: modelConfig.provider,
-          model_id: getModelId(modelConfig),
-          search_version: DISCOVER_SEARCH_CACHE_VERSION,
-          cached_at: now,
-          last_run_at: now,
-          expires_at: discoverSearchExpiresAt(),
-          is_saved: Boolean(existing?.is_saved),
-        },
-        { onConflict: "user_id,normalized_query,search_version" },
+    const now = nowIso()
+    // is_saved is left alone on conflict so a pinned search stays pinned.
+    const row = db
+      .prepare(
+        `insert into discover_searches
+           (user_id, query, normalized_query, context_hash, results, pipeline_events, result_count,
+            model_provider, model_id, search_version, cached_at, last_run_at, expires_at, updated_at)
+         values (@user_id, @query, @normalized_query, @context_hash, @results, @pipeline_events, @result_count,
+            @model_provider, @model_id, @search_version, @cached_at, @last_run_at, @expires_at, @updated_at)
+         on conflict (user_id, normalized_query, search_version) do update set
+           query = excluded.query, context_hash = excluded.context_hash, results = excluded.results,
+           pipeline_events = excluded.pipeline_events, result_count = excluded.result_count,
+           model_provider = excluded.model_provider, model_id = excluded.model_id,
+           cached_at = excluded.cached_at, last_run_at = excluded.last_run_at,
+           expires_at = excluded.expires_at, updated_at = excluded.updated_at
+         returning id`,
       )
-      .select("id")
-      .single()
+      .get({
+        user_id: userId,
+        query,
+        normalized_query: normalizedQuery,
+        context_hash: contextHash,
+        results: toJson(repos),
+        pipeline_events: toJson(pipelineEvents),
+        result_count: repos.length,
+        model_provider: modelConfig.provider,
+        model_id: getModelId(modelConfig),
+        search_version: DISCOVER_SEARCH_CACHE_VERSION,
+        cached_at: now,
+        last_run_at: now,
+        expires_at: discoverSearchExpiresAt(),
+        updated_at: now,
+      }) as { id: string } | undefined
 
-    if (error) return existing?.id ?? null
-    return data?.id ?? existing?.id ?? null
+    return row?.id ?? existing?.id ?? null
   } catch (err) {
     console.warn("[search-cache] cache save skipped:", err)
     return null
@@ -641,7 +645,6 @@ function streamSearchPipeline({
   userContext,
   contextHash,
   user,
-  supabase,
   token,
   modelConfig,
 }: {
@@ -650,7 +653,6 @@ function streamSearchPipeline({
   userContext: string
   contextHash: string | null
   user: User
-  supabase: SupabaseClient
   token: string | null
   modelConfig: AIModelConfig
 }) {
@@ -664,8 +666,7 @@ function streamSearchPipeline({
       }
 
       try {
-        const cached = await getCachedDiscoverSearch({
-          supabase,
+        const cached = getCachedDiscoverSearch({
           userId: user.id,
           normalizedQuery,
           contextHash,
@@ -719,8 +720,7 @@ function streamSearchPipeline({
           startedAt,
           emit: emitAndCollect,
         })
-        const searchId = await saveDiscoverSearch({
-          supabase,
+        const searchId = saveDiscoverSearch({
           userId: user.id,
           query,
           normalizedQuery,
@@ -765,14 +765,8 @@ function streamSearchPipeline({
 export async function POST(request: Request) {
   try {
     const startedAt = Date.now()
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await request.json()
     const { query, starData: rawStarData } = body as { query: unknown; starData?: StarredRepo[] }
@@ -787,8 +781,8 @@ export async function POST(request: Request) {
     const contextHash = starData.length ? buildStarContextHash(starData) : null
 
     // GitHub's repository search endpoint can return public results without a
-    // user token. Keep the Supabase user check above, but do not fail Discover
-    // search just because the short-lived GitHub OAuth cookie has expired.
+    // user token. Keep the session check above, but do not fail Discover
+    // search just because no GitHub token is stored.
     const { token } = await getValidGitHubToken()
 
     const modelConfig = getAIModel(request)
@@ -803,14 +797,12 @@ export async function POST(request: Request) {
         userContext,
         contextHash,
         user,
-        supabase,
         token,
         modelConfig,
       })
     }
 
-    const cached = await getCachedDiscoverSearch({
-      supabase,
+    const cached = getCachedDiscoverSearch({
       userId: user.id,
       normalizedQuery,
       contextHash,
@@ -848,8 +840,7 @@ export async function POST(request: Request) {
       startedAt,
       emit: (event) => pipelineEvents.push(event),
     })
-    const searchId = await saveDiscoverSearch({
-      supabase,
+    const searchId = saveDiscoverSearch({
       userId: user.id,
       query: (query as string).trim(),
       normalizedQuery,

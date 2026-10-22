@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { NextRequest, NextResponse } from "next/server"
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit"
@@ -22,15 +22,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const rl = checkRateLimit(`${user.id}:issue`, ISSUE_RATE_LIMIT, ISSUE_RATE_WINDOW_MS)
     if (!rl.allowed) {
@@ -40,7 +33,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const tokenResult = await getValidGitHubToken()
+    const tokenResult = await getValidGitHubToken(user.id)
 
     if (tokenResult.error === "expired") {
       return NextResponse.json(

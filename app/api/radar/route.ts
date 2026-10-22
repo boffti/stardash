@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
+import { db, fromJson, toJson } from "@/lib/db"
 import {
   buildTasteProfile,
   scoreCandidate,
@@ -53,14 +54,14 @@ interface CandidateRow {
   full_name: string
   description: string | null
   language: string | null
-  topics: string[]
+  topics: string
   stargazers_count: number
   forks_count: number
   pushed_at: string | null
   gh_created_at: string | null
   avatar_url: string | null
   html_url: string
-  sources: { new?: boolean; hn?: RadarHnSource }
+  sources: string
   first_seen_at: string
   last_seen_at: string
 }
@@ -68,67 +69,64 @@ interface CandidateRow {
 interface StarRow {
   status: RepoStatus
   starred_at: string | null
-  repos: { github_repo_id: number; topics: string[]; language: string | null } | null
+  github_repo_id: number
+  topics: string
+  language: string | null
 }
 
 export async function GET() {
   if (!RADAR_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 })
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-    if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString()
     const weekAgo = new Date(Date.now() - 8 * 86_400_000).toISOString().slice(0, 10)
 
-    const [starsRes, candidatesRes, signalsRes, actionsRes] = await Promise.all([
-      supabase
-        .from("user_starred_repos")
-        .select("status, starred_at, repos!inner(github_repo_id, topics, language)")
-        .eq("user_id", user.id),
-      supabase
-        .from("radar_candidates")
-        .select("*")
-        .gte("last_seen_at", since)
-        .order("last_seen_at", { ascending: false })
-        .limit(MAX_CANDIDATES),
-      supabase
-        .from("radar_signals")
-        .select("github_repo_id, actor_login")
-        .eq("user_id", user.id)
-        .gte("seen_at", since),
-      supabase.from("radar_actions").select("github_repo_id, action, until").eq("user_id", user.id),
-    ])
-    const firstError = starsRes.error || candidatesRes.error || signalsRes.error || actionsRes.error
-    if (firstError) throw firstError
+    const stars = db
+      .prepare(
+        `select usr.status, usr.starred_at, r.github_repo_id, r.topics, r.language
+         from user_starred_repos usr join repos r on r.id = usr.repo_id
+         where usr.user_id = ?`,
+      )
+      .all(user.id) as unknown as StarRow[]
+    const candidates = db
+      .prepare(
+        "select * from radar_candidates where last_seen_at >= ? order by last_seen_at desc limit ?",
+      )
+      .all(since, MAX_CANDIDATES) as unknown as CandidateRow[]
+    const signals = db
+      .prepare(
+        "select github_repo_id, actor_login from radar_signals where user_id = ? and seen_at >= ?",
+      )
+      .all(user.id, since) as unknown as { github_repo_id: number; actor_login: string }[]
+    const actions = db
+      .prepare("select github_repo_id, action, until from radar_actions where user_id = ?")
+      .all(user.id) as unknown as { github_repo_id: number; action: string; until: string | null }[]
 
-    const stars = (starsRes.data ?? []) as unknown as StarRow[]
-    const starredIds = new Set(stars.map((s) => Number(s.repos?.github_repo_id)))
+    const starredIds = new Set(stars.map((s) => Number(s.github_repo_id)))
     const profile = buildTasteProfile(
       stars.map((s) => ({
-        topics: s.repos?.topics ?? [],
-        language: s.repos?.language ?? null,
+        topics: fromJson<string[]>(s.topics, []),
+        language: s.language,
         status: s.status,
         starredAt: s.starred_at,
       })),
     )
 
     const hidden = new Set<number>()
-    for (const a of actionsRes.data ?? []) {
+    for (const a of actions) {
       if (a.action === "snoozed" && a.until && Date.parse(a.until) < Date.now()) continue
       hidden.add(Number(a.github_repo_id))
     }
 
     const followersByRepo = new Map<number, string[]>()
-    for (const s of signalsRes.data ?? []) {
+    for (const s of signals) {
       const id = Number(s.github_repo_id)
       followersByRepo.set(id, [...(followersByRepo.get(id) ?? []), s.actor_login])
     }
 
-    const candidates = ((candidatesRes.data ?? []) as CandidateRow[]).filter(
+    const visible = candidates.filter(
       (c) => !starredIds.has(Number(c.github_repo_id)) && !hidden.has(Number(c.github_repo_id)),
     )
 
@@ -137,40 +135,43 @@ export async function GET() {
       (id) =>
         !starredIds.has(id) &&
         !hidden.has(id) &&
-        !candidates.some((c) => Number(c.github_repo_id) === id),
+        !visible.some((c) => Number(c.github_repo_id) === id),
     )
     if (missingSocial.length > 0) {
-      const { data: extra } = await supabase
-        .from("radar_candidates")
-        .select("*")
-        .in("github_repo_id", missingSocial.slice(0, 200))
-      candidates.push(...((extra ?? []) as CandidateRow[]))
+      const extra = db
+        .prepare(
+          "select * from radar_candidates where github_repo_id in (select value from json_each(?))",
+        )
+        .all(toJson(missingSocial.slice(0, 200))) as unknown as CandidateRow[]
+      visible.push(...extra)
     }
 
-    const ids = candidates.map((c) => Number(c.github_repo_id))
+    const ids = visible.map((c) => Number(c.github_repo_id))
     const starsWeekAgo = new Map<number, number>()
     if (ids.length > 0) {
-      const { data: snapshots } = await supabase
-        .from("repo_star_snapshots")
-        .select("repo_github_id, star_count, snapshot_date")
-        .in("repo_github_id", ids)
-        .gte("snapshot_date", weekAgo)
-        .order("snapshot_date", { ascending: true })
-      for (const s of snapshots ?? []) {
+      const snapshots = db
+        .prepare(
+          `select repo_github_id, star_count from repo_star_snapshots
+           where repo_github_id in (select value from json_each(?)) and snapshot_date >= ?
+           order by snapshot_date asc`,
+        )
+        .all(toJson(ids), weekAgo) as unknown as { repo_github_id: number; star_count: number }[]
+      for (const s of snapshots) {
         const id = Number(s.repo_github_id)
         if (!starsWeekAgo.has(id)) starsWeekAgo.set(id, s.star_count)
       }
     }
 
-    const items: RadarItem[] = candidates
+    const items: RadarItem[] = visible
       .map((c) => {
         const id = Number(c.github_repo_id)
         const followers = followersByRepo.get(id) ?? []
-        const hn = c.sources?.hn ?? null
+        const topics = fromJson<string[]>(c.topics, [])
+        const hn = fromJson<{ new?: boolean; hn?: RadarHnSource }>(c.sources, {}).hn ?? null
         const then = starsWeekAgo.get(id) ?? null
         const { score, reasons } = scoreCandidate(
           {
-            topics: c.topics ?? [],
+            topics,
             language: c.language,
             ghCreatedAt: c.gh_created_at,
             followers,
@@ -190,7 +191,7 @@ export async function GET() {
           stargazersCount: c.stargazers_count,
           forksCount: c.forks_count,
           language: c.language,
-          topics: c.topics ?? [],
+          topics,
           pushedAt: c.pushed_at ?? c.last_seen_at,
           htmlUrl: c.html_url,
           ghCreatedAt: c.gh_created_at,
@@ -207,7 +208,7 @@ export async function GET() {
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || b.stargazersCount - a.stargazersCount)
 
-    const scannedAt = candidates.reduce<string | null>(
+    const scannedAt = visible.reduce<string | null>(
       (max, c) => (!max || c.last_seen_at > max ? c.last_seen_at : max),
       null,
     )

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { db } from "@/lib/db"
 import { fetchRepoStarCount } from "@/lib/github"
 import { getAnyValidGitHubToken } from "@/lib/tokens"
 
@@ -8,6 +8,13 @@ import { getAnyValidGitHubToken } from "@/lib/tokens"
 
 const BATCH_SIZE = 100
 const DELAY_BETWEEN_BATCHES_MS = 1000
+
+const upsertSnapshot = db.prepare(
+  `insert into repo_star_snapshots (repo_github_id, owner, name, star_count, snapshot_date)
+   values (?, ?, ?, ?, ?)
+   on conflict (repo_github_id, snapshot_date) do update set
+     owner = excluded.owner, name = excluded.name, star_count = excluded.star_count`,
+)
 
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access
@@ -25,26 +32,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Create service role client for database operations
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
-
   try {
     const tokenResult = await getAnyValidGitHubToken()
     const accessToken = tokenResult.token ?? undefined
 
     // Get all repos from the global repos table
-    const { data: repos, error: reposError } = await supabase
-      .from("repos")
-      .select("github_repo_id, owner, name")
-
-    if (reposError) {
-      throw reposError
-    }
-
-    const reposToProcess = repos || []
+    const reposToProcess = db
+      .prepare("select github_repo_id, owner, name from repos")
+      .all() as unknown as { github_repo_id: number; owner: string; name: string }[]
     const totalRepos = reposToProcess.length
     const results = {
       processed: 0,
@@ -64,23 +59,13 @@ export async function GET(request: NextRequest) {
 
             if (starCount !== null) {
               // Upsert the snapshot (insert or update if exists for today)
-              const { error } = await supabase.from("repo_star_snapshots").upsert(
-                {
-                  repo_github_id: repo.github_repo_id,
-                  owner: repo.owner,
-                  name: repo.name,
-                  star_count: starCount,
-                  snapshot_date: new Date().toISOString().split("T")[0],
-                },
-                {
-                  onConflict: "repo_github_id,snapshot_date",
-                },
+              upsertSnapshot.run(
+                repo.github_repo_id,
+                repo.owner,
+                repo.name,
+                starCount,
+                new Date().toISOString().split("T")[0],
               )
-
-              if (error) {
-                throw error
-              }
-
               results.succeeded++
             } else {
               results.failed++

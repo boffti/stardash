@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
+import { db, nowIso } from "@/lib/db"
 import { RADAR_ENABLED } from "@/lib/flags"
 
 const SNOOZE_DAYS = 7
@@ -9,12 +10,8 @@ const ACTIONS = new Set(["dismissed", "snoozed", "starred", "undo"])
 export async function POST(request: Request) {
   if (!RADAR_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 })
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-    if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { githubRepoId, action } = await request.json()
     const id = Number(githubRepoId)
@@ -23,28 +20,21 @@ export async function POST(request: Request) {
     }
 
     if (action === "undo") {
-      const { error: delError } = await supabase
-        .from("radar_actions")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("github_repo_id", id)
-      if (delError) throw delError
+      db.prepare("delete from radar_actions where user_id = ? and github_repo_id = ?").run(
+        user.id,
+        id,
+      )
       return NextResponse.json({ ok: true })
     }
 
     const until =
       action === "snoozed" ? new Date(Date.now() + SNOOZE_DAYS * 86_400_000).toISOString() : null
-    const { error: upsertError } = await supabase.from("radar_actions").upsert(
-      {
-        user_id: user.id,
-        github_repo_id: id,
-        action,
-        until,
-        created_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,github_repo_id" },
-    )
-    if (upsertError) throw upsertError
+    db.prepare(
+      `insert into radar_actions (user_id, github_repo_id, action, until, created_at)
+       values (?, ?, ?, ?, ?)
+       on conflict (user_id, github_repo_id) do update set
+         action = excluded.action, until = excluded.until, created_at = excluded.created_at`,
+    ).run(user.id, id, action, until, nowIso())
     return NextResponse.json({ ok: true, until })
   } catch (err) {
     Sentry.captureException(err)

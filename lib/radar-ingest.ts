@@ -2,7 +2,7 @@
 // social graph (stars by people each user follows), then upserts them.
 // Shared by the nightly cron (all users, GITHUB_PAT) and "Scan now" (one user, own token).
 
-import type { SupabaseClient } from "@supabase/supabase-js"
+import { db, nowIso, toJson } from "./db"
 import type { RadarHnSource } from "./radar"
 
 const GH_HEADERS = {
@@ -149,11 +149,9 @@ function toCandidateRow(repo: GhRepo, sources: Record<string, unknown>) {
 }
 
 export async function ingestRadar({
-  admin,
   token,
   users,
 }: {
-  admin: SupabaseClient
   token: string
   users: IngestUser[]
 }): Promise<IngestStats> {
@@ -240,20 +238,21 @@ export async function ingestRadar({
 
   if (socialRepoNames.size > 0) {
     const ids = [...socialRepoNames.keys()]
-    const { data: existing } = await admin
-      .from("radar_candidates")
-      .select("github_repo_id")
-      .in("github_repo_id", ids)
-    const known = new Set((existing ?? []).map((r) => Number(r.github_repo_id)))
+    const existing = db
+      .prepare(
+        "select github_repo_id from radar_candidates where github_repo_id in (select value from json_each(?))",
+      )
+      .all(toJson(ids)) as unknown as { github_repo_id: number }[]
+    const known = new Set(existing.map((r) => Number(r.github_repo_id)))
+    const touch = db.prepare(
+      "update radar_candidates set last_seen_at = ? where github_repo_id = ?",
+    )
     let fetched = 0
     for (const [id, fullName] of socialRepoNames) {
       if (rows.has(id)) continue
       if (known.has(id)) {
         // Refresh last_seen so it stays in the 14-day window.
-        await admin
-          .from("radar_candidates")
-          .update({ last_seen_at: new Date().toISOString() })
-          .eq("github_repo_id", id)
+        touch.run(nowIso(), id)
         continue
       }
       if (fetched >= MAX_SOCIAL_REPO_FETCHES) break
@@ -269,33 +268,43 @@ export async function ingestRadar({
   // 4. Persist candidates, signals, and today's star snapshot (feeds velocity scoring).
   const candidateRows = [...rows.values()]
   stats.candidates = candidateRows.length
-  for (let i = 0; i < candidateRows.length; i += 200) {
-    const batch = candidateRows.slice(i, i + 200)
-    const { error } = await admin
-      .from("radar_candidates")
-      .upsert(batch, { onConflict: "github_repo_id" })
-    if (error) stats.errors.push(`upsert candidates: ${error.message}`)
-
-    const today = new Date().toISOString().slice(0, 10)
-    const { error: snapError } = await admin.from("repo_star_snapshots").upsert(
-      batch.map((r) => ({
-        repo_github_id: r.github_repo_id,
-        owner: r.owner,
-        name: r.name,
-        star_count: r.stargazers_count,
-        snapshot_date: today,
-      })),
-      { onConflict: "repo_github_id,snapshot_date" },
-    )
-    if (snapError) stats.errors.push(`upsert snapshots: ${snapError.message}`)
-  }
-
-  for (let i = 0; i < signalRows.length; i += 500) {
-    const { error } = await admin.from("radar_signals").upsert(signalRows.slice(i, i + 500), {
-      onConflict: "user_id,github_repo_id,actor_login",
-      ignoreDuplicates: true,
-    })
-    if (error) stats.errors.push(`upsert signals: ${error.message}`)
+  const today = new Date().toISOString().slice(0, 10)
+  const upsertCandidate = db.prepare(
+    `insert into radar_candidates (github_repo_id, owner, name, full_name, description, language, topics,
+                                   stargazers_count, forks_count, pushed_at, gh_created_at, avatar_url, html_url,
+                                   sources, last_seen_at)
+     values (@github_repo_id, @owner, @name, @full_name, @description, @language, @topics,
+             @stargazers_count, @forks_count, @pushed_at, @gh_created_at, @avatar_url, @html_url,
+             @sources, @last_seen_at)
+     on conflict (github_repo_id) do update set
+       owner = excluded.owner, name = excluded.name, full_name = excluded.full_name,
+       description = excluded.description, language = excluded.language, topics = excluded.topics,
+       stargazers_count = excluded.stargazers_count, forks_count = excluded.forks_count,
+       pushed_at = excluded.pushed_at, gh_created_at = excluded.gh_created_at, avatar_url = excluded.avatar_url,
+       html_url = excluded.html_url, sources = excluded.sources, last_seen_at = excluded.last_seen_at`,
+  )
+  const upsertSnapshot = db.prepare(
+    `insert into repo_star_snapshots (repo_github_id, owner, name, star_count, snapshot_date)
+     values (?, ?, ?, ?, ?)
+     on conflict (repo_github_id, snapshot_date) do update set
+       owner = excluded.owner, name = excluded.name, star_count = excluded.star_count`,
+  )
+  const insertSignal = db.prepare(
+    `insert or ignore into radar_signals (user_id, github_repo_id, actor_login, seen_at) values (?, ?, ?, ?)`,
+  )
+  db.exec("begin")
+  try {
+    for (const r of candidateRows) {
+      upsertCandidate.run({ ...r, topics: toJson(r.topics), sources: toJson(r.sources) })
+      upsertSnapshot.run(r.github_repo_id, r.owner, r.name, r.stargazers_count, today)
+    }
+    for (const s of signalRows) {
+      insertSignal.run(s.user_id, s.github_repo_id, s.actor_login, s.seen_at)
+    }
+    db.exec("commit")
+  } catch (err) {
+    db.exec("rollback")
+    stats.errors.push(`persist: ${err instanceof Error ? err.message : String(err)}`)
   }
 
   return stats

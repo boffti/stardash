@@ -13,7 +13,7 @@ pnpm lint       # ESLint
 pnpm start      # Start production server
 ```
 
-No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:radar` runs the Radar scoring self-check.
+No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:db` exercises the SQLite data layer in memory; `pnpm check:radar` runs the Radar scoring self-check.
 
 ## Mandatory Workflows
 
@@ -40,7 +40,7 @@ Use **`auggie` MCP** (`mcp__auggie__codebase-retrieval`) as the primary search t
 
 ### Database & Auth
 
-Use **Supabase MCP** for all DB/auth interactions — schema inspection, migrations, auth config. Never guess at schema shape.
+The database is a local SQLite file via `node:sqlite` (no ORM). The whole schema lives in `lib/db.ts`; additive changes go in its `MIGRATIONS` array. Auth is a paste-a-PAT login (`app/api/auth/login/route.ts`) with an HMAC-signed cookie (`lib/session.ts`). Never guess at schema shape: read `lib/db.ts`.
 
 ### Deployment
 
@@ -57,7 +57,7 @@ Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime
 
 **StarDash** is a Next.js 16 (App Router) dashboard for organizing GitHub starred repositories.
 
-**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · Supabase (auth + Postgres) · Vercel AI SDK 6 + OpenRouter (Gemini 2.0 Flash) · Langfuse + Sentry · Recharts + dnd-kit
+**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · SQLite via `node:sqlite` (data) + PAT login with signed cookie (auth) · Vercel AI SDK 6 + OpenRouter (Gemini 2.0 Flash) · Langfuse + Sentry · Recharts + dnd-kit
 
 ### App Router Structure
 
@@ -91,23 +91,20 @@ app/
 
 ### Auth Flow
 
-GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table and retrieved via `getValidGitHubToken(userId)` from `lib/tokens.ts`. Expired tokens require re-auth.
+Single-owner, paste-a-PAT. `POST /api/auth/login` validates the token against GitHub `/user`, stores the owner in `profiles` (token in `profiles.github_token`), and sets the `sd_session` cookie (`<userId>.<hmac>`, secret minted once into the `meta` table). The first token ever seen claims the instance; later logins must be the same GitHub user.
 
 **Key files:**
 
-- `lib/supabase/client.ts` — browser client
-- `lib/supabase/server.ts` — async server/RSC client (reads cookies)
-- `lib/supabase/admin.ts` — service-role admin (server only, never expose to client)
-- `lib/supabase/middleware.ts` — session refresh (**no code between `createServerClient` and `getUser()`**)
-- `lib/tokens.ts` — `getValidGitHubToken(userId)`
-- `lib/auth.ts` — `getUser()`, `requireAuth()`, `getUserProfile()`, `signOut()`
-- `middleware.ts` — session refresh + redirects authenticated users away from `/auth/login`
-
-> Prefer `lib/auth.ts` or `lib/supabase/server.ts` for new server code. Avoid `modules/auth/` (legacy).
+- `lib/db.ts` — `db` singleton, schema, `nowIso`/`toJson`/`fromJson`
+- `lib/session.ts` — cookie signing/verification; `lib/session-cookie.ts` holds only the cookie name (importable from middleware)
+- `lib/auth.ts` — `getUser()` → `{ id, login, avatarUrl } | null`, `requireAuth()`, `signOut()`, `reauthenticate()` (server actions)
+- `lib/tokens.ts` — `getValidGitHubToken(userId?)` (owner's PAT), `getAnyValidGitHubToken()` (`GITHUB_PAT` env, else first stored token)
+- `lib/metadata-actions.ts` — `"use server"` wrappers client components call for tag/collection/status mutations
+- `middleware.ts` — cookie presence check + redirects only (HMAC verified in `getUser()`)
 
 ### Data Flow
 
-**Starred repos:** `GET /api/github/starred` → `getValidGitHubToken` → `lib/github.ts` (paginates up to 5000 via `vnd.github.star+json`) → upsert into `repos` + `user_starred_repos` → cached in `localStorage` (`stardash-repos-cache-{userId}`, 24h TTL).
+**Starred repos:** `GET /api/github/starred` → `getValidGitHubToken` → `lib/github.ts` (paginates up to 5000 via `vnd.github.star+json`) → `upsertStarredRepos()` in `lib/user-metadata.ts` (one transaction) → cached in `localStorage` (`stardash-repos-cache-{userId}`, 24h TTL).
 
 **User metadata:** `GET /api/user/metadata` returns tags, collections, per-repo state (status, notes, pinned, assignments) from DB.
 
@@ -120,7 +117,7 @@ GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table
 1. **Taxonomy** — up to 500 repo summaries → 5–12 collections + 15–25 tags
 2. **Classification** — batches of 100 → 1–3 collections + 1–3 tags per repo
 
-24h rate limit per user (`profiles.last_ai_categorization_at`). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
+Cooldown per user via `profiles.last_ai_categorization_at`. Weekly AI quotas are stubbed open in `lib/ai-weekly-limit.ts` (self-hosted build). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
 
 ### Radar
 
@@ -130,21 +127,22 @@ Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub
 
 ### Database Schema
 
-| Table                                     | Purpose                                                     |
-| ----------------------------------------- | ----------------------------------------------------------- |
-| `profiles`                                | User identity, GitHub token, sync timestamps, AI rate limit |
-| `repos`                                   | Global repo catalog (admin-written, user-readable)          |
-| `user_starred_repos`                      | Per-user: status, notes, pinned                             |
-| `tags` / `collections`                    | User-owned taxonomy                                         |
-| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                      |
-| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)  |
-| `radar_candidates`                        | Global pool of new/rising repos (admin-written, auth-read)  |
-| `radar_signals`                           | Per-user: people you follow starred repo X                  |
-| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred              |
-| `discover_searches`                       | Cached Discover search results per user                     |
-| `repo_insights`                           | Shared AI repo intel cache (7d)                             |
+| Table                                     | Purpose                                                    |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `profiles`                                | Owner identity, GitHub PAT, sync timestamps                |
+| `repos`                                   | Repo catalog (one row per GitHub repo)                     |
+| `user_starred_repos`                      | Per-user: status, notes, pinned                            |
+| `tags` / `collections`                    | User-owned taxonomy                                        |
+| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                     |
+| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates) |
+| `radar_candidates`                        | Pool of new/rising repos                                   |
+| `radar_signals`                           | Per-user: people you follow starred repo X                 |
+| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred             |
+| `discover_searches`                       | Cached Discover search results per user                    |
+| `repo_insights`                           | AI repo intel cache (7d)                                   |
+| `meta`                                    | Key/value: the session-signing secret                      |
 
-**RLS:** All user tables enforce `auth.uid() = user_id`. `repos` is authenticated-read, admin-write only (`lib/supabase/admin.ts`).
+**Scoping:** there is no RLS. Every query on a per-user table carries `where user_id = ?`. Postgres arrays/jsonb became JSON text (`topics`, `sources`, `results`, `pipeline_events`, `metrics`, `top_pain_points`), booleans are 0/1, timestamps are ISO strings.
 
 **`user_starred_repos.status`:** `want-to-try` | `currently-using` | `tried-liked` | `tried-dropped` | `just-interesting` | `reference`
 
@@ -163,13 +161,11 @@ Custom components: `bento-grid`, `border-beam`, `marquee`, `particles`, `shine-b
 ### Environment Variables
 
 ```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY       # Server only — never expose to client
+DATABASE_PATH                   # SQLite file, default ./data/stardash.db
 
 OPENROUTER_API_KEY
 CRON_SECRET                     # Bearer token for /api/cron/* routes
-GITHUB_PAT                      # Cron-only GitHub token (star snapshots, Radar ingest)
+GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's PAT
 
 NEXT_PUBLIC_SENTRY_DSN
 SENTRY_ORG

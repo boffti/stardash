@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getUser } from "@/lib/auth"
+import { db } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const githubRepoIdParam = new URL(request.url).searchParams.get("githubRepoId")
     const githubRepoId = githubRepoIdParam ? parseInt(githubRepoIdParam, 10) : NaN
@@ -22,30 +14,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "githubRepoId is required" }, { status: 400 })
     }
 
-    const { data: repoRow, error: repoError } = await adminSupabase
-      .from("repos")
-      .select("id")
-      .eq("github_repo_id", githubRepoId)
-      .maybeSingle()
-
-    if (repoError) {
-      throw repoError
-    }
+    const repoRow = db
+      .prepare("select id from repos where github_repo_id = ?")
+      .get(githubRepoId) as { id: string } | undefined
 
     if (!repoRow) {
       return NextResponse.json({ error: "Repo not synced yet" }, { status: 404 })
     }
 
-    const { data: userStarredRepo, error: userStarredRepoError } = await adminSupabase
-      .from("user_starred_repos")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("repo_id", repoRow.id)
-      .maybeSingle()
-
-    if (userStarredRepoError) {
-      throw userStarredRepoError
-    }
+    const userStarredRepo = db
+      .prepare("select id from user_starred_repos where user_id = ? and repo_id = ?")
+      .get(user.id, repoRow.id) as { id: string } | undefined
 
     if (!userStarredRepo) {
       return NextResponse.json({ error: "User star relation not synced yet" }, { status: 404 })

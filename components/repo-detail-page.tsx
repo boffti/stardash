@@ -46,7 +46,6 @@ import { RepoIntelTab } from "@/components/repo-intel-tab"
 import { StarredRepo, STATUS_LABELS, RepoStatus, UserMetadata } from "@/lib/types"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { setCachedRepos } from "@/lib/repo-cache"
-import { createClient } from "@/lib/supabase/client"
 import {
   updateRepoStatus,
   updateRepoNotes,
@@ -57,8 +56,8 @@ import {
   createCollection,
   assignCollection,
   removeCollection,
-  pickTagColor,
-} from "@/lib/user-metadata"
+} from "@/lib/metadata-actions"
+import { pickTagColor } from "@/lib/tag-color"
 import { formatDistanceToNow, format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -767,7 +766,6 @@ function OrganizeSection({
 export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   const { user } = useUser()
   const router = useRouter()
-  const supabase = createClient()
   const [copied, setCopied] = useState(false)
   const userId = user?.id
 
@@ -869,7 +867,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { status }), {
         revalidate: false,
       })
-      await updateRepoStatus(supabase, dbId, status)
+      await updateRepoStatus(dbId, status)
     } catch {
       mutateMetadata()
       toast.error("Failed to update status")
@@ -884,7 +882,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), {
         revalidate: false,
       })
-      await togglePin(supabase, dbId, isPinned)
+      await togglePin(dbId, isPinned)
     } catch {
       mutateMetadata()
       toast.error("Failed to update pin")
@@ -901,8 +899,8 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), {
         revalidate: false,
       })
-      if (isAssigned) await removeTag(supabase, dbId, user.id, tagId)
-      else await assignTag(supabase, dbId, user.id, tagId)
+      if (isAssigned) await removeTag(dbId, tagId)
+      else await assignTag(dbId, tagId)
     } catch {
       mutateMetadata()
       toast.error("Failed to update tag")
@@ -912,9 +910,9 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   const handleTagCreate = async (label: string) => {
     if (!repo || !user?.id) return
     try {
-      const newTag = await createTag(supabase, user.id, label, pickTagColor(label))
+      const newTag = await createTag(label, pickTagColor(label))
       const dbId = await getDbId(repo)
-      await assignTag(supabase, dbId, user.id, newTag.id)
+      await assignTag(dbId, newTag.id)
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -935,8 +933,8 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
         (prev) => buildRepoMetaEntry(prev, repo.id, dbId, { collectionIds: newCollectionIds }),
         { revalidate: false },
       )
-      if (isAssigned) await removeCollection(supabase, dbId, user.id, collectionId)
-      else await assignCollection(supabase, dbId, user.id, collectionId)
+      if (isAssigned) await removeCollection(dbId, collectionId)
+      else await assignCollection(dbId, collectionId)
     } catch {
       mutateMetadata()
       toast.error("Failed to update collection")
@@ -946,7 +944,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   const handleCollectionCreate = async (name: string, emoji: string, color: string) => {
     if (!user?.id) return
     try {
-      await createCollection(supabase, user.id, name, emoji, color)
+      await createCollection(name, emoji, color)
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -960,7 +958,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
     if (!repo) return
     try {
       const dbId = await getDbId(repo)
-      await updateRepoNotes(supabase, dbId, notes)
+      await updateRepoNotes(dbId, notes)
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), {
         revalidate: false,
       })

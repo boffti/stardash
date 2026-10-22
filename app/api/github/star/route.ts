@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getUser } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { starRepo, unstarRepo } from "@/lib/github"
 import { NextResponse } from "next/server"
@@ -10,16 +10,18 @@ import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit"
 const STAR_RATE_LIMIT = 10
 const STAR_RATE_WINDOW_MS = 60_000
 
+const findUserStar = (userId: string, githubRepoId: number) =>
+  db
+    .prepare(
+      `select usr.id from user_starred_repos usr join repos r on r.id = usr.repo_id
+       where usr.user_id = ? and r.github_repo_id = ?`,
+    )
+    .get(userId, githubRepoId) as { id: string } | undefined
+
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const rl = checkRateLimit(`${user.id}:star`, STAR_RATE_LIMIT, STAR_RATE_WINDOW_MS)
     if (!rl.allowed) {
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const tokenResult = await getValidGitHubToken()
+    const tokenResult = await getValidGitHubToken(user.id)
     if (tokenResult.error || !tokenResult.token) {
       return NextResponse.json({ error: "GitHub token expired" }, { status: 401 })
     }
@@ -43,42 +45,19 @@ export async function POST(request: Request) {
 
     // Upsert tag/collection assignments if provided
     if (githubRepoId && (collectionIds?.length || tagIds?.length)) {
-      const adminSupabase = createAdminClient()
-
-      const { data: userRepoRow } = await adminSupabase
-        .from("user_starred_repos")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("github_repo_id", githubRepoId)
-        .maybeSingle()
+      const userRepoRow = findUserStar(user.id, Number(githubRepoId))
 
       if (userRepoRow) {
-        const assignments: PromiseLike<unknown>[] = []
-        if (tagIds?.length) {
-          assignments.push(
-            adminSupabase.from("user_starred_repo_tags").upsert(
-              tagIds.map((tag_id: string) => ({
-                user_starred_repo_id: userRepoRow.id,
-                user_id: user.id,
-                tag_id,
-              })),
-              { onConflict: "user_starred_repo_id,tag_id" },
-            ),
-          )
+        const addTag = db.prepare(
+          "insert or ignore into user_starred_repo_tags (user_starred_repo_id, user_id, tag_id) values (?, ?, ?)",
+        )
+        const addCollection = db.prepare(
+          "insert or ignore into user_starred_repo_collections (user_starred_repo_id, user_id, collection_id) values (?, ?, ?)",
+        )
+        for (const tagId of (tagIds ?? []) as string[]) addTag.run(userRepoRow.id, user.id, tagId)
+        for (const collectionId of (collectionIds ?? []) as string[]) {
+          addCollection.run(userRepoRow.id, user.id, collectionId)
         }
-        if (collectionIds?.length) {
-          assignments.push(
-            adminSupabase.from("user_starred_repo_collections").upsert(
-              collectionIds.map((collection_id: string) => ({
-                user_starred_repo_id: userRepoRow.id,
-                user_id: user.id,
-                collection_id,
-              })),
-              { onConflict: "user_starred_repo_id,collection_id" },
-            ),
-          )
-        }
-        await Promise.all(assignments)
       }
     }
 
@@ -92,15 +71,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const rl = checkRateLimit(`${user.id}:star`, STAR_RATE_LIMIT, STAR_RATE_WINDOW_MS)
     if (!rl.allowed) {
@@ -116,7 +88,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const tokenResult = await getValidGitHubToken()
+    const tokenResult = await getValidGitHubToken(user.id)
     if (tokenResult.error === "expired") {
       return NextResponse.json(
         { error: "GitHub token expired", code: "GITHUB_AUTH_ERROR" },
@@ -133,32 +105,13 @@ export async function DELETE(request: Request) {
     // Unstar on GitHub
     await unstarRepo(tokenResult.token, owner, repo)
 
-    // Delete all associated data from Supabase
-    const adminSupabase = createAdminClient()
-
-    // Find the user_starred_repos row
-    const { data: userRepoRow } = await adminSupabase
-      .from("user_starred_repos")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("github_repo_id", githubRepoId)
-      .single()
-
+    // Drop the local star; tag/collection junctions cascade (foreign_keys = on).
+    const userRepoRow = findUserStar(user.id, Number(githubRepoId))
     if (userRepoRow) {
-      // Delete tag and collection assignments first (in case no cascade)
-      await Promise.all([
-        adminSupabase
-          .from("user_starred_repo_tags")
-          .delete()
-          .eq("user_starred_repo_id", userRepoRow.id),
-        adminSupabase
-          .from("user_starred_repo_collections")
-          .delete()
-          .eq("user_starred_repo_id", userRepoRow.id),
-      ])
-
-      // Delete the user_starred_repos row
-      await adminSupabase.from("user_starred_repos").delete().eq("id", userRepoRow.id)
+      db.prepare("delete from user_starred_repos where id = ? and user_id = ?").run(
+        userRepoRow.id,
+        user.id,
+      )
     }
 
     return NextResponse.json({ success: true }, { headers: getRateLimitHeaders(rl) })

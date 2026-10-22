@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getUser } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { getValidGitHubToken } from "@/lib/tokens"
 import {
   fetchRepoContributionIssues,
@@ -14,8 +14,6 @@ import type { StarredRepo } from "@/lib/types"
 export const maxDuration = 60
 
 const SCAN_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes between broad scans per user
-const SINGLE_REPO_SCAN_DAY_LIMIT = 20 // max single-repo scans per user per day
-const DAY_MS = 24 * 60 * 60 * 1000
 const SCAN_BATCH_SIZE = 5
 
 interface RequestBody {
@@ -55,15 +53,8 @@ async function fetchContributionIssueBatches(
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = (await request.json()) as RequestBody
     const repos = body.repos ?? []
@@ -74,7 +65,7 @@ export async function POST(request: Request) {
 
     const isSingleRepoScan = repos.length === 1
 
-    const { token, error: tokenError } = await getValidGitHubToken()
+    const { token, error: tokenError } = await getValidGitHubToken(user.id)
     if (tokenError === "expired") {
       return NextResponse.json(
         { error: "GitHub token expired. Please sign in again." },
@@ -82,60 +73,15 @@ export async function POST(request: Request) {
       )
     }
 
-    const adminSupabase = createAdminClient()
-    const { data: profile } = await adminSupabase
-      .from("profiles")
-      .select("last_contribution_scan_at, single_repo_scan_day_start, single_repo_scan_day_count")
-      .eq("id", user.id)
-      .maybeSingle()
-
     const now = Date.now()
 
-    if (isSingleRepoScan) {
-      // ── Daily cap for single-repo scans (20 per user per day) ─────────────
-      const dayStart = profile?.single_repo_scan_day_start
-        ? new Date(profile.single_repo_scan_day_start).getTime()
-        : null
-      const isNewDay = !dayStart || now - dayStart >= DAY_MS
-      const dayCount = isNewDay ? 0 : (profile?.single_repo_scan_day_count ?? 0)
+    // ponytail: self-hosted single-owner build. The per-day single-repo scan cap
+    // is gone (hosted quotas come back later); broad scans keep the 5-minute cooldown.
+    if (!isSingleRepoScan) {
+      const profile = db
+        .prepare("select last_contribution_scan_at from profiles where id = ?")
+        .get(user.id) as { last_contribution_scan_at: string | null } | undefined
 
-      if (dayCount >= SINGLE_REPO_SCAN_DAY_LIMIT) {
-        const nextAllowedAt = new Date(dayStart! + DAY_MS).toISOString()
-        const retryAfter = Math.ceil((dayStart! + DAY_MS - now) / 1000)
-        return NextResponse.json(
-          {
-            error: "Daily single-repo scan limit reached. Try again tomorrow.",
-            nextAllowedAt,
-            retryAfterSeconds: retryAfter,
-          },
-          { status: 429, headers: { "Retry-After": String(retryAfter) } },
-        )
-      }
-
-      // Increment single-repo scan counter — fail closed so a DB error never
-      // silently bypasses the daily cap and allows an uncounted scan.
-      const { error: counterError } = await adminSupabase
-        .from("profiles")
-        .update({
-          single_repo_scan_day_start: isNewDay
-            ? new Date(now).toISOString()
-            : profile!.single_repo_scan_day_start,
-          single_repo_scan_day_count: dayCount + 1,
-        })
-        .eq("id", user.id)
-
-      if (counterError) {
-        console.error(
-          "[contribution-opportunities] failed to increment scan counter:",
-          counterError,
-        )
-        return NextResponse.json(
-          { error: "Failed to record scan. Please try again." },
-          { status: 500 },
-        )
-      }
-    } else {
-      // ── 5-minute cooldown for broad (multi-repo) scans ────────────────────
       if (profile?.last_contribution_scan_at) {
         const msSinceLast = now - new Date(profile.last_contribution_scan_at).getTime()
         if (msSinceLast < SCAN_COOLDOWN_MS) {
@@ -151,10 +97,10 @@ export async function POST(request: Request) {
       }
 
       // Record broad scan start time before expensive multi-repo GitHub API calls.
-      await adminSupabase
-        .from("profiles")
-        .update({ last_contribution_scan_at: new Date(now).toISOString() })
-        .eq("id", user.id)
+      db.prepare("update profiles set last_contribution_scan_at = ? where id = ?").run(
+        new Date(now).toISOString(),
+        user.id,
+      )
     }
 
     const preferences = body.preferences ?? {}

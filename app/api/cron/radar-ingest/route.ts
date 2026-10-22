@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { db } from "@/lib/db"
 import { getAnyValidGitHubToken } from "@/lib/tokens"
 import { ingestRadar } from "@/lib/radar-ingest"
 import { RADAR_ENABLED } from "@/lib/flags"
@@ -27,19 +27,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const admin = createAdminClient()
-    const { data: profiles, error } = await admin
-      .from("profiles")
-      .select("id, github_username")
-      .not("github_username", "is", null)
-      .limit(500)
-    if (error) throw error
-
-    const users = (profiles ?? []).map((p) => ({
-      id: p.id as string,
-      login: p.github_username as string,
-    }))
-    const stats = await ingestRadar({ admin, token, users })
+    const users = db
+      .prepare(
+        `select id, github_username as login from profiles
+           where github_token is not null and github_username is not null limit 500`,
+      )
+      .all() as unknown as { id: string; login: string }[]
+    const stats = await ingestRadar({ token, users })
     return NextResponse.json({ success: stats.errors.length === 0, users: users.length, ...stats })
   } catch (err) {
     Sentry.captureException(err)

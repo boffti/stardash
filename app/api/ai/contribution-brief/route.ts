@@ -3,7 +3,7 @@ import { after } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 import { generateObject } from "ai"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import type { ContributionOpportunity } from "@/lib/contribution-opportunities"
 import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
@@ -26,15 +26,8 @@ interface RequestBody {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     let modelConfig: AIModelConfig
     try {

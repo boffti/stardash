@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
+import { db, toJson } from "@/lib/db"
 import { fetchRepoLatestRelease, type ReleaseInfo } from "@/lib/github"
 import { getValidGitHubToken } from "@/lib/tokens"
-import { createAdminClient } from "@/lib/supabase/admin"
 
 function isMajorReleaseTag(tagName: string): boolean {
   const normalized = tagName
@@ -25,20 +25,10 @@ function isMajorReleaseTag(tagName: string): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient()
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    // Use getUser() instead of getSession() for security - validates token with Supabase Auth server
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const tokenResult = await getValidGitHubToken()
+    const tokenResult = await getValidGitHubToken(user.id)
     const accessToken = tokenResult.token ?? undefined
 
     const { searchParams } = new URL(request.url)
@@ -57,77 +47,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid repoIds" }, { status: 400 })
     }
 
-    const { data: repoRows, error: repoRowsError } = await adminSupabase
-      .from("repos")
-      .select("id, github_repo_id, owner, name")
-      .in("github_repo_id", repoIds)
-
-    if (repoRowsError) {
-      throw repoRowsError
-    }
-
-    const repoIdMap = new Map<string, { github_repo_id: number; owner: string; name: string }>()
-    for (const repo of repoRows || []) {
-      repoIdMap.set(repo.id, {
-        github_repo_id: repo.github_repo_id,
-        owner: repo.owner,
-        name: repo.name,
-      })
-    }
-
-    if ((repoRows?.length ?? 0) === 0) {
-      return NextResponse.json({})
-    }
-
-    const { data: userStarredRepos, error: userStarredReposError } = await supabase
-      .from("user_starred_repos")
-      .select("repo_id, starred_at")
-      .eq("user_id", user.id)
-      .in("repo_id", Array.from(repoIdMap.keys()))
-
-    if (userStarredReposError) {
-      throw userStarredReposError
-    }
-
-    const repos: Array<{
+    const repos = db
+      .prepare(
+        `select r.github_repo_id, r.owner, r.name, usr.starred_at
+         from user_starred_repos usr join repos r on r.id = usr.repo_id
+         where usr.user_id = ? and r.github_repo_id in (select value from json_each(?))`,
+      )
+      .all(user.id, toJson(repoIds)) as unknown as Array<{
       github_repo_id: number
       owner: string
       name: string
       starred_at: string | null
-    }> = (userStarredRepos || [])
-      .map((row) => {
-        const repo = repoIdMap.get(row.repo_id)
-        if (!repo) return null
-        return {
-          ...repo,
-          starred_at: row.starred_at,
-        }
-      })
-      .filter(
-        (
-          row,
-        ): row is {
-          github_repo_id: number
-          owner: string
-          name: string
-          starred_at: string | null
-        } => row !== null,
-      )
+    }>
+
+    if (repos.length === 0) {
+      return NextResponse.json({})
+    }
 
     // Get star snapshots for traction calculation
     const ninetyDaysAgo = new Date()
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
 
-    const { data: snapshots, error: snapshotsError } = await supabase
-      .from("repo_star_snapshots")
-      .select("repo_github_id, star_count, snapshot_date")
-      .in("repo_github_id", repoIds)
-      .gte("snapshot_date", ninetyDaysAgo.toISOString().split("T")[0])
-      .order("snapshot_date", { ascending: true })
-
-    if (snapshotsError) {
-      throw snapshotsError
-    }
+    const snapshots = db
+      .prepare(
+        `select repo_github_id, star_count, snapshot_date from repo_star_snapshots
+         where repo_github_id in (select value from json_each(?)) and snapshot_date >= ?
+         order by snapshot_date asc`,
+      )
+      .all(toJson(repoIds), ninetyDaysAgo.toISOString().split("T")[0]) as unknown as Array<{
+      repo_github_id: number
+      star_count: number
+      snapshot_date: string
+    }>
 
     type StarVelocityLabel = "on-fire" | "heating-up" | "steady" | "cooling"
     interface StarVelocity {
@@ -139,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     // Group snapshots by repo
     const snapshotsByRepo = new Map<number, { count: number; date: string }[]>()
-    for (const snapshot of snapshots || []) {
+    for (const snapshot of snapshots) {
       if (!snapshotsByRepo.has(snapshot.repo_github_id)) {
         snapshotsByRepo.set(snapshot.repo_github_id, [])
       }

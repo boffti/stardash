@@ -5,7 +5,6 @@ import useSWR from "swr"
 import { FolderOpen, Layers3, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { createClient } from "@/lib/supabase/client"
 import type { Collection, Tag as TagType, UserMetadata } from "@/lib/types"
 import {
   createCollection,
@@ -14,7 +13,7 @@ import {
   deleteTag,
   updateCollection,
   updateTag,
-} from "@/lib/user-metadata"
+} from "@/lib/metadata-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -408,7 +407,6 @@ function TagEditor({
 
 export function SettingsPage() {
   const { user } = useUser()
-  const supabase = createClient()
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false)
   const [createTagOpen, setCreateTagOpen] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
@@ -459,7 +457,7 @@ export function SettingsPage() {
 
   const handleCreateCollection = async (name: string, emoji: string, color: string) => {
     try {
-      await createCollection(supabase, user.id, name, emoji, color)
+      await createCollection(name, emoji, color)
       await mutate()
       toast.success("Collection created")
     } catch (error) {
@@ -473,7 +471,7 @@ export function SettingsPage() {
 
   const handleCreateTag = async (label: string) => {
     try {
-      await createTag(supabase, user.id, label, TAG_PALETTE[0])
+      await createTag(label, TAG_PALETTE[0])
       await mutate()
       toast.success("Tag created")
     } catch (error) {
@@ -483,7 +481,7 @@ export function SettingsPage() {
     }
   }
 
-  const username = user.user_metadata?.user_name || user.user_metadata?.preferred_username || "User"
+  const username = user.login || "User"
 
   return (
     <>
@@ -690,13 +688,7 @@ export function SettingsPage() {
                                   onSave={async ({ name, emoji, color }) => {
                                     setBusyKey(saveKey)
                                     try {
-                                      await updateCollection(
-                                        supabase,
-                                        collection.id,
-                                        name,
-                                        emoji,
-                                        color,
-                                      )
+                                      await updateCollection(collection.id, name, emoji, color)
                                       await mutate()
                                       toast.success("Collection updated")
                                     } catch (error) {
@@ -714,7 +706,7 @@ export function SettingsPage() {
                                   onDelete={async () => {
                                     setBusyKey(deleteKey)
                                     try {
-                                      await deleteCollection(supabase, collection.id)
+                                      await deleteCollection(collection.id)
                                       await mutate()
                                       toast.success("Collection deleted")
                                     } catch {
@@ -757,7 +749,7 @@ export function SettingsPage() {
                                   onSave={async ({ label, color }) => {
                                     setBusyKey(saveKey)
                                     try {
-                                      await updateTag(supabase, tag.id, label, color)
+                                      await updateTag(tag.id, label, color)
                                       await mutate()
                                       toast.success("Tag updated")
                                     } catch (error) {
@@ -775,7 +767,7 @@ export function SettingsPage() {
                                   onDelete={async () => {
                                     setBusyKey(deleteKey)
                                     try {
-                                      await deleteTag(supabase, tag.id)
+                                      await deleteTag(tag.id)
                                       await mutate()
                                       toast.success("Tag deleted")
                                     } catch {
