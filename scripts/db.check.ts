@@ -99,3 +99,24 @@ for (const bad of ["//evil.com", "/\\evil.com", "/a b", "http://x", "", undefine
 }
 assert(safeNext("/radar?x=1") === "/radar?x=1", "safeNext keeps a same-origin path")
 console.log("session: ok")
+
+// API tokens: create once, verify by hash, revoke.
+const tokens = await import("../lib/api-tokens")
+const made = tokens.createApiToken(user, "check")
+assert(
+  made.token.startsWith("sd_") && tokens.verifyApiToken(made.token) === user,
+  "token verifies to owner",
+)
+assert(
+  tokens.verifyApiToken("sd_nope") === null && tokens.verifyApiToken(undefined) === null,
+  "bad tokens rejected",
+)
+assert(
+  tokens.listApiTokens(user).length === 1 && tokens.listApiTokens(user)[0].last_used_at,
+  "listed with last_used_at",
+)
+assert(
+  tokens.revokeApiToken(user, made.id) && tokens.verifyApiToken(made.token) === null,
+  "revoked token rejected",
+)
+console.log("tokens: ok")

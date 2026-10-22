@@ -190,6 +190,15 @@ create table if not exists meta (
   key text primary key,
   value text not null
 );
+
+create table if not exists api_tokens (
+  id text primary key default ${UUID},
+  user_id text not null,
+  name text not null,
+  token_hash text not null unique,
+  created_at text not null default ${NOW},
+  last_used_at text
+);
 `
 
 // Append-only. Each entry runs once, in order, when user_version is below its index + 1.

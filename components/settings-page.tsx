@@ -37,6 +37,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Separator } from "@/components/ui/separator"
 import { AIKeySettings } from "@/components/ai-key-settings"
+import { AgentTokens } from "@/components/agent-tokens"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/components/providers/user-provider"
 
@@ -523,6 +524,10 @@ export function SettingsPage() {
             <div className="flex w-full flex-col gap-6">
               <section className="space-y-3">
                 <AIKeySettings />
+              </section>
+              <Separator />
+              <section className="space-y-3">
+                <AgentTokens />
               </section>
               <Separator />
               <section className="space-y-3">

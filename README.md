@@ -447,6 +447,17 @@ Behind a reverse proxy, serve it over HTTPS; on plain HTTP (a LAN address) it wo
 
 **Run without Docker:** Node 22.5+ and pnpm, then `pnpm install && pnpm build && pnpm start`. Set `DATABASE_PATH` to a persistent file; it defaults to `./data/stardash.db`.
 
+## 🤖 Use StarDash from your AI agent (MCP)
+
+StarDash exposes an MCP server at `/api/mcp`, so Claude Code, Cursor or any MCP client can search your stars, organize them, read your Radar feed and star repos, using your own AI subscription instead of an API key.
+
+1. Settings → **Agents (MCP)** → New token. Copy the config it shows.
+2. Paste it into `.mcp.json` (Claude Code) or your client's MCP settings.
+
+Or from a shell: `node bin/stardash.mjs token claude-code` (inside Docker: `docker exec stardash node bin/stardash.mjs token claude-code`).
+
+Tools: `search_stars`, `get_repo`, `list_taxonomy`, `organize_repo`, `radar_feed`, `radar_action`, `star_repo`.
+
 ## 🗺️ Roadmap
 
 | Status         | Item                                                                   |

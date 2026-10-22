@@ -83,6 +83,8 @@ app/
 │   ├── cron/star-snapshots   # Daily snapshots (called by lib/scheduler.ts, or externally with CRON_SECRET)
 │   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (same scheduler)
 │   ├── health                # Container healthcheck
+│   ├── mcp                   # MCP server (mcp-handler, bearer tokens from api_tokens)
+│   ├── tokens                # Mint/list/revoke agent tokens (Settings → Agents)
 │   ├── radar/                # GET feed · action (dismiss/snooze/undo) · scan (user-triggered ingest)
 │   ├── search/repos|personalized|saved
 │   ├── ai/repo-intel|contribution-brief
@@ -126,6 +128,10 @@ Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-l
 Cooldown per user via `profiles.last_ai_categorization_at`. Weekly AI quotas are stubbed open in `lib/ai-weekly-limit.ts` (self-hosted build). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
 
 **AI schema rule:** no `.max()` on strings or arrays in `generateObject` schemas. OpenRouter-hosted models ignore JSON Schema `maxLength`/`maxItems`, and any overflow becomes a 500. State limits in `.describe()` text and clamp in code (`.transform()` or `.slice()`) instead. Numeric ranges like 0–100 are fine.
+
+### MCP and CLI
+
+`app/api/mcp/route.ts` wraps `lib/mcp-tools.ts` (pure functions of userId + args) with `mcp-handler` 1.x and `withMcpAuth`; tokens are verified by `lib/api-tokens.ts` (sha256 in `api_tokens`). `bin/stardash.mjs` mints/lists/revokes tokens directly against the SQLite file and prints client config; it hashes the same way, keep both in sync. Radar scoring for the route and the tool lives in `lib/radar-feed.ts`.
 
 ### Radar
 
