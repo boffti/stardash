@@ -44,8 +44,7 @@ export function manifestFor(origin: string) {
     name: `stardash-${host}-${randomBytes(2).toString("hex")}`.toLowerCase(),
     url: origin,
     description: "Your self-hosted StarDash instance. Created and owned by you.",
-    // GitHub validates hook_attributes.url even when the webhook is inactive.
-    hook_attributes: { url: `${origin}/api/webhooks/github`, active: false },
+    // No hook_attributes at all: GitHub rejects a localhost webhook URL even when inactive.
     redirect_url: `${origin}/api/auth/github/setup`,
     callback_urls: [`${origin}/api/auth/github/callback`],
     public: false,
