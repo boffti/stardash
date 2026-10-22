@@ -200,7 +200,7 @@ export async function POST(request: Request) {
 
     const result = await categorizeRepos(reposToCategorize, modelConfig.model, {
       providerOptions: getProviderOptions(modelConfig.provider),
-      // Reuse whatever taxonomy exists; categorizeRepos ignores it when both lists are empty.
+      // Reuse the existing taxonomy when both tags and collections exist (categorizeRepos checks); otherwise generate both.
       existingTaxonomy: { collections: existingCollections, tags: existingTags },
     })
 

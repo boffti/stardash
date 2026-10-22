@@ -1,7 +1,8 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
 import { db } from "@/lib/db"
+import { SESSION_COOKIE } from "@/lib/session-cookie"
 
-export { SESSION_COOKIE } from "@/lib/session-cookie"
+export { SESSION_COOKIE }
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30
 
 // ponytail: secret is minted once and kept in the db, so self-hosters set no env var.
@@ -15,24 +16,31 @@ function secret(): string {
   return secret()
 }
 
-const sign = (userId: string) => createHmac("sha256", secret()).update(userId).digest("hex")
+const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("hex")
 
-export const signSession = (userId: string) => `${userId}.${sign(userId)}`
-
-export function verifySession(value: string | undefined): string | null {
-  if (!value) return null
-  const dot = value.lastIndexOf(".")
-  if (dot <= 0) return null
-  const userId = value.slice(0, dot)
-  const given = Buffer.from(value.slice(dot + 1), "hex")
-  const expected = Buffer.from(sign(userId), "hex")
-  return given.length === expected.length && timingSafeEqual(given, expected) ? userId : null
+/** Cookie value: `<userId>.<expiresAtMs>.<hmac>`; the signature covers id and expiry. */
+export function signSession(userId: string, now = Date.now()) {
+  const payload = `${userId}.${now + SESSION_MAX_AGE * 1000}`
+  return `${payload}.${sign(payload)}`
 }
 
-export const sessionCookieOptions = {
+export function verifySession(value: string | undefined, now = Date.now()): string | null {
+  if (!value) return null
+  const [userId, exp, sig, extra] = value.split(".")
+  // Canonical hex only: Buffer.from() would silently truncate at the first non-hex char.
+  if (!userId || !/^\d+$/.test(exp) || !/^[0-9a-f]{64}$/.test(sig) || extra !== undefined)
+    return null
+  const given = Buffer.from(sig, "hex")
+  const expected = Buffer.from(sign(`${userId}.${exp}`), "hex")
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null
+  return Number(exp) > now ? userId : null
+}
+
+/** Secure only when the instance is actually served over https; LAN self-hosts on http must still log in. */
+export const sessionCookieOptions = (origin: string) => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: origin.startsWith("https://"),
   sameSite: "lax" as const,
   maxAge: SESSION_MAX_AGE,
   path: "/",
-}
+})

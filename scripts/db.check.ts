@@ -72,3 +72,30 @@ assert(meta.getUserRepoMetadata(user)[0].tag_ids.length === 0, "tag delete casca
 assert(meta.getUserRepoMetadata("someone-else").length === 0, "user scoping")
 
 console.log("db: ok")
+
+// Session cookie: signed, expiring, tamper-evident.
+const session = await import("../lib/session")
+const { safeNext } = await import("../lib/safe-next")
+const t0 = 1_700_000_000_000
+const cookie = session.signSession("42", t0)
+assert(session.verifySession(cookie, t0 + 1000) === "42", "valid session verifies")
+assert(
+  session.verifySession(cookie, t0 + session.SESSION_MAX_AGE * 1000 + 1) === null,
+  "expired session rejected",
+)
+assert(session.verifySession(cookie.replace("42.", "43."), t0) === null, "tampered id rejected")
+assert(session.verifySession(cookie + "x", t0) === null, "tampered signature rejected")
+assert(session.verifySession("42.deadbeef", t0) === null, "malformed cookie rejected")
+assert(
+  session.sessionCookieOptions("http://nas.local:3000").secure === false,
+  "http origin: not Secure",
+)
+assert(
+  session.sessionCookieOptions("https://stars.example.com").secure === true,
+  "https origin: Secure",
+)
+for (const bad of ["//evil.com", "/\\evil.com", "/a b", "http://x", "", undefined]) {
+  assert(safeNext(bad) === "/dashboard", `safeNext rejects ${JSON.stringify(bad)}`)
+}
+assert(safeNext("/radar?x=1") === "/radar?x=1", "safeNext keeps a same-origin path")
+console.log("session: ok")

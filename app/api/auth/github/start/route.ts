@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { appUrl, getGitHubApp, newState } from "@/lib/github-app"
+import { safeNext } from "@/lib/safe-next"
 
 export const OAUTH_STATE_COOKIE = "sd_oauth_state"
 
@@ -9,8 +10,8 @@ export async function GET(request: Request) {
   const app = getGitHubApp()
   if (!app) return NextResponse.redirect(`${origin}/api/auth/github/setup`)
 
-  const next = new URL(request.url).searchParams.get("next") ?? "/dashboard"
-  const state = `${newState()}:${next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard"}`
+  const next = safeNext(new URL(request.url).searchParams.get("next"))
+  const state = `${newState()}:${next}`
   const cookieStore = await cookies()
   cookieStore.set(OAUTH_STATE_COOKIE, state, {
     httpOnly: true,

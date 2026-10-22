@@ -4,11 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { PatLoginForm } from "@/components/pat-login-form"
 import { getGitHubApp } from "@/lib/github-app"
+import { safeNext } from "@/lib/safe-next"
 
 const ERRORS: Record<string, string> = {
   state: "That sign-in link expired. Try again.",
   manifest: "GitHub did not finish creating the app. Try again.",
   access_denied: "You cancelled the GitHub authorization.",
+  owner: "This instance already has an owner. Sign in with their token first to connect GitHub.",
 }
 
 export default async function LoginPage({
@@ -17,8 +19,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; error?: string }>
 }) {
   const { next: rawNext, error } = await searchParams
-  const next =
-    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard"
+  const next = safeNext(rawNext)
   const configured = Boolean(getGitHubApp())
   const connectHref = `/api/auth/github/${configured ? "start" : "setup"}?next=${encodeURIComponent(next)}`
 

@@ -22,6 +22,7 @@ const plusSeconds = (s?: number) => (s ? new Date(Date.now() + s * 1000).toISOSt
  * enforce single ownership, store the grant, set the session cookie.
  */
 export async function signInWithGitHubToken(
+  origin: string,
   grant: TokenGrant,
 ): Promise<{ ok: true; login: string } | { ok: false; error: string; status: number }> {
   const res = await fetch("https://api.github.com/user", {
@@ -62,6 +63,6 @@ export async function signInWithGitHubToken(
   )
 
   const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, signSession(githubId), sessionCookieOptions)
+  cookieStore.set(SESSION_COOKIE, signSession(githubId), sessionCookieOptions(origin))
   return { ok: true, login: gh.login }
 }

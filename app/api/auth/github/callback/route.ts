@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { appUrl, exchangeCode } from "@/lib/github-app"
 import { signInWithGitHubToken } from "@/lib/github-login"
+import { safeNext } from "@/lib/safe-next"
 import { OAUTH_STATE_COOKIE } from "../start/route"
 
 export async function GET(request: Request) {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     )
   }
 
-  const result = await signInWithGitHubToken({
+  const result = await signInWithGitHubToken(origin, {
     token: grant.access_token,
     expiresIn: grant.expires_in,
     refreshToken: grant.refresh_token,
@@ -33,5 +34,5 @@ export async function GET(request: Request) {
   if (!result.ok) {
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(result.error)}`)
   }
-  return NextResponse.redirect(`${origin}${state.slice(state.indexOf(":") + 1)}`)
+  return NextResponse.redirect(`${origin}${safeNext(state.slice(state.indexOf(":") + 1))}`)
 }

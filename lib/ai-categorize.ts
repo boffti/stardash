@@ -52,7 +52,9 @@ const TaxonomySchema = z.object({
         .string()
         .describe(
           'Human-readable name, max 22 characters e.g. "AI & ML", "Frontend", "CLI Tools", "DevOps"',
-        ),
+        )
+        // Clamped to what ensureCollections() stores, so assignment lookups by name keep matching.
+        .transform((name) => name.trim().slice(0, 50)),
       emoji: z.string().describe("Single emoji representing the collection"),
     }),
   ),
