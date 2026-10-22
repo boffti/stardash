@@ -186,7 +186,7 @@ export function TrendingDashboard() {
               </div>
 
               {trendingAnalysis.topLanguages.length > 0 && (
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/60 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Top languages:</span>
                     <div className="flex flex-wrap items-center gap-1">

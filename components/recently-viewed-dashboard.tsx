@@ -196,7 +196,7 @@ export function RecentlyViewedDashboard() {
           </section>
 
           {recentRepos.length === 0 ? (
-            <Empty className="rounded-2xl border border-dashed border-border/70 py-16">
+            <Empty className="rounded-xl border border-dashed border-border/70 py-16">
               <EmptyMedia variant="icon">
                 <History className="h-10 w-10" />
               </EmptyMedia>

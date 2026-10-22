@@ -159,6 +159,12 @@ shadcn/ui (new-york) in `components/ui/` · Tailwind CSS v4 (`app/globals.css`) 
 
 Custom components: `bento-grid`, `border-beam`, `marquee`, `particles`, `shine-border`, `spinner`, `kbd`, `button-group`, `chart`.
 
+**Radius rule:** `rounded-md` for inputs, selects and small controls; `rounded-lg` for cards and list rows; `rounded-xl` for page-level panels, empty states and header controls; `rounded-full` for avatars, pills and icon buttons. Nothing larger than `xl`; `rounded-none` only for the cmdk reset inside dialogs.
+
+**Motion rule:** decorative animation (particles, marquee, border beam, shine) must degrade to static under `prefers-reduced-motion`. CSS animations are covered globally in `globals.css`; framer-motion through `MotionProvider` in the root layout; canvas loops check `matchMedia` themselves.
+
+**Copy rule:** no em-dashes in UI strings. Use a period or a comma.
+
 ### Observability
 
 **Sentry:** `sentry.{client,server,edge}.config.ts` + `instrumentation.ts`. Call `Sentry.captureException(err)` in API route catch blocks.

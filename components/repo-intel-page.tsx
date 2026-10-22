@@ -992,7 +992,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
             {!isLoading && intelData?.limitReached && (
               <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                Weekly AI limit reached — showing cached analysis.
+                Weekly AI limit reached. Showing cached analysis.
               </div>
             )}
 

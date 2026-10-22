@@ -14,7 +14,7 @@ export function TrendingEmptyState({ currentCount, requiredCount }: TrendingEmpt
 
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-6">
+      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-muted mb-6">
         <TrendingUp className="h-8 w-8 text-muted-foreground" />
       </div>
       <h2 className="text-xl font-semibold mb-2">Need More Stars</h2>

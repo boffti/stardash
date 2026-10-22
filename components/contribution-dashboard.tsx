@@ -286,7 +286,7 @@ function EmptyOpportunities({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20">
+      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20">
         <Search className="h-7 w-7 text-muted-foreground/50" />
       </div>
       <div className="flex max-w-md flex-col gap-2">
@@ -745,7 +745,7 @@ export function ContributionDashboard() {
         : "Generate AI brief"
   const cachedRepoOnlyMessage =
     opportunities.length > 0
-      ? "Your GitHub session has expired. Showing cached data — live sync is unavailable."
+      ? "Your GitHub session has expired. Showing cached data. Live sync is unavailable."
       : "Your GitHub session has expired. Starred repos are cached, but contribution scans need a live GitHub token."
 
   return (
@@ -930,12 +930,9 @@ export function ContributionDashboard() {
         <main className="flex-1 p-6">
           <section className="mb-8 space-y-4">
             <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Turn starred repos into open-source work
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Contribute</h1>
               <p className="text-sm text-muted-foreground">
-                Contribution opportunities. Ranked open issues from repositories you already care
-                about, filtered by stack, difficulty, and contribution style.
+                Open issues from repos you already starred, ranked by fit.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -999,7 +996,7 @@ export function ContributionDashboard() {
           {scanCooldownSeconds !== null && !opportunityError && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
               <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-              Showing cached results — next scan available in {Math.ceil(
+              Showing cached results. Next scan available in {Math.ceil(
                 scanCooldownSeconds / 60,
               )}{" "}
               min.

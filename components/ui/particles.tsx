@@ -286,7 +286,10 @@ export const Particles: React.FC<ParticlesProps> = ({
         drawCircle(newCircle)
       }
     })
-    rafID.current = window.requestAnimationFrame(animateRef.current)
+    // One static frame under reduced motion; no loop.
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      rafID.current = window.requestAnimationFrame(animateRef.current)
+    }
   }
 
   // eslint-disable-next-line react-hooks/refs

@@ -1062,7 +1062,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
             {repo.archived && (
               <div className="flex items-center gap-2 px-5 py-2 bg-orange-500/10 border-b border-orange-500/20 text-orange-400 text-xs">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                Archived — no longer actively maintained.
+                Archived. No longer actively maintained.
               </div>
             )}
             <div className="px-5 pt-4 pb-0">

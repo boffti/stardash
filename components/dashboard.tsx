@@ -1162,7 +1162,7 @@ export function Dashboard() {
                 {/* Empty State — no repos at all */}
                 {repos.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-32 gap-6">
-                    <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
+                    <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-muted">
                       <Star className="h-9 w-9 text-muted-foreground/50" />
                     </div>
                     <div className="text-center space-y-1.5">
