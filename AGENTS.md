@@ -40,7 +40,7 @@ Use **`auggie` MCP** (`mcp__auggie__codebase-retrieval`) as the primary search t
 
 ### Database & Auth
 
-The database is a local SQLite file via `node:sqlite` (no ORM). The whole schema lives in `lib/db.ts`; additive changes go in its `MIGRATIONS` array. Auth is a paste-a-PAT login (`app/api/auth/login/route.ts`) with an HMAC-signed cookie (`lib/session.ts`). Never guess at schema shape: read `lib/db.ts`.
+The database is a local SQLite file via `node:sqlite` (no ORM). The whole schema lives in `lib/db.ts`; additive changes go in its `MIGRATIONS` array. Auth is GitHub sign-in through a GitHub App the instance creates for itself (manifest flow, `app/api/auth/github/*`), with paste-a-PAT as fallback (`app/api/auth/login/route.ts`), and an HMAC-signed cookie (`lib/session.ts`). Never guess at schema shape: read `lib/db.ts`.
 
 ### Deployment
 
@@ -57,7 +57,7 @@ Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime
 
 **StarDash** is a Next.js 16 (App Router) dashboard for organizing GitHub starred repositories.
 
-**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · SQLite via `node:sqlite` (data) + PAT login with signed cookie (auth) · Vercel AI SDK 6 + OpenRouter (Gemini 2.0 Flash) · Langfuse + Sentry · Recharts + dnd-kit
+**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · SQLite via `node:sqlite` (data) + self-created GitHub App OAuth or PAT, signed cookie (auth) · Vercel AI SDK 6 + OpenRouter (Gemini 2.0 Flash) · Langfuse + Sentry · Recharts + dnd-kit
 
 ### App Router Structure
 
@@ -73,10 +73,10 @@ app/
 │   ├── contribute/           # Good-first-issue discovery
 │   └── recently-viewed/
 ├── auth/
-│   ├── login/                # GitHub OAuth entry
-│   ├── callback/route.ts     # OAuth code exchange + token storage
+│   ├── login/                # Connect GitHub (manifest flow) or paste a PAT
 │   └── error/
 ├── api/
+│   ├── auth/github/setup|start|callback · auth/login
 │   ├── github/starred|readme|star|health
 │   ├── ai/categorize/        # Two-phase AI taxonomy + classification
 │   ├── user/metadata|repo-id
@@ -91,14 +91,19 @@ app/
 
 ### Auth Flow
 
-Single-owner, paste-a-PAT. `POST /api/auth/login` validates the token against GitHub `/user`, stores the owner in `profiles` (token in `profiles.github_token`), and sets the `sd_session` cookie (`<userId>.<hmac>`, secret minted once into the `meta` table). The first token ever seen claims the instance; later logins must be the same GitHub user.
+Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-login.ts`: look up `/user`, enforce that the first GitHub user to sign in owns the instance, store the grant in `profiles`, set the `sd_session` cookie `<userId>.<hmac>` whose secret is minted once into `meta`).
+
+1. **Connect GitHub (default).** `GET /api/auth/github/setup` posts a GitHub App manifest to github.com; the self-hoster clicks "Create GitHub App" and GitHub redirects back with a code that `setup` converts into `client_id`/`client_secret`, stored in `meta` (`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` env override this). `GET /api/auth/github/start` then runs normal OAuth to `/api/auth/github/callback`. App user tokens expire in 8h; `lib/tokens.ts` refreshes them with the stored refresh token. Callback URLs are pinned to the instance origin (`appUrl()`: `APP_URL` env, else forwarded headers).
+2. **Paste a PAT (fallback).** `POST /api/auth/login`. Non-expiring token, no app needed. For GitHub Enterprise and headless setups.
 
 **Key files:**
 
 - `lib/db.ts` — `db` singleton, schema, `nowIso`/`toJson`/`fromJson`
 - `lib/session.ts` — cookie signing/verification; `lib/session-cookie.ts` holds only the cookie name (importable from middleware)
 - `lib/auth.ts` — `getUser()` → `{ id, login, avatarUrl } | null`, `requireAuth()`, `signOut()`, `reauthenticate()` (server actions)
-- `lib/tokens.ts` — `getValidGitHubToken(userId?)` (owner's PAT), `getAnyValidGitHubToken()` (`GITHUB_PAT` env, else first stored token)
+- `lib/github-app.ts` — app credentials (env or `meta`), manifest, OAuth code exchange and refresh
+- `lib/github-login.ts` — `signInWithGitHubToken()`, shared by both login paths
+- `lib/tokens.ts` — `getValidGitHubToken(userId?)` (stored token, auto-refreshed), `getAnyValidGitHubToken()` (`GITHUB_PAT` env, else the owner's)
 - `lib/metadata-actions.ts` — `"use server"` wrappers client components call for tag/collection/status mutations
 - `middleware.ts` — cookie presence check + redirects only (HMAC verified in `getUser()`)
 
@@ -127,20 +132,20 @@ Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub
 
 ### Database Schema
 
-| Table                                     | Purpose                                                    |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| `profiles`                                | Owner identity, GitHub PAT, sync timestamps                |
-| `repos`                                   | Repo catalog (one row per GitHub repo)                     |
-| `user_starred_repos`                      | Per-user: status, notes, pinned                            |
-| `tags` / `collections`                    | User-owned taxonomy                                        |
-| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                     |
-| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates) |
-| `radar_candidates`                        | Pool of new/rising repos                                   |
-| `radar_signals`                           | Per-user: people you follow starred repo X                 |
-| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred             |
-| `discover_searches`                       | Cached Discover search results per user                    |
-| `repo_insights`                           | AI repo intel cache (7d)                                   |
-| `meta`                                    | Key/value: the session-signing secret                      |
+| Table                                     | Purpose                                                       |
+| ----------------------------------------- | ------------------------------------------------------------- |
+| `profiles`                                | Owner identity, GitHub token + refresh token, sync timestamps |
+| `repos`                                   | Repo catalog (one row per GitHub repo)                        |
+| `user_starred_repos`                      | Per-user: status, notes, pinned                               |
+| `tags` / `collections`                    | User-owned taxonomy                                           |
+| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                        |
+| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)    |
+| `radar_candidates`                        | Pool of new/rising repos                                      |
+| `radar_signals`                           | Per-user: people you follow starred repo X                    |
+| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred                |
+| `discover_searches`                       | Cached Discover search results per user                       |
+| `repo_insights`                           | AI repo intel cache (7d)                                      |
+| `meta`                                    | Key/value: session secret, GitHub App client id/secret        |
 
 **Scoping:** there is no RLS. Every query on a per-user table carries `where user_id = ?`. Postgres arrays/jsonb became JSON text (`topics`, `sources`, `results`, `pipeline_events`, `metrics`, `top_pain_points`), booleans are 0/1, timestamps are ISO strings.
 
@@ -165,7 +170,9 @@ DATABASE_PATH                   # SQLite file, default ./data/stardash.db
 
 OPENROUTER_API_KEY
 CRON_SECRET                     # Bearer token for /api/cron/* routes
-GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's PAT
+GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token
+GITHUB_CLIENT_ID / _SECRET      # Optional: use a pre-made GitHub App instead of the manifest flow
+APP_URL                         # Optional: public origin when proxy headers are missing
 
 NEXT_PUBLIC_SENTRY_DSN
 SENTRY_ORG
