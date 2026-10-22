@@ -57,7 +57,7 @@ Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime
 
 **StarDash** is a Next.js 16 (App Router) dashboard for organizing GitHub starred repositories.
 
-**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · SQLite via `node:sqlite` (data) + self-created GitHub App OAuth or PAT, signed cookie (auth) · Vercel AI SDK 6 + OpenRouter (Gemini 2.0 Flash) · Langfuse + Sentry · Recharts + dnd-kit
+**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · SQLite via `node:sqlite` (data) + self-created GitHub App OAuth or PAT, signed cookie (auth) · Vercel AI SDK 6 + OpenRouter (cheap default model, `AI_MODEL` env) · Langfuse + Sentry · Recharts + dnd-kit
 
 ### App Router Structure
 
@@ -117,7 +117,7 @@ Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-l
 
 ### AI Categorization
 
-`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter + `google/gemini-3-flash-preview` (see `lib/ai-provider.ts`; users may bring OpenAI/Anthropic keys) via Vercel AI SDK `generateObject()`.
+`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter, default model in `lib/ai-provider.ts` (`AI_MODEL` env overrides; users may bring OpenAI/Anthropic keys via Settings, sent as `x-ai-key`/`x-ai-provider` headers) via Vercel AI SDK `generateObject()`.
 
 1. **Taxonomy** — up to 500 repo summaries → 5–12 collections + 15–25 tags
 2. **Classification** — batches of 100 → 1–3 collections + 1–3 tags per repo
@@ -169,6 +169,7 @@ Custom components: `bento-grid`, `border-beam`, `marquee`, `particles`, `shine-b
 DATABASE_PATH                   # SQLite file, default ./data/stardash.db
 
 OPENROUTER_API_KEY
+AI_MODEL                        # Optional OpenRouter model id override
 CRON_SECRET                     # Bearer token for /api/cron/* routes
 GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token
 GITHUB_CLIENT_ID / _SECRET      # Optional: use a pre-made GitHub App instead of the manifest flow

@@ -5,10 +5,12 @@ import type { LanguageModel } from "ai"
 
 export type AIProvider = "openrouter" | "openai" | "anthropic"
 
+// Cheap, decent, good at structured output. A full categorize run over 500 repos
+// is a few cents on any of these. AI_MODEL overrides the OpenRouter default.
 const DEFAULT_MODELS: Record<AIProvider, string> = {
-  openrouter: "google/gemini-2.0-flash-001",
-  openai: "gpt-4o-mini",
-  anthropic: "claude-haiku-4-5-20251001",
+  openrouter: process.env.AI_MODEL || "anthropic/claude-haiku-5.5",
+  openai: "gpt-5-mini",
+  anthropic: "claude-haiku-5-5",
 }
 
 export interface AIModelConfig {

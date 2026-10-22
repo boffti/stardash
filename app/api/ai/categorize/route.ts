@@ -200,9 +200,8 @@ export async function POST(request: Request) {
 
     const result = await categorizeRepos(reposToCategorize, modelConfig.model, {
       providerOptions: getProviderOptions(modelConfig.provider),
-      existingTaxonomy: slotReservation?.previousLastCategorizedAt
-        ? { collections: existingCollections, tags: existingTags }
-        : undefined,
+      // Reuse whatever taxonomy exists; categorizeRepos ignores it when both lists are empty.
+      existingTaxonomy: { collections: existingCollections, tags: existingTags },
     })
 
     const persistedTags = ensureTags(user.id, result.allTags)
