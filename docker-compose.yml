@@ -1,24 +1,20 @@
 name: stardash
 
 services:
-  app:
-    build: .
+  stardash:
+    image: ghcr.io/boffti/stardash:latest
+    # To build from source instead: comment `image`, uncomment `build`.
+    # build: .
     ports:
       - "3000:3000"
-    env_file:
-      - .env.local
-    restart: unless-stopped
-    depends_on:
-      cron:
-        condition: service_started
-
-  # Runs the star-snapshot cron job once per day at 02:00 UTC.
-  # Uses mcuadros/ofelia as a lightweight cron scheduler.
-  cron:
-    image: mcuadros/ofelia:latest
-    depends_on:
-      - app
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./docker/ofelia.ini:/etc/ofelia/config.ini:ro
+      - stardash-data:/data
+    environment:
+      # Optional. Enables the in-app AI features (categorize, intel, briefs, Discover).
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # Optional. Public origin if a reverse proxy does not send X-Forwarded-Host/Proto.
+      APP_URL: ${APP_URL:-}
     restart: unless-stopped
+
+volumes:
+  stardash-data:

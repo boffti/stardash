@@ -1,2 +1,0 @@
--- Token columns were removed in favour of httpOnly cookies (see 014).
--- This migration is intentionally a no-op stub.

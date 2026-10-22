@@ -44,7 +44,7 @@ The database is a local SQLite file via `node:sqlite` (no ORM). The whole schema
 
 ### Deployment
 
-StarDash is a single-container app (SQLite on disk) and is not deployed on Vercel; `vercel.json` only carries `ignoreCommand: exit 0` so the connected Vercel project skips every build. Container image and hosted demo come in Phase 3 (see `ROADMAP.md`).
+Single container: `Dockerfile` (node:24-slim, Next standalone, SQLite on the `/data` volume), published to `ghcr.io/boffti/stardash` by `.github/workflows/docker.yml` on pushes to main and `v*` tags. `docker-compose.yml` is one service. Nightly jobs run in-process from `lib/scheduler.ts` (started in `instrumentation.ts`, production only unless `SCHEDULER=1`); the cron routes accept `CRON_SECRET` or the per-process secret from `lib/cron-auth.ts`. Not deployed on Vercel; `vercel.json` only carries `ignoreCommand: exit 0`.
 
 ### Observability
 
@@ -80,8 +80,9 @@ app/
 │   ├── github/starred|readme|star|health
 │   ├── ai/categorize/        # Two-phase AI taxonomy + classification
 │   ├── user/metadata|repo-id
-│   ├── cron/star-snapshots   # Daily snapshots (Vercel cron @ 2AM UTC)
-│   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (@ 2:30AM UTC, needs GITHUB_PAT)
+│   ├── cron/star-snapshots   # Daily snapshots (called by lib/scheduler.ts, or externally with CRON_SECRET)
+│   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (same scheduler)
+│   ├── health                # Container healthcheck
 │   ├── radar/                # GET feed · action (dismiss/snooze/undo) · scan (user-triggered ingest)
 │   ├── search/repos|personalized|saved
 │   ├── ai/repo-intel|contribution-brief
@@ -178,7 +179,7 @@ DATABASE_PATH                   # SQLite file, default ./data/stardash.db
 
 OPENROUTER_API_KEY
 AI_MODEL                        # Optional OpenRouter model id override
-CRON_SECRET                     # Bearer token for /api/cron/* routes
+CRON_SECRET                     # Optional: lets an external scheduler call /api/cron/*; DISABLE_SCHEDULER turns in-process jobs off
 GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token
 GITHUB_CLIENT_ID / _SECRET      # Optional: use a pre-made GitHub App instead of the manifest flow
 APP_URL                         # Optional: public origin when proxy headers are missing

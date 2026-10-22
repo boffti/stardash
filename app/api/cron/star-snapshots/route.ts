@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { fetchRepoStarCount } from "@/lib/github"
 import { getAnyValidGitHubToken } from "@/lib/tokens"
+import { isCronAuthorized } from "@/lib/cron-auth"
 
 // This route is called by Vercel Cron to snapshot star counts daily
 // It processes repos in batches to avoid rate limits
@@ -17,18 +18,7 @@ const upsertSnapshot = db.prepare(
 )
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret to prevent unauthorized access
-  const authHeader = request.headers.get("authorization")
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!cronSecret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET environment variable is required" },
-      { status: 500 },
-    )
-  }
-
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

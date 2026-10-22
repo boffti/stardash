@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 import { db } from "@/lib/db"
 import { getAnyValidGitHubToken } from "@/lib/tokens"
+import { isCronAuthorized } from "@/lib/cron-auth"
 import { ingestRadar } from "@/lib/radar-ingest"
 import { RADAR_ENABLED } from "@/lib/flags"
 
@@ -10,14 +11,7 @@ export const maxDuration = 300
 
 export async function GET(request: NextRequest) {
   if (!RADAR_ENABLED) return NextResponse.json({ skipped: true, reason: "RADAR_ENABLED is off" })
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET environment variable is required" },
-      { status: 500 },
-    )
-  }
-  if (request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
