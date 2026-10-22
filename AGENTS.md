@@ -76,7 +76,7 @@ app/
 │   ├── login/                # Connect GitHub (manifest flow) or paste a PAT
 │   └── error/
 ├── api/
-│   ├── auth/github/setup|start|callback · auth/login
+│   ├── auth/github/setup|setup/callback|start|callback · auth/login
 │   ├── github/starred|readme|star|health
 │   ├── ai/categorize/        # Two-phase AI taxonomy + classification
 │   ├── user/metadata|repo-id
@@ -93,7 +93,7 @@ app/
 
 Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-login.ts`: look up `/user`, enforce that the first GitHub user to sign in owns the instance, store the grant in `profiles`, set the `sd_session` cookie `<userId>.<hmac>` whose secret is minted once into `meta`).
 
-1. **Connect GitHub (default).** `GET /api/auth/github/setup` posts a GitHub App manifest to github.com; the self-hoster clicks "Create GitHub App" and GitHub redirects back with a code that `setup` converts into `client_id`/`client_secret`, stored in `meta` (`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` env override this). `GET /api/auth/github/start` then runs normal OAuth to `/api/auth/github/callback`. App user tokens expire in 8h; `lib/tokens.ts` refreshes them with the stored refresh token. Callback URLs are pinned to the instance origin (`appUrl()`: `APP_URL` env, else forwarded headers).
+1. **Connect GitHub (default).** `GET /api/auth/github/setup` posts a GitHub App manifest to github.com; the self-hoster clicks "Create GitHub App" and GitHub redirects back to `/api/auth/github/setup/callback` with a code that is converted into `client_id`/`client_secret`, stored in `meta` (`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` env override this). `GET /api/auth/github/start` then runs normal OAuth to `/api/auth/github/callback`. App user tokens expire in 8h; `lib/tokens.ts` refreshes them with the stored refresh token. Callback URLs are pinned to the instance origin (`appUrl()`: `APP_URL` env, else forwarded headers).
 2. **Paste a PAT (fallback).** `POST /api/auth/login`. Non-expiring token, no app needed. For GitHub Enterprise and headless setups.
 
 **Key files:**

@@ -37,6 +37,32 @@ export function appUrl(request: Request): string {
 
 export const newState = () => randomBytes(16).toString("hex")
 
+export const hasOwner = () => Boolean(db.prepare("select 1 from profiles limit 1").get())
+
+const STATE_TTL_MS = 10 * 60 * 1000
+
+// Pending manifest states live server-side in `meta` (one-time, 10 min). The callback
+// is authorized by the existence of that row, not by comparing request values.
+export function issueSetupState() {
+  const state = newState()
+  db.prepare("delete from meta where key like 'setup_state:%' and cast(value as integer) < ?").run(
+    Date.now(),
+  )
+  db.prepare("insert into meta (key, value) values (?, ?)").run(
+    `setup_state:${state}`,
+    String(Date.now() + STATE_TTL_MS),
+  )
+  return state
+}
+
+export function consumeSetupState(state: string | null): boolean {
+  if (!state || !/^[0-9a-f]{32}$/.test(state)) return false
+  const row = db.prepare("select value from meta where key = ?").get(`setup_state:${state}`) as
+    { value: string } | undefined
+  db.prepare("delete from meta where key = ?").run(`setup_state:${state}`)
+  return Boolean(row) && Number(row!.value) > Date.now()
+}
+
 export function manifestFor(origin: string) {
   const host = new URL(origin).hostname.replace(/[^a-z0-9]+/gi, "-").slice(0, 20)
   return {
@@ -45,7 +71,7 @@ export function manifestFor(origin: string) {
     url: origin,
     description: "Your self-hosted StarDash instance. Created and owned by you.",
     // No hook_attributes at all: GitHub rejects a localhost webhook URL even when inactive.
-    redirect_url: `${origin}/api/auth/github/setup`,
+    redirect_url: `${origin}/api/auth/github/setup/callback`,
     callback_urls: [`${origin}/api/auth/github/callback`],
     public: false,
     default_permissions: { metadata: "read", starring: "write" },
