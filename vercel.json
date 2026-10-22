@@ -1,12 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/star-snapshots",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/radar-ingest",
-      "schedule": "30 2 * * *"
-    }
-  ]
+  "$comment": "StarDash is a single-container app (SQLite on disk) and is not deployed on Vercel. Exit 0 tells Vercel to skip every build.",
+  "ignoreCommand": "exit 0"
 }
