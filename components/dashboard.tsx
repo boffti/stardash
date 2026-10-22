@@ -62,6 +62,7 @@ import type {
   Tag,
 } from "@/lib/types"
 import { toast } from "sonner"
+import { formatWhen } from "@/lib/utils"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { useUser } from "@/components/providers/user-provider"
 import { useStarredRepos } from "@/lib/use-starred-repos"
@@ -563,7 +564,7 @@ export function Dashboard() {
       if (response.status === 429) {
         const result = await response.json()
         setCategorizeLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
-        toast.error(result.error ?? "AI categorization limit reached")
+        toast.info(`AI categorize runs once a week. Next run ${formatWhen(result.nextAllowedAt)}.`)
         return
       }
       const result = await response.json()

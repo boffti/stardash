@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatWhen } from "@/lib/utils"
 
 const UserMenu = dynamic(() => import("@/components/user-menu").then((module) => module.UserMenu), {
   ssr: false,
@@ -75,14 +76,14 @@ export function AppPageHeader({
   return (
     <>
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
           <SidebarTrigger className="-ml-1 shrink-0" />
 
           {hasSearch && (
             <button
               type="button"
               onClick={onOpenCommandPalette}
-              className="hidden h-9 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
+              className="hidden h-9 min-w-0 flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
               aria-label="Open command palette"
             >
               <Search className="h-4 w-4 shrink-0" />
@@ -95,13 +96,13 @@ export function AppPageHeader({
           )}
 
           {desktopControls && (
-            <div className="hidden md:flex items-center gap-3">{desktopControls}</div>
+            <div className="hidden xl:flex items-center gap-3">{desktopControls}</div>
           )}
 
           {hasMobileControls && (
             <button
               type="button"
-              className="md:hidden inline-flex h-8 w-8 items-center justify-center rounded bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0"
+              className="xl:hidden inline-flex h-8 w-8 items-center justify-center rounded bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0"
               onClick={() => setMobileControlsOpen((open) => !open)}
               aria-label="Toggle filters"
               title="Filters"
@@ -123,7 +124,7 @@ export function AppPageHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
           {actions}
           {!hideNavActions && (
             <>
@@ -132,7 +133,7 @@ export function AppPageHeader({
                 const categorizeTooltip = isCategorizing
                   ? "Analyzing…"
                   : isCategorizeLimited && categorizeLimit?.nextAllowedAt
-                    ? `Used this week. Resets ${new Date(categorizeLimit.nextAllowedAt).toLocaleDateString()}`
+                    ? `Runs once a week. Next run ${formatWhen(categorizeLimit.nextAllowedAt)}`
                     : "AI categorize"
                 return (
                   <Tooltip>
@@ -177,11 +178,13 @@ export function AppPageHeader({
         <div
           className={
             mobileControlsOpen
-              ? "block md:hidden border-b border-border bg-background/95"
-              : "hidden md:hidden"
+              ? "block xl:hidden border-b border-border bg-background/95"
+              : "hidden"
           }
         >
-          <div className="flex items-center gap-3 px-4 py-2">{mobileControls}</div>
+          <div className="flex flex-wrap items-center gap-3 px-4 py-2 [&>*]:min-w-[10rem] [&>*]:flex-1">
+            {mobileControls}
+          </div>
         </div>
       )}
     </>

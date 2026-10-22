@@ -1181,7 +1181,7 @@ export function IntelDashboard() {
                 <StatPill
                   icon={Activity}
                   value={avgScore}
-                  label="Avg health score"
+                  label="Avg health"
                   colorClass={cn(
                     avgScore >= 70
                       ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
