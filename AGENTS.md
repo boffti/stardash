@@ -124,6 +124,8 @@ Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-l
 
 Cooldown per user via `profiles.last_ai_categorization_at`. Weekly AI quotas are stubbed open in `lib/ai-weekly-limit.ts` (self-hosted build). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
 
+**AI schema rule:** no `.max()` on strings or arrays in `generateObject` schemas. OpenRouter-hosted models ignore JSON Schema `maxLength`/`maxItems`, and any overflow becomes a 500. State limits in `.describe()` text and clamp in code (`.transform()` or `.slice()`) instead. Numeric ranges like 0–100 are fine.
+
 ### Radar
 
 Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub search (`created:>7d stars:>50`, `created:>30d stars:>300`), Hacker News stories linking to GitHub (Algolia API), and each user's `received_events` (WatchEvents = stars by people they follow). Candidates land in `radar_candidates` (global) with a same-day row in `repo_star_snapshots` so velocity works without a second job.

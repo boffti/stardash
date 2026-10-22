@@ -50,7 +50,6 @@ const TaxonomySchema = z.object({
       id: z.string().describe('URL-safe slug e.g. "ai-ml-tools"'),
       name: z
         .string()
-        .max(22)
         .describe(
           'Human-readable name, max 22 characters e.g. "AI & ML", "Frontend", "CLI Tools", "DevOps"',
         ),
