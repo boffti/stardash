@@ -34,13 +34,7 @@ const RepoIntelSchema = z.object({
         "deprecated: project is winding down",
     ),
   topPainPoints: z
-    .array(
-      z
-        .string()
-        .max(160)
-        .transform((s) => s.slice(0, 160)),
-    )
-    .max(3)
+    .array(z.string().transform((s) => s.slice(0, 160)))
     .describe(
       "Up to 3 short pain points inferred from open issue titles. " +
         "Each should be a plain-English sentence under 120 characters. " +

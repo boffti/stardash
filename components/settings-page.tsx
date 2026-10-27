@@ -5,7 +5,6 @@ import useSWR from "swr"
 import { FolderOpen, Layers3, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { createClient } from "@/lib/supabase/client"
 import type { Collection, Tag as TagType, UserMetadata } from "@/lib/types"
 import {
   createCollection,
@@ -14,7 +13,7 @@ import {
   deleteTag,
   updateCollection,
   updateTag,
-} from "@/lib/user-metadata"
+} from "@/lib/metadata-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +37,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Separator } from "@/components/ui/separator"
 import { AIKeySettings } from "@/components/ai-key-settings"
+import { AgentTokens } from "@/components/agent-tokens"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/components/providers/user-provider"
 
@@ -76,7 +76,7 @@ function EmptyState({
   return (
     <Card className="border-dashed border-border/60 bg-muted/20">
       <CardContent className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-background/80 shadow-sm">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/70 bg-background/80 shadow-sm">
           {icon}
         </div>
         <div className="space-y-1">
@@ -408,7 +408,6 @@ function TagEditor({
 
 export function SettingsPage() {
   const { user } = useUser()
-  const supabase = createClient()
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false)
   const [createTagOpen, setCreateTagOpen] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
@@ -459,7 +458,7 @@ export function SettingsPage() {
 
   const handleCreateCollection = async (name: string, emoji: string, color: string) => {
     try {
-      await createCollection(supabase, user.id, name, emoji, color)
+      await createCollection(name, emoji, color)
       await mutate()
       toast.success("Collection created")
     } catch (error) {
@@ -473,7 +472,7 @@ export function SettingsPage() {
 
   const handleCreateTag = async (label: string) => {
     try {
-      await createTag(supabase, user.id, label, TAG_PALETTE[0])
+      await createTag(label, TAG_PALETTE[0])
       await mutate()
       toast.success("Tag created")
     } catch (error) {
@@ -482,8 +481,6 @@ export function SettingsPage() {
       throw error
     }
   }
-
-  const username = user.user_metadata?.user_name || user.user_metadata?.preferred_username || "User"
 
   return (
     <>
@@ -527,6 +524,10 @@ export function SettingsPage() {
             <div className="flex w-full flex-col gap-6">
               <section className="space-y-3">
                 <AIKeySettings />
+              </section>
+              <Separator />
+              <section className="space-y-3">
+                <AgentTokens />
               </section>
               <Separator />
               <section className="space-y-3">
@@ -599,33 +600,18 @@ export function SettingsPage() {
                 </div>
               </section>
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+              <div className="grid gap-5">
                 <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
                   <CardHeader className="border-b border-border/60 bg-muted/15 px-5 py-5 sm:px-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                       <div className="space-y-2">
                         <CardTitle className="flex items-center gap-2 text-base">
                           <Settings className="h-4 w-4 text-muted-foreground" />
-                          Taxonomy Management
+                          Collections and tags
                         </CardTitle>
-                        <CardDescription className="max-w-2xl">
-                          Refine the labels and buckets that shape your starred repo workspace.
-                          Edits here update the same metadata layer used throughout the dashboard.
+                        <CardDescription>
+                          {assignmentCount} assignments across your stars.
                         </CardDescription>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <Badge
-                            variant="secondary"
-                            className="rounded-full px-2.5 py-1 text-[11px]"
-                          >
-                            {assignmentCount} active assignments
-                          </Badge>
-                          <Badge
-                            variant="secondary"
-                            className="rounded-full px-2.5 py-1 text-[11px]"
-                          >
-                            @{username}
-                          </Badge>
-                        </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
@@ -647,7 +633,7 @@ export function SettingsPage() {
 
                   <CardContent className="p-5 sm:p-6">
                     {isLoading ? (
-                      <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10">
+                      <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-border/60 bg-muted/10">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
@@ -690,13 +676,7 @@ export function SettingsPage() {
                                   onSave={async ({ name, emoji, color }) => {
                                     setBusyKey(saveKey)
                                     try {
-                                      await updateCollection(
-                                        supabase,
-                                        collection.id,
-                                        name,
-                                        emoji,
-                                        color,
-                                      )
+                                      await updateCollection(collection.id, name, emoji, color)
                                       await mutate()
                                       toast.success("Collection updated")
                                     } catch (error) {
@@ -714,7 +694,7 @@ export function SettingsPage() {
                                   onDelete={async () => {
                                     setBusyKey(deleteKey)
                                     try {
-                                      await deleteCollection(supabase, collection.id)
+                                      await deleteCollection(collection.id)
                                       await mutate()
                                       toast.success("Collection deleted")
                                     } catch {
@@ -757,7 +737,7 @@ export function SettingsPage() {
                                   onSave={async ({ label, color }) => {
                                     setBusyKey(saveKey)
                                     try {
-                                      await updateTag(supabase, tag.id, label, color)
+                                      await updateTag(tag.id, label, color)
                                       await mutate()
                                       toast.success("Tag updated")
                                     } catch (error) {
@@ -775,7 +755,7 @@ export function SettingsPage() {
                                   onDelete={async () => {
                                     setBusyKey(deleteKey)
                                     try {
-                                      await deleteTag(supabase, tag.id)
+                                      await deleteTag(tag.id)
                                       await mutate()
                                       toast.success("Tag deleted")
                                     } catch {
@@ -794,75 +774,6 @@ export function SettingsPage() {
                     )}
                   </CardContent>
                 </Card>
-
-                <div className="space-y-4">
-                  <Card className="border-border/60 bg-card shadow-sm">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Structure Guidelines</CardTitle>
-                      <CardDescription>
-                        Keep taxonomy compact and durable so filters stay useful as your stars grow.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-muted-foreground">
-                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Use collections for long-lived buckets like AI, DevTools, Design, or Reading
-                        List.
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Use tags for cross-cutting labels such as `react`, `cli`, `database`, or
-                        `agentic`.
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Delete duplicates aggressively. Fewer, stronger labels make the dashboard
-                        easier to scan.
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/60 bg-card shadow-sm">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Workspace Snapshot</CardTitle>
-                      <CardDescription>
-                        Quick context for how organized the current metadata set is.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Repos with no labels</span>
-                        <Badge variant="outline" className="rounded-full">
-                          {uncategorizedCount}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Named by</span>
-                        <span className="font-medium text-foreground">@{username}</span>
-                      </div>
-                      <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-                        Changes here flow straight into filtering, repo detail panels, and dashboard
-                        organization.
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/60 bg-card shadow-sm">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Design Intent</CardTitle>
-                      <CardDescription>
-                        The strongest setups usually use a small number of durable collections and
-                        lightweight tags.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-muted-foreground">
-                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        Start broad with collections, then add tags only where they improve search
-                        and scanning.
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                        If a label stops being obvious after a week, merge it or delete it.
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
               </div>
             </div>
           </main>

@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 import { after } from "next/server"
 import * as Sentry from "@sentry/nextjs"
+import { getUser } from "@/lib/auth"
+import { db, fromJson, nowIso, toJson } from "@/lib/db"
 import { getValidGitHubToken } from "@/lib/tokens"
 import {
   fetchRepoCommunityFileSignals,
@@ -19,6 +19,27 @@ import { type RepoInsightRow, rowToIntel } from "@/lib/repo-insight-row"
 export const maxDuration = 60
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+// SQLite stores top_pain_points and metrics as JSON text.
+type StoredInsightRow = Omit<RepoInsightRow, "top_pain_points" | "metrics"> & {
+  top_pain_points: string | null
+  metrics: string | null
+}
+
+function parseInsightRow(row: StoredInsightRow): RepoInsightRow {
+  return {
+    ...row,
+    top_pain_points: fromJson<string[] | null>(row.top_pain_points, null),
+    metrics: fromJson<RepoIntel["metrics"] | null>(row.metrics, null),
+  }
+}
+
+function getCachedInsight(repoFullName: string): RepoInsightRow | undefined {
+  const row = db
+    .prepare("select * from repo_insights where repo_full_name = ?")
+    .get(repoFullName) as StoredInsightRow | undefined
+  return row ? parseInsightRow(row) : undefined
+}
 
 function communityFilesChanged(
   current: RepoIntel["metrics"]["hasCommunityFiles"],
@@ -42,30 +63,17 @@ export async function GET(request: Request) {
 
     const repoFullName = `${owner}/${repo}`
 
-    // Auth check
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const adminClient = createAdminClient()
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     // Check global cache
-    const { data: cached } = await adminClient
-      .from("repo_insights")
-      .select("*")
-      .eq("repo_full_name", repoFullName)
-      .maybeSingle()
+    const cached = getCachedInsight(repoFullName)
 
     // Return fresh cached data without hitting rate limit
     if (cached && !refresh) {
       const age = Date.now() - new Date(cached.analyzed_at).getTime()
       if (age < CACHE_TTL_MS) {
-        const intel = rowToIntel(cached as RepoInsightRow)
+        const intel = rowToIntel(cached)
 
         after(async () => {
           try {
@@ -85,10 +93,10 @@ export async function GET(request: Request) {
             }
 
             if (communityFilesChanged(intel.metrics.hasCommunityFiles, metrics.hasCommunityFiles)) {
-              await adminClient
-                .from("repo_insights")
-                .update({ metrics })
-                .eq("repo_full_name", repoFullName)
+              db.prepare("update repo_insights set metrics = ? where repo_full_name = ?").run(
+                toJson(metrics),
+                repoFullName,
+              )
             }
           } catch (error) {
             Sentry.captureException(error, {
@@ -133,7 +141,7 @@ export async function GET(request: Request) {
       if (!limitResult.allowed) {
         if (cached) {
           return NextResponse.json({
-            intel: rowToIntel(cached as RepoInsightRow),
+            intel: rowToIntel(cached),
             cached: true,
             limitReached: true,
             nextAllowedAt: limitResult.nextAllowedAt,
@@ -164,33 +172,43 @@ export async function GET(request: Request) {
     )
 
     // Upsert to global cache
-    const { data: upserted, error: upsertError } = await adminClient
-      .from("repo_insights")
-      .upsert(
-        {
+    let upserted: StoredInsightRow | undefined
+    try {
+      upserted = db
+        .prepare(
+          `insert into repo_insights (repo_full_name, analyzed_at, health_score, maintenance_verdict,
+             community_sentiment, adoption_readiness, top_pain_points, summary, recommendation, metrics)
+           values (@repo_full_name, @analyzed_at, @health_score, @maintenance_verdict,
+             @community_sentiment, @adoption_readiness, @top_pain_points, @summary, @recommendation, @metrics)
+           on conflict (repo_full_name) do update set
+             analyzed_at = excluded.analyzed_at, health_score = excluded.health_score,
+             maintenance_verdict = excluded.maintenance_verdict, community_sentiment = excluded.community_sentiment,
+             adoption_readiness = excluded.adoption_readiness, top_pain_points = excluded.top_pain_points,
+             summary = excluded.summary, recommendation = excluded.recommendation, metrics = excluded.metrics
+           returning *`,
+        )
+        .get({
           repo_full_name: repoFullName,
-          analyzed_at: new Date().toISOString(),
+          analyzed_at: nowIso(),
           health_score: analysis.healthScore,
           maintenance_verdict: analysis.maintenanceVerdict,
           community_sentiment: analysis.communitySentiment,
           adoption_readiness: analysis.adoptionReadiness,
-          top_pain_points: analysis.topPainPoints,
+          top_pain_points: toJson(analysis.topPainPoints),
           summary: analysis.summary,
           recommendation: analysis.recommendation,
-          metrics: analysis.metrics,
-        },
-        { onConflict: "repo_full_name" },
-      )
-      .select()
-      .single()
-
-    if (upsertError || !upserted) {
-      // Return the analysis even if caching failed
+          metrics: toJson(analysis.metrics),
+        }) as StoredInsightRow | undefined
+    } catch (upsertError) {
       Sentry.captureException(upsertError)
+    }
+
+    if (!upserted) {
+      // Return the analysis even if caching failed
       const intel: RepoIntel = {
         id: crypto.randomUUID(),
         repoFullName,
-        analyzedAt: new Date().toISOString(),
+        analyzedAt: nowIso(),
         ...analysis,
       }
       return NextResponse.json({ intel, cached: false, remaining: limitResult?.remaining ?? null })
@@ -201,7 +219,7 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({
-      intel: rowToIntel(upserted as RepoInsightRow),
+      intel: rowToIntel(parseInsightRow(upserted)),
       cached: false,
       remaining: limitResult?.remaining ?? null,
     })

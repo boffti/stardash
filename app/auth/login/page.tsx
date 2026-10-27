@@ -1,156 +1,57 @@
-"use client"
-
-import { Suspense, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, Loader2, Star, Sparkles, FolderOpen, Tag } from "lucide-react"
 import { GitHubIcon } from "@/components/icons/github-icon"
-import { useSearchParams } from "next/navigation"
+import { PatLoginForm } from "@/components/pat-login-form"
+import { getGitHubApp } from "@/lib/github-app"
+import { safeNext } from "@/lib/safe-next"
 
-function LoginContent() {
-  const searchParams = useSearchParams()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const nextPath = searchParams.get("next")
-  const safeNextPath = nextPath?.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/"
-  const isReauth = searchParams.get("reauth") === "github"
-
-  const handleGitHubLogin = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const supabase = createClient()
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNextPath)}`,
-          scopes: "read:user user:email public_repo read:org notifications",
-        },
-      })
-
-      if (error) {
-        setError(error.message)
-      }
-    } catch {
-      setError("An unexpected error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const errorMessage = searchParams.get("error")
-
-  const features = [
-    { icon: Star, label: "Sync your starred repos" },
-    { icon: Tag, label: "Add custom tags & notes" },
-    { icon: FolderOpen, label: "Organize into collections" },
-    { icon: Sparkles, label: "Smart categorization" },
-  ]
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 p-4">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo and Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Star className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Stardash</h1>
-          <p className="text-muted-foreground">
-            Organize and manage your GitHub starred repositories
-          </p>
-        </div>
-
-        {/* Login Card */}
-        <Card className="border-border/50 shadow-lg">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>
-              {isReauth
-                ? "Reconnect GitHub to continue with authenticated API access"
-                : "Sign in with your GitHub account to continue"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {(error || errorMessage) && (
-              <div className="flex gap-2 p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20">
-                <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">{error || errorMessage}</div>
-              </div>
-            )}
-
-            <Button
-              onClick={handleGitHubLogin}
-              disabled={isLoading}
-              className="w-full h-12 text-base font-medium"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Connecting to GitHub...
-                </>
-              ) : (
-                <>
-                  <GitHubIcon className="mr-2 h-5 w-5" />
-                  Continue with GitHub
-                </>
-              )}
-            </Button>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/50" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">What you can do</span>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div className="grid grid-cols-2 gap-3">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm"
-                >
-                  <feature.icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{feature.label}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <p className="text-xs text-muted-foreground text-center">
-          By signing in, you agree to our{" "}
-          <a href="#" className="underline hover:text-foreground transition-colors">
-            Terms of Service
-          </a>{" "}
-          and{" "}
-          <a href="#" className="underline hover:text-foreground transition-colors">
-            Privacy Policy
-          </a>
-        </p>
-      </div>
-    </div>
-  )
+const ERRORS: Record<string, string> = {
+  state: "That sign-in link expired. Try again.",
+  manifest: "GitHub did not finish creating the app. Try again.",
+  access_denied: "You cancelled the GitHub authorization.",
+  owner: "This instance already has an owner. Sign in with their token first to connect GitHub.",
 }
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; error?: string }>
+}) {
+  const { next: rawNext, error } = await searchParams
+  const next = safeNext(rawNext)
+  const configured = Boolean(getGitHubApp())
+  const connectHref = `/api/auth/github/${configured ? "start" : "setup"}?next=${encodeURIComponent(next)}`
+
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <GitHubIcon className="h-6 w-6" />
+          </div>
+          <CardTitle className="text-2xl">Sign in to StarDash</CardTitle>
+          <CardDescription>
+            {configured
+              ? "Authorize the GitHub App this instance owns."
+              : "StarDash will create a GitHub App owned by you, on your account. No third party is ever in the loop."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <p className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4" /> {ERRORS[error] ?? error}
+            </p>
+          )}
+          <Button className="w-full" asChild>
+            <a href={connectHref}>
+              <GitHubIcon className="h-4 w-4" />
+              {configured ? "Continue with GitHub" : "Connect GitHub"}
+            </a>
+          </Button>
+          <PatLoginForm next={next} />
+        </CardContent>
+      </Card>
+    </main>
   )
 }

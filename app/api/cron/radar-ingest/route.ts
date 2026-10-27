@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { db } from "@/lib/db"
 import { getAnyValidGitHubToken } from "@/lib/tokens"
+import { isCronAuthorized } from "@/lib/cron-auth"
 import { ingestRadar } from "@/lib/radar-ingest"
 import { RADAR_ENABLED } from "@/lib/flags"
 
@@ -10,14 +11,7 @@ export const maxDuration = 300
 
 export async function GET(request: NextRequest) {
   if (!RADAR_ENABLED) return NextResponse.json({ skipped: true, reason: "RADAR_ENABLED is off" })
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET environment variable is required" },
-      { status: 500 },
-    )
-  }
-  if (request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -27,19 +21,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const admin = createAdminClient()
-    const { data: profiles, error } = await admin
-      .from("profiles")
-      .select("id, github_username")
-      .not("github_username", "is", null)
-      .limit(500)
-    if (error) throw error
-
-    const users = (profiles ?? []).map((p) => ({
-      id: p.id as string,
-      login: p.github_username as string,
-    }))
-    const stats = await ingestRadar({ admin, token, users })
+    const users = db
+      .prepare(
+        `select id, github_username as login from profiles
+           where github_token is not null and github_username is not null limit 500`,
+      )
+      .all() as unknown as { id: string; login: string }[]
+    const stats = await ingestRadar({ token, users })
     return NextResponse.json({ success: stats.errors.length === 0, users: users.length, ...stats })
   } catch (err) {
     Sentry.captureException(err)

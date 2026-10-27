@@ -1,3 +1,0 @@
--- GitHub OAuth tokens are stored in httpOnly session cookies, not in the database.
--- This migration is intentionally minimal — no token columns are added to profiles.
--- (Previously stored provider_token/token_expires_at here; removed in favour of cookies.)

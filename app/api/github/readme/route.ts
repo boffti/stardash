@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getUser } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { fetchRepoReadme } from "@/lib/github"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { NextRequest, NextResponse } from "next/server"
@@ -21,35 +21,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing owner or repo parameter" }, { status: 400 })
     }
 
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const adminSupabase = createAdminClient()
     const fullName = `${owner}/${repo}`
-    const { data: cachedUserRepo, error: cachedUserRepoError } = await adminSupabase
-      .from("user_starred_repos")
-      .select("repos!inner(readme)")
-      .eq("user_id", user.id)
-      .eq("repos.full_name", fullName)
-      .maybeSingle()
+    const cached = db
+      .prepare(
+        `select r.readme from repos r
+         join user_starred_repos usr on usr.repo_id = r.id and usr.user_id = ?
+         where r.full_name = ?`,
+      )
+      .get(user.id, fullName) as { readme: string | null } | undefined
 
-    if (cachedUserRepoError) {
-      console.error("[github/readme] cache lookup failed:", cachedUserRepoError)
-    }
-
-    const cachedRepo = Array.isArray(cachedUserRepo?.repos)
-      ? cachedUserRepo.repos[0]
-      : cachedUserRepo?.repos
-
-    if (cachedRepo?.readme) {
-      return NextResponse.json({ readme: cachedRepo.readme })
+    if (cached?.readme) {
+      return NextResponse.json({ readme: cached.readme })
     }
 
     // Cache miss — this will hit the GitHub API. Apply per-user rate limit.
@@ -61,7 +46,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const tokenResult = await getValidGitHubToken()
+    const tokenResult = await getValidGitHubToken(user.id)
 
     if (tokenResult.error === "expired") {
       return NextResponse.json(
@@ -80,14 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (result.content) {
-      const { error: updateError } = await adminSupabase
-        .from("repos")
-        .update({ readme: result.content })
-        .eq("full_name", fullName)
-
-      if (updateError) {
-        console.error("[github/readme] cache update failed:", updateError)
-      }
+      db.prepare("update repos set readme = ? where full_name = ?").run(result.content, fullName)
     }
 
     return NextResponse.json(

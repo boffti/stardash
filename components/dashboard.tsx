@@ -62,7 +62,7 @@ import type {
   Tag,
 } from "@/lib/types"
 import { toast } from "sonner"
-import { createClient } from "@/lib/supabase/client"
+import { formatWhen } from "@/lib/utils"
 import { TokenExpiredBanner } from "@/components/token-expired-banner"
 import { useUser } from "@/components/providers/user-provider"
 import { useStarredRepos } from "@/lib/use-starred-repos"
@@ -79,8 +79,8 @@ import {
   createCollection,
   assignCollection,
   removeCollection,
-  pickTagColor,
-} from "@/lib/user-metadata"
+} from "@/lib/metadata-actions"
+import { pickTagColor } from "@/lib/tag-color"
 import {
   DndContext,
   DragOverlay,
@@ -137,7 +137,6 @@ export function Dashboard() {
   const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
 
   const { getHeaders } = useAIKey()
-  const supabase = createClient()
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
@@ -565,7 +564,7 @@ export function Dashboard() {
       if (response.status === 429) {
         const result = await response.json()
         setCategorizeLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
-        toast.error(result.error ?? "AI categorization limit reached")
+        toast.info(`AI categorize runs once a week. Next run ${formatWhen(result.nextAllowedAt)}.`)
         return
       }
       const result = await response.json()
@@ -641,7 +640,7 @@ export function Dashboard() {
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { status }), {
         revalidate: false,
       })
-      await updateRepoStatus(supabase, dbId, status)
+      await updateRepoStatus(dbId, status)
     } catch {
       mutateMetadata()
       toast.error("Failed to update status")
@@ -651,7 +650,7 @@ export function Dashboard() {
   const handleNotesChange = async (repo: StarredRepo, notes: string) => {
     try {
       const dbId = await getDbId(repo)
-      await updateRepoNotes(supabase, dbId, notes)
+      await updateRepoNotes(dbId, notes)
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { notes }), {
         revalidate: false,
       })
@@ -667,7 +666,7 @@ export function Dashboard() {
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { isPinned }), {
         revalidate: false,
       })
-      await togglePin(supabase, dbId, isPinned)
+      await togglePin(dbId, isPinned)
     } catch {
       mutateMetadata()
       toast.error("Failed to update pin")
@@ -684,8 +683,8 @@ export function Dashboard() {
       mutateMetadata((prev) => buildRepoMetaEntry(prev, repo.id, dbId, { tagIds: newTagIds }), {
         revalidate: false,
       })
-      if (isAssigned) await removeTag(supabase, dbId, user.id, tagId)
-      else await assignTag(supabase, dbId, user.id, tagId)
+      if (isAssigned) await removeTag(dbId, tagId)
+      else await assignTag(dbId, tagId)
     } catch {
       mutateMetadata()
       toast.error("Failed to update tag")
@@ -695,9 +694,9 @@ export function Dashboard() {
   const handleTagCreate = async (repo: StarredRepo, label: string) => {
     if (!user?.id) return
     try {
-      const newTag = await createTag(supabase, user.id, label, pickTagColor(label))
+      const newTag = await createTag(label, pickTagColor(label))
       const dbId = await getDbId(repo)
-      await assignTag(supabase, dbId, user.id, newTag.id)
+      await assignTag(dbId, newTag.id)
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -708,7 +707,7 @@ export function Dashboard() {
   const handleTagCreateSimple = async (label: string) => {
     if (!user?.id) return
     try {
-      await createTag(supabase, user.id, label, pickTagColor(label))
+      await createTag(label, pickTagColor(label))
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -745,8 +744,8 @@ export function Dashboard() {
         },
         { revalidate: false },
       )
-      if (isAssigned) await removeCollection(supabase, dbId, user.id, collectionId)
-      else await assignCollection(supabase, dbId, user.id, collectionId)
+      if (isAssigned) await removeCollection(dbId, collectionId)
+      else await assignCollection(dbId, collectionId)
     } catch {
       mutateMetadata()
       toast.error("Failed to update collection")
@@ -756,7 +755,7 @@ export function Dashboard() {
   const handleCollectionCreate = async (name: string, emoji: string, color: string) => {
     if (!user?.id) return
     try {
-      await createCollection(supabase, user.id, name, emoji, color)
+      await createCollection(name, emoji, color)
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
@@ -1163,7 +1162,7 @@ export function Dashboard() {
                 {/* Empty State — no repos at all */}
                 {repos.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-32 gap-6">
-                    <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-muted">
+                    <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-muted">
                       <Star className="h-9 w-9 text-muted-foreground/50" />
                     </div>
                     <div className="text-center space-y-1.5">

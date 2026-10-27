@@ -17,3 +17,4 @@ coverage
 # Vendored / tool-managed dirs (also ignored by ESLint)
 .agents
 .opencode
+docs/

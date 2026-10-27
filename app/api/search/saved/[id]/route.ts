@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@/lib/supabase/server"
-import { isDiscoverSearchesMissingTableError } from "@/lib/search-cache"
+import { getUser } from "@/lib/auth"
+import { db } from "@/lib/db"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -9,14 +9,8 @@ interface RouteContext {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id } = await context.params
     const { isSaved } = (await request.json()) as { isSaved?: boolean }
@@ -24,19 +18,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "isSaved boolean required" }, { status: 400 })
     }
 
-    const { error } = await supabase
-      .from("discover_searches")
-      .update({ is_saved: isSaved })
-      .eq("id", id)
-      .eq("user_id", user.id)
-
-    if (error) {
-      if (isDiscoverSearchesMissingTableError(error)) {
-        return NextResponse.json({ error: "Saved search cache is not available" }, { status: 503 })
-      }
-
-      throw error
-    }
+    db.prepare(
+      "update discover_searches set is_saved = ?, updated_at = ? where id = ? and user_id = ?",
+    ).run(isSaved ? 1 : 0, new Date().toISOString(), id, user.id)
 
     return NextResponse.json({ success: true })
   } catch (err) {
@@ -48,29 +32,11 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id } = await context.params
-    const { error } = await supabase
-      .from("discover_searches")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id)
-
-    if (error) {
-      if (isDiscoverSearchesMissingTableError(error)) {
-        return NextResponse.json({ error: "Saved search cache is not available" }, { status: 503 })
-      }
-
-      throw error
-    }
+    db.prepare("delete from discover_searches where id = ? and user_id = ?").run(id, user.id)
 
     return NextResponse.json({ success: true })
   } catch (err) {

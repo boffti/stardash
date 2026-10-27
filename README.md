@@ -415,80 +415,48 @@ Langfuse captures AI telemetry from the categorization pipeline.
 
 ## 🐳 Self-Hosting
 
-You can run StarDash on your own infrastructure. The app is a standard Next.js server; the database is hosted on [Supabase](https://supabase.com) (free tier is sufficient for personal use).
-
-### Prerequisites
-
-| Service                                                        | Purpose                      | Free tier?  |
-| -------------------------------------------------------------- | ---------------------------- | ----------- |
-| [Supabase](https://supabase.com)                               | Auth + Postgres database     | ✅ Yes      |
-| [GitHub OAuth App](https://github.com/settings/developers)     | User sign-in                 | ✅ Free     |
-| [OpenRouter](https://openrouter.ai)                            | AI categorization (optional) | Pay-per-use |
-| [Docker + Docker Compose](https://docs.docker.com/get-docker/) | Container runtime            | ✅ Free     |
-
-### Step 1 — Create a Supabase project
-
-1. Go to [supabase.com](https://supabase.com) and create a new project.
-2. In **SQL Editor**, run the migration files in order from [`docker/migrations/`](./docker/migrations/) (see the [README](./docker/migrations/README.md) there for details).
-3. In **Auth → Providers**, enable **GitHub** and paste in your GitHub OAuth App credentials.
-
-### Step 2 — Create a GitHub OAuth App
-
-1. Go to **GitHub → Settings → Developer Settings → OAuth Apps → New OAuth App**.
-2. Set **Homepage URL** to `http://localhost:3000` (or your domain).
-3. Set **Authorization callback URL** to `https://<YOUR_SUPABASE_PROJECT>.supabase.co/auth/v1/callback`.
-4. Copy the **Client ID** and **Client Secret** into Supabase's GitHub provider settings.
-
-### Step 3 — Configure environment variables
+One container, one volume. Data is a SQLite file; sign-in creates a GitHub App owned by you.
 
 ```bash
-cp .env.example .env.local
+docker run -d --name stardash -p 3000:3000 -v stardash-data:/data ghcr.io/boffti/stardash:latest
 ```
 
-Edit `.env.local` with your values:
+Open http://localhost:3000, click **Connect GitHub**, click **Create GitHub App** on GitHub, authorize. Your stars sync. No OAuth app to register, no secrets to copy.
+
+Or with Compose, which also lets you pass an AI key:
 
 ```bash
-# From your Supabase project → Settings → API
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Keep this secret — server-only
-
-# Optional: AI categorization (users can also supply their own key in Settings)
-OPENROUTER_API_KEY=sk-or-...
-
-# Required: secure random string for the cron endpoint
-CRON_SECRET=$(openssl rand -hex 32)
+curl -O https://raw.githubusercontent.com/boffti/stardash/main/docker-compose.yml
+OPENROUTER_API_KEY=sk-or-... docker compose up -d
 ```
 
-Sentry and Langfuse are optional — leave those keys blank to disable observability.
+| Variable                                    | Needed?  | Purpose                                                                                                               |
+| ------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY`                        | optional | Turns on AI categorize, repo intel, contribution briefs and Discover. Users can also paste their own key in Settings. |
+| `AI_MODEL`                                  | optional | Any OpenRouter model id. Default is a cheap structured-output model.                                                  |
+| `APP_URL`                                   | optional | Public origin, only when your reverse proxy does not send `X-Forwarded-Host` and `X-Forwarded-Proto`.                 |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | optional | Use a pre-made GitHub App instead of the one-click manifest flow.                                                     |
+| `CRON_SECRET`                               | optional | Lets an external scheduler call `/api/cron/*`. Not needed: nightly jobs run in-process.                               |
+| `DISABLE_SCHEDULER`                         | optional | Turn the in-process nightly jobs off.                                                                                 |
 
-### Step 4 — Run with Docker Compose
+Behind a reverse proxy, serve it over HTTPS; on plain HTTP (a LAN address) it works too, the session cookie just is not marked Secure.
 
-```bash
-docker compose up -d
-```
+**GitHub Enterprise or no browser on the box:** choose "Paste a personal access token instead" on the login page.
 
-The app will be available at **http://localhost:3000**.
+**Build from source:** `docker build -t stardash .` then run the same command with `stardash` as the image.
 
-The `cron` service (powered by [Ofelia](https://github.com/mcuadros/ofelia)) will call the star-snapshot endpoint once per day at 02:00 UTC. No Vercel account needed.
+**Run without Docker:** Node 22.5+ and pnpm, then `pnpm install && pnpm build && pnpm start`. Set `DATABASE_PATH` to a persistent file; it defaults to `./data/stardash.db`.
 
-### Updating
+## 🤖 Use StarDash from your AI agent (MCP)
 
-```bash
-git pull
-docker compose build --no-cache
-docker compose up -d
-```
+StarDash exposes an MCP server at `/api/mcp`, so Claude Code, Cursor or any MCP client can search your stars, organize them, read your Radar feed and star repos, using your own AI subscription instead of an API key.
 
-### Running without Docker
+1. Settings → **Agents (MCP)** → New token. Copy the config it shows.
+2. Paste it into `.mcp.json` (Claude Code) or your client's MCP settings.
 
-```bash
-pnpm install
-pnpm build
-pnpm start
-```
+Or from a shell: `node bin/stardash.mjs token claude-code` (inside Docker: `docker exec stardash node bin/stardash.mjs token claude-code`).
 
-Then set up your own cron job or system timer to hit `/api/cron/star-snapshots` daily with the `Authorization: Bearer <CRON_SECRET>` header.
+Tools: `search_stars`, `get_repo`, `list_taxonomy`, `organize_repo`, `radar_feed`, `radar_action`, `star_repo`.
 
 ## 🗺️ Roadmap
 

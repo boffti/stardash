@@ -13,7 +13,7 @@ pnpm lint       # ESLint
 pnpm start      # Start production server
 ```
 
-No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:radar` runs the Radar scoring self-check.
+No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:db` exercises the SQLite data layer in memory; `pnpm check:radar` runs the Radar scoring self-check.
 
 ## Mandatory Workflows
 
@@ -40,11 +40,11 @@ Use **`auggie` MCP** (`mcp__auggie__codebase-retrieval`) as the primary search t
 
 ### Database & Auth
 
-Use **Supabase MCP** for all DB/auth interactions — schema inspection, migrations, auth config. Never guess at schema shape.
+The database is a local SQLite file via `node:sqlite` (no ORM). The whole schema lives in `lib/db.ts`; additive changes go in its `MIGRATIONS` array. Auth is GitHub sign-in through a GitHub App the instance creates for itself (manifest flow, `app/api/auth/github/*`), with paste-a-PAT as fallback (`app/api/auth/login/route.ts`), and an HMAC-signed cookie (`lib/session.ts`). Never guess at schema shape: read `lib/db.ts`.
 
 ### Deployment
 
-Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime logs, and config.
+Single container: `Dockerfile` (node:24-slim, Next standalone, SQLite on the `/data` volume), published to `ghcr.io/boffti/stardash` by `.github/workflows/docker.yml` on pushes to main and `v*` tags. `docker-compose.yml` is one service. Nightly jobs run in-process from `lib/scheduler.ts` (started in `instrumentation.ts`, production only unless `SCHEDULER=1`); the cron routes accept `CRON_SECRET` or the per-process secret from `lib/cron-auth.ts`. Not deployed on Vercel; `vercel.json` only carries `ignoreCommand: exit 0`.
 
 ### Observability
 
@@ -57,7 +57,7 @@ Use **Vercel MCP** (`mcp__vercel__*`) for deployment status, build logs, runtime
 
 **StarDash** is a Next.js 16 (App Router) dashboard for organizing GitHub starred repositories.
 
-**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · Supabase (auth + Postgres) · Vercel AI SDK 6 + OpenRouter (Gemini 2.0 Flash) · Langfuse + Sentry · Recharts + dnd-kit
+**Stack:** Next.js 16.2 + React 19 + TypeScript 5.7 · shadcn/ui (new-york) + Tailwind CSS v4 + Lucide React · Framer Motion · SWR · SQLite via `node:sqlite` (data) + self-created GitHub App OAuth or PAT, signed cookie (auth) · Vercel AI SDK 6 + OpenRouter (cheap default model, `AI_MODEL` env) · Langfuse + Sentry · Recharts + dnd-kit
 
 ### App Router Structure
 
@@ -73,15 +73,18 @@ app/
 │   ├── contribute/           # Good-first-issue discovery
 │   └── recently-viewed/
 ├── auth/
-│   ├── login/                # GitHub OAuth entry
-│   ├── callback/route.ts     # OAuth code exchange + token storage
+│   ├── login/                # Connect GitHub (manifest flow) or paste a PAT
 │   └── error/
 ├── api/
+│   ├── auth/github/setup|setup/callback|start|callback · auth/login
 │   ├── github/starred|readme|star|health
 │   ├── ai/categorize/        # Two-phase AI taxonomy + classification
 │   ├── user/metadata|repo-id
-│   ├── cron/star-snapshots   # Daily snapshots (Vercel cron @ 2AM UTC)
-│   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (@ 2:30AM UTC, needs GITHUB_PAT)
+│   ├── cron/star-snapshots   # Daily snapshots (called by lib/scheduler.ts, or externally with CRON_SECRET)
+│   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (same scheduler)
+│   ├── health                # Container healthcheck
+│   ├── mcp                   # MCP server (mcp-handler, bearer tokens from api_tokens)
+│   ├── tokens                # Mint/list/revoke agent tokens (Settings → Agents)
 │   ├── radar/                # GET feed · action (dismiss/snooze/undo) · scan (user-triggered ingest)
 │   ├── search/repos|personalized|saved
 │   ├── ai/repo-intel|contribution-brief
@@ -91,23 +94,25 @@ app/
 
 ### Auth Flow
 
-GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table and retrieved via `getValidGitHubToken(userId)` from `lib/tokens.ts`. Expired tokens require re-auth.
+Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-login.ts`: look up `/user`, enforce that the first GitHub user to sign in owns the instance, store the grant in `profiles`, set the `sd_session` cookie `<userId>.<hmac>` whose secret is minted once into `meta`).
+
+1. **Connect GitHub (default).** `GET /api/auth/github/setup` posts a GitHub App manifest to github.com; the self-hoster clicks "Create GitHub App" and GitHub redirects back to `/api/auth/github/setup/callback` with a code that is converted into `client_id`/`client_secret`, stored in `meta` (`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` env override this). `GET /api/auth/github/start` then runs normal OAuth to `/api/auth/github/callback`. App user tokens expire in 8h; `lib/tokens.ts` refreshes them with the stored refresh token. Callback URLs are pinned to the instance origin (`appUrl()`: `APP_URL` env, else forwarded headers).
+2. **Paste a PAT (fallback).** `POST /api/auth/login`. Non-expiring token, no app needed. For GitHub Enterprise and headless setups.
 
 **Key files:**
 
-- `lib/supabase/client.ts` — browser client
-- `lib/supabase/server.ts` — async server/RSC client (reads cookies)
-- `lib/supabase/admin.ts` — service-role admin (server only, never expose to client)
-- `lib/supabase/middleware.ts` — session refresh (**no code between `createServerClient` and `getUser()`**)
-- `lib/tokens.ts` — `getValidGitHubToken(userId)`
-- `lib/auth.ts` — `getUser()`, `requireAuth()`, `getUserProfile()`, `signOut()`
-- `middleware.ts` — session refresh + redirects authenticated users away from `/auth/login`
-
-> Prefer `lib/auth.ts` or `lib/supabase/server.ts` for new server code. Avoid `modules/auth/` (legacy).
+- `lib/db.ts` — `db` singleton, schema, `nowIso`/`toJson`/`fromJson`
+- `lib/session.ts` — cookie signing/verification; `lib/session-cookie.ts` holds only the cookie name (importable from middleware)
+- `lib/auth.ts` — `getUser()` → `{ id, login, avatarUrl } | null`, `requireAuth()`, `signOut()`, `reauthenticate()` (server actions)
+- `lib/github-app.ts` — app credentials (env or `meta`), manifest, OAuth code exchange and refresh
+- `lib/github-login.ts` — `signInWithGitHubToken()`, shared by both login paths
+- `lib/tokens.ts` — `getValidGitHubToken(userId?)` (stored token, auto-refreshed), `getAnyValidGitHubToken()` (`GITHUB_PAT` env, else the owner's)
+- `lib/metadata-actions.ts` — `"use server"` wrappers client components call for tag/collection/status mutations
+- `middleware.ts` — cookie presence check + redirects only (HMAC verified in `getUser()`)
 
 ### Data Flow
 
-**Starred repos:** `GET /api/github/starred` → `getValidGitHubToken` → `lib/github.ts` (paginates up to 5000 via `vnd.github.star+json`) → upsert into `repos` + `user_starred_repos` → cached in `localStorage` (`stardash-repos-cache-{userId}`, 24h TTL).
+**Starred repos:** `GET /api/github/starred` → `getValidGitHubToken` → `lib/github.ts` (paginates up to 5000 via `vnd.github.star+json`) → `upsertStarredRepos()` in `lib/user-metadata.ts` (one transaction) → cached in `localStorage` (`stardash-repos-cache-{userId}`, 24h TTL).
 
 **User metadata:** `GET /api/user/metadata` returns tags, collections, per-repo state (status, notes, pinned, assignments) from DB.
 
@@ -115,12 +120,18 @@ GitHub OAuth via Supabase. `provider_token` (~8h TTL) stored in `profiles` table
 
 ### AI Categorization
 
-`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter + `google/gemini-3-flash-preview` (see `lib/ai-provider.ts`; users may bring OpenAI/Anthropic keys) via Vercel AI SDK `generateObject()`.
+`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter, default model in `lib/ai-provider.ts` (`AI_MODEL` env overrides; users may bring OpenAI/Anthropic keys via Settings, sent as `x-ai-key`/`x-ai-provider` headers) via Vercel AI SDK `generateObject()`.
 
 1. **Taxonomy** — up to 500 repo summaries → 5–12 collections + 15–25 tags
 2. **Classification** — batches of 100 → 1–3 collections + 1–3 tags per repo
 
-24h rate limit per user (`profiles.last_ai_categorization_at`). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
+Cooldown per user via `profiles.last_ai_categorization_at`. Weekly AI quotas are stubbed open in `lib/ai-weekly-limit.ts` (self-hosted build). Flush spans: `after(async () => langfuseSpanProcessor?.forceFlush())`.
+
+**AI schema rule:** no `.max()` on strings or arrays in `generateObject` schemas. OpenRouter-hosted models ignore JSON Schema `maxLength`/`maxItems`, and any overflow becomes a 500. State limits in `.describe()` text and clamp in code (`.transform()` or `.slice()`) instead. Numeric ranges like 0–100 are fine.
+
+### MCP and CLI
+
+`app/api/mcp/route.ts` wraps `lib/mcp-tools.ts` (pure functions of userId + args) with `mcp-handler` 1.x and `withMcpAuth`; tokens are verified by `lib/api-tokens.ts` (sha256 in `api_tokens`). `bin/stardash.mjs` mints/lists/revokes tokens directly against the SQLite file and prints client config; it hashes the same way, keep both in sync. Radar scoring for the route and the tool lives in `lib/radar-feed.ts`.
 
 ### Radar
 
@@ -130,21 +141,22 @@ Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub
 
 ### Database Schema
 
-| Table                                     | Purpose                                                     |
-| ----------------------------------------- | ----------------------------------------------------------- |
-| `profiles`                                | User identity, GitHub token, sync timestamps, AI rate limit |
-| `repos`                                   | Global repo catalog (admin-written, user-readable)          |
-| `user_starred_repos`                      | Per-user: status, notes, pinned                             |
-| `tags` / `collections`                    | User-owned taxonomy                                         |
-| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                      |
-| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)  |
-| `radar_candidates`                        | Global pool of new/rising repos (admin-written, auth-read)  |
-| `radar_signals`                           | Per-user: people you follow starred repo X                  |
-| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred              |
-| `discover_searches`                       | Cached Discover search results per user                     |
-| `repo_insights`                           | Shared AI repo intel cache (7d)                             |
+| Table                                     | Purpose                                                       |
+| ----------------------------------------- | ------------------------------------------------------------- |
+| `profiles`                                | Owner identity, GitHub token + refresh token, sync timestamps |
+| `repos`                                   | Repo catalog (one row per GitHub repo)                        |
+| `user_starred_repos`                      | Per-user: status, notes, pinned                               |
+| `tags` / `collections`                    | User-owned taxonomy                                           |
+| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                        |
+| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)    |
+| `radar_candidates`                        | Pool of new/rising repos                                      |
+| `radar_signals`                           | Per-user: people you follow starred repo X                    |
+| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred                |
+| `discover_searches`                       | Cached Discover search results per user                       |
+| `repo_insights`                           | AI repo intel cache (7d)                                      |
+| `meta`                                    | Key/value: session secret, GitHub App client id/secret        |
 
-**RLS:** All user tables enforce `auth.uid() = user_id`. `repos` is authenticated-read, admin-write only (`lib/supabase/admin.ts`).
+**Scoping:** there is no RLS. Every query on a per-user table carries `where user_id = ?`. Postgres arrays/jsonb became JSON text (`topics`, `sources`, `results`, `pipeline_events`, `metrics`, `top_pain_points`), booleans are 0/1, timestamps are ISO strings.
 
 **`user_starred_repos.status`:** `want-to-try` | `currently-using` | `tried-liked` | `tried-dropped` | `just-interesting` | `reference`
 
@@ -153,6 +165,12 @@ Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub
 shadcn/ui (new-york) in `components/ui/` · Tailwind CSS v4 (`app/globals.css`) · Lucide React (`lucide-react`) · Framer Motion · dark by default (`storageKey: "stardash-theme"`) · `next-themes`
 
 Custom components: `bento-grid`, `border-beam`, `marquee`, `particles`, `shine-border`, `spinner`, `kbd`, `button-group`, `chart`.
+
+**Radius rule:** `rounded-md` for inputs, selects and small controls; `rounded-lg` for cards and list rows; `rounded-xl` for page-level panels, empty states and header controls; `rounded-full` for avatars, pills and icon buttons. Nothing larger than `xl`; `rounded-none` only for the cmdk reset inside dialogs.
+
+**Motion rule:** decorative animation (particles, marquee, border beam, shine) must degrade to static under `prefers-reduced-motion`. CSS animations are covered globally in `globals.css`; framer-motion through `MotionProvider` in the root layout; canvas loops check `matchMedia` themselves.
+
+**Copy rule:** no em-dashes in UI strings. Use a period or a comma.
 
 ### Observability
 
@@ -163,13 +181,14 @@ Custom components: `bento-grid`, `border-beam`, `marquee`, `particles`, `shine-b
 ### Environment Variables
 
 ```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY       # Server only — never expose to client
+DATABASE_PATH                   # SQLite file, default ./data/stardash.db
 
 OPENROUTER_API_KEY
-CRON_SECRET                     # Bearer token for /api/cron/* routes
-GITHUB_PAT                      # Cron-only GitHub token (star snapshots, Radar ingest)
+AI_MODEL                        # Optional OpenRouter model id override
+CRON_SECRET                     # Optional: lets an external scheduler call /api/cron/*; DISABLE_SCHEDULER turns in-process jobs off
+GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token
+GITHUB_CLIENT_ID / _SECRET      # Optional: use a pre-made GitHub App instead of the manifest flow
+APP_URL                         # Optional: public origin when proxy headers are missing
 
 NEXT_PUBLIC_SENTRY_DSN
 SENTRY_ORG

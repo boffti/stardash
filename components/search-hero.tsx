@@ -115,7 +115,7 @@ export function SearchHero({ onSearch, isLoading, hasResults, onClear }: SearchH
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">What are you building?</h2>
           <p className="text-sm text-muted-foreground">
-            Describe your intent — AI finds the best repos for you
+            Describe what you are building. AI finds the repos.
           </p>
         </div>
 
