@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import useSWR, { mutate as globalMutate } from "swr"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchStarPopover } from "@/components/search-star-popover"
+import { TrendingSections } from "@/components/trending-sections"
 import { useUser } from "@/components/providers/user-provider"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { LANGUAGE_COLORS, type UserMetadata } from "@/lib/types"
@@ -69,6 +71,11 @@ async function sendAction(
 }
 
 export function RadarFeed() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const tab: "inbox" | "stars" = searchParams.get("tab") === "stars" ? "stars" : "inbox"
+  const setTab = (next: "inbox" | "stars") =>
+    router.replace(next === "stars" ? "/radar?tab=stars" : "/radar", { scroll: false })
   const { user } = useUser()
   const { data: starData } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(user?.id ? "/api/user/metadata" : null, fetcher, {
@@ -283,119 +290,157 @@ export function RadarFeed() {
               </p>
             </header>
 
-            <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Filter signals">
-              {FILTERS.map((f) => {
-                const active = filter === f.id
-                const dot = f.id === "all" ? null : KIND_COLOR[f.id]
-                return (
-                  <button
-                    key={f.id}
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setFilter(f.id)}
-                    className={cn(
-                      "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs transition-colors duration-200",
-                      active
-                        ? "border-foreground/20 bg-foreground text-background"
-                        : "border-border/70 bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
-                    )}
-                  >
-                    {dot && <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />}
-                    {f.label}
-                    <span
-                      className={cn(
-                        "tabular-nums",
-                        active ? "text-background/70" : "text-muted-foreground/60",
-                      )}
-                    >
-                      {counts[f.id]}
-                    </span>
-                  </button>
-                )
-              })}
+            <div
+              className="mb-5 flex gap-1 border-b border-border/60"
+              role="tablist"
+              aria-label="Radar views"
+            >
+              {(
+                [
+                  ["inbox", "Inbox"],
+                  ["stars", "From your stars"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id)}
+                  className={cn(
+                    "-mb-px cursor-pointer border-b-2 px-3 py-2 text-sm transition-colors duration-200",
+                    tab === id
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {isLoading && (
-              <div className="space-y-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-[104px] rounded-lg" />
-                ))}
-              </div>
-            )}
+            {tab === "stars" && <TrendingSections />}
 
-            {error && (
-              <EmptyState
-                title="Radar couldn't load."
-                body="Reload the page. If it keeps failing, the nightly scan may not have run yet."
-              />
-            )}
+            {tab === "inbox" && (
+              <>
+                <div
+                  className="mb-4 flex flex-wrap gap-1.5"
+                  role="tablist"
+                  aria-label="Filter signals"
+                >
+                  {FILTERS.map((f) => {
+                    const active = filter === f.id
+                    const dot = f.id === "all" ? null : KIND_COLOR[f.id]
+                    return (
+                      <button
+                        key={f.id}
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setFilter(f.id)}
+                        className={cn(
+                          "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs transition-colors duration-200",
+                          active
+                            ? "border-foreground/20 bg-foreground text-background"
+                            : "border-border/70 bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
+                        )}
+                      >
+                        {dot && <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />}
+                        {f.label}
+                        <span
+                          className={cn(
+                            "tabular-nums",
+                            active ? "text-background/70" : "text-muted-foreground/60",
+                          )}
+                        >
+                          {counts[f.id]}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
 
-            {neverScanned && (
-              <EmptyState
-                title="Nothing on the radar yet."
-                body={
-                  fewStars
-                    ? "Star a handful of repos first so Radar knows your taste, then scan."
-                    : "The first scan pulls new repos from GitHub, Hacker News and the people you follow."
-                }
-                action={
-                  <Button onClick={scanNow} disabled={scanning} className="gap-2">
-                    {scanning ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Telescope className="h-4 w-4" />
-                    )}
-                    {scanning ? "Scanning…" : "Scan now"}
-                  </Button>
-                }
-              />
-            )}
+                {isLoading && (
+                  <div className="space-y-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-[104px] rounded-lg" />
+                    ))}
+                  </div>
+                )}
 
-            {data && data.total > 0 && items.length === 0 && (
-              <EmptyState
-                title={filter === "all" ? "You're caught up." : "Nothing here right now."}
-                body={
-                  filter === "all"
-                    ? "Everything has been starred, snoozed or dismissed. New signals land overnight."
-                    : "Try another filter, or scan now to pull fresh signals."
-                }
-              />
-            )}
-
-            {items.length > 0 && (
-              <ol className="space-y-2">
-                {items.map((item, index) => (
-                  <RadarRow
-                    key={item.id}
-                    item={item}
-                    active={index === activeIndex}
-                    tags={tags}
-                    collections={collections}
-                    onFocus={() => setCursor(index)}
-                    onStarred={() => onStarred(item)}
-                    onDismiss={() => triage(item, "dismissed")}
-                    onSnooze={() => triage(item, "snoozed")}
+                {error && (
+                  <EmptyState
+                    title="Radar couldn't load."
+                    body="Reload the page. If it keeps failing, the nightly scan may not have run yet."
                   />
-                ))}
-              </ol>
-            )}
+                )}
 
-            {items.length > 0 && (
-              <p className="mt-6 hidden items-center gap-3 text-[11px] text-muted-foreground/70 md:flex">
-                <span className="flex items-center gap-1">
-                  <Kbd>j</Kbd>
-                  <Kbd>k</Kbd> move
-                </span>
-                <span className="flex items-center gap-1">
-                  <Kbd>x</Kbd> dismiss
-                </span>
-                <span className="flex items-center gap-1">
-                  <Kbd>z</Kbd> snooze a week
-                </span>
-                <span className="flex items-center gap-1">
-                  <Kbd>o</Kbd> open on GitHub
-                </span>
-              </p>
+                {neverScanned && (
+                  <EmptyState
+                    title="Nothing on the radar yet."
+                    body={
+                      fewStars
+                        ? "Star a handful of repos first so Radar knows your taste, then scan."
+                        : "The first scan pulls new repos from GitHub, Hacker News and the people you follow."
+                    }
+                    action={
+                      <Button onClick={scanNow} disabled={scanning} className="gap-2">
+                        {scanning ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Telescope className="h-4 w-4" />
+                        )}
+                        {scanning ? "Scanning…" : "Scan now"}
+                      </Button>
+                    }
+                  />
+                )}
+
+                {data && data.total > 0 && items.length === 0 && (
+                  <EmptyState
+                    title={filter === "all" ? "You're caught up." : "Nothing here right now."}
+                    body={
+                      filter === "all"
+                        ? "Everything has been starred, snoozed or dismissed. New signals land overnight."
+                        : "Try another filter, or scan now to pull fresh signals."
+                    }
+                  />
+                )}
+
+                {items.length > 0 && (
+                  <ol className="space-y-2">
+                    {items.map((item, index) => (
+                      <RadarRow
+                        key={item.id}
+                        item={item}
+                        active={index === activeIndex}
+                        tags={tags}
+                        collections={collections}
+                        onFocus={() => setCursor(index)}
+                        onStarred={() => onStarred(item)}
+                        onDismiss={() => triage(item, "dismissed")}
+                        onSnooze={() => triage(item, "snoozed")}
+                      />
+                    ))}
+                  </ol>
+                )}
+
+                {items.length > 0 && (
+                  <p className="mt-6 hidden items-center gap-3 text-[11px] text-muted-foreground/70 md:flex">
+                    <span className="flex items-center gap-1">
+                      <Kbd>j</Kbd>
+                      <Kbd>k</Kbd> move
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Kbd>x</Kbd> dismiss
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Kbd>z</Kbd> snooze a week
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Kbd>o</Kbd> open on GitHub
+                    </span>
+                  </p>
+                )}
+              </>
             )}
           </div>
         </main>

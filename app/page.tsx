@@ -955,7 +955,7 @@ export default async function HomePage() {
   const user = await getUser()
 
   if (user) {
-    redirect("/dashboard")
+    redirect("/radar")
   }
 
   return (
