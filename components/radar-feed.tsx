@@ -7,19 +7,32 @@ import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import {
   ExternalLink,
+  Flame,
   GitFork,
   Loader2,
   MoonStar,
   RefreshCw,
+  Sparkles,
   Star,
   Telescope,
+  TrendingUp,
+  Users,
   X,
 } from "lucide-react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import { Kbd } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchStarPopover } from "@/components/search-star-popover"
@@ -36,22 +49,35 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 type Filter = "all" | "following" | "hn" | "velocity" | "new"
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "Everything" },
-  { id: "following", label: "People you follow" },
-  { id: "hn", label: "Hacker News" },
-  { id: "velocity", label: "Rising" },
-  { id: "new", label: "New this week" },
+// Same tile vocabulary as Intel's stats row: icon chip, big number, small label.
+const FILTERS: { id: Filter; label: string; icon: React.ElementType; chip: string }[] = [
+  { id: "all", label: "On the radar", icon: Telescope, chip: "bg-muted text-foreground" },
+  {
+    id: "following",
+    label: "People you follow",
+    icon: Users,
+    chip: "bg-accent/15 text-accent",
+  },
+  { id: "hn", label: "Hacker News", icon: Flame, chip: "bg-orange-500/10 text-orange-400" },
+  { id: "velocity", label: "Rising", icon: TrendingUp, chip: "bg-violet-500/10 text-violet-400" },
+  { id: "new", label: "New this week", icon: Sparkles, chip: "bg-sky-500/10 text-sky-400" },
 ]
 
-// One hue per signal kind; used on the row rail, the reason dot, and the filter pill.
-const KIND_COLOR: Record<RadarReasonKind, string> = {
+// One hue per signal kind, used for the reason dots and the signal badge.
+const KIND_DOT: Record<RadarReasonKind, string> = {
   following: "bg-accent",
   hn: "bg-orange-400",
   velocity: "bg-violet-400",
   new: "bg-sky-400",
   topic: "bg-muted-foreground/60",
   language: "bg-muted-foreground/60",
+}
+
+const KIND_LABEL: Partial<Record<RadarReasonKind, string>> = {
+  following: "People you follow",
+  hn: "Hacker News",
+  velocity: "Rising",
+  new: "New this week",
 }
 
 function formatNumber(n: number): string {
@@ -167,7 +193,7 @@ export function RadarFeed() {
     }
   }, [mutate])
 
-  // Keyboard triage: j/k move, s star, x dismiss, z snooze, o open.
+  // Keyboard triage: j/k move, x dismiss, z snooze, o open.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -237,6 +263,25 @@ export function RadarFeed() {
     : null
   const neverScanned = !isLoading && !error && data && data.total === 0 && !data.scannedAt
   const fewStars = Boolean(data && data.starCount < 10)
+  const hasInbox = Boolean(data && data.total > 0)
+
+  const scanButton = (size: "sm" | "default" = "sm") => (
+    <Button
+      variant="outline"
+      size={size}
+      onClick={scanNow}
+      disabled={scanning}
+      className="gap-1.5"
+      title="Pull fresh signals from GitHub, Hacker News and people you follow"
+    >
+      {scanning ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <RefreshCw className="h-3.5 w-3.5" />
+      )}
+      {scanning ? "Scanning…" : "Scan now"}
+    </Button>
+  )
 
   return (
     <SidebarProvider>
@@ -254,44 +299,25 @@ export function RadarFeed() {
         userId={user?.id}
       />
       <SidebarInset className="overflow-x-hidden">
-        <AppPageHeader
-          lastSynced={null}
-          hideNavActions
-          actions={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={scanNow}
-              disabled={scanning}
-              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-              title="Pull fresh signals from GitHub, Hacker News and people you follow"
-            >
-              {scanning ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden sm:inline">{scanning ? "Scanning…" : "Scan now"}</span>
-            </Button>
-          }
-        />
+        <AppPageHeader lastSynced={null} hideNavActions />
 
-        <main className="flex-1 px-6 py-6">
-          <div className="mx-auto w-full max-w-3xl">
-            <header className="mb-6 space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Radar</h1>
-              <p className="text-sm text-muted-foreground">
-                {data && data.total > 0
-                  ? `${data.total} repos worth a look, ranked by how well they fit your stars.`
-                  : "New and rising repos, ranked by how well they fit your stars."}
-                {scannedAgo && (
-                  <span className="text-muted-foreground/60"> Scanned {scannedAgo}.</span>
-                )}
-              </p>
-            </header>
+        <main className="flex-1 p-6">
+          <section className="mb-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-semibold tracking-tight">Radar</h1>
+                <p className="text-sm text-muted-foreground">
+                  New and rising repos, ranked by how well they fit your stars.
+                  {scannedAgo && (
+                    <span className="text-muted-foreground/60"> Scanned {scannedAgo}.</span>
+                  )}
+                </p>
+              </div>
+              {scanButton()}
+            </div>
 
             <div
-              className="mb-5 flex gap-1 border-b border-border/60"
+              className="flex gap-1 border-b border-border/60"
               role="tablist"
               aria-label="Radar views"
             >
@@ -317,19 +343,21 @@ export function RadarFeed() {
                 </button>
               ))}
             </div>
+          </section>
 
-            {tab === "stars" && <TrendingSections />}
+          {tab === "stars" && <TrendingSections />}
 
-            {tab === "inbox" && (
-              <>
+          {tab === "inbox" && (
+            <>
+              {hasInbox && (
                 <div
-                  className="mb-4 flex flex-wrap gap-1.5"
+                  className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5"
                   role="tablist"
                   aria-label="Filter signals"
                 >
                   {FILTERS.map((f) => {
                     const active = filter === f.id
-                    const dot = f.id === "all" ? null : KIND_COLOR[f.id]
+                    const Icon = f.icon
                     return (
                       <button
                         key={f.id}
@@ -337,119 +365,144 @@ export function RadarFeed() {
                         aria-selected={active}
                         onClick={() => setFilter(f.id)}
                         className={cn(
-                          "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs transition-colors duration-200",
+                          "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors duration-200",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           active
-                            ? "border-foreground/20 bg-foreground text-background"
-                            : "border-border/70 bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
+                            ? "border-foreground/40 bg-muted/30"
+                            : "border-border/60 bg-card hover:border-muted-foreground/30",
                         )}
                       >
-                        {dot && <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />}
-                        {f.label}
                         <span
                           className={cn(
-                            "tabular-nums",
-                            active ? "text-background/70" : "text-muted-foreground/60",
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+                            f.chip,
                           )}
                         >
-                          {counts[f.id]}
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-lg font-semibold leading-none tabular-nums">
+                            {counts[f.id]}
+                          </span>
+                          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                            {f.label}
+                          </span>
                         </span>
                       </button>
                     )
                   })}
                 </div>
+              )}
 
-                {isLoading && (
-                  <div className="space-y-2">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="h-[104px] rounded-lg" />
-                    ))}
-                  </div>
-                )}
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
+                <div className="min-w-0">
+                  {isLoading && (
+                    <div className="flex flex-col gap-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Skeleton key={i} className="h-36 rounded-lg" />
+                      ))}
+                    </div>
+                  )}
 
-                {error && (
-                  <EmptyState
-                    title="Radar couldn't load."
-                    body="Reload the page. If it keeps failing, the nightly scan may not have run yet."
-                  />
-                )}
+                  {error && (
+                    <RadarEmpty
+                      title="Radar couldn't load."
+                      body="Reload the page. If it keeps failing, the nightly scan may not have run yet."
+                    />
+                  )}
 
-                {neverScanned && (
-                  <EmptyState
-                    title="Nothing on the radar yet."
-                    body={
-                      fewStars
-                        ? "Star a handful of repos first so Radar knows your taste, then scan."
-                        : "The first scan pulls new repos from GitHub, Hacker News and the people you follow."
-                    }
-                    action={
-                      <Button onClick={scanNow} disabled={scanning} className="gap-2">
-                        {scanning ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Telescope className="h-4 w-4" />
-                        )}
-                        {scanning ? "Scanning…" : "Scan now"}
-                      </Button>
-                    }
-                  />
-                )}
+                  {neverScanned && (
+                    <RadarEmpty
+                      title="Nothing on the radar yet."
+                      body={
+                        fewStars
+                          ? "Star a handful of repos first so Radar knows your taste, then scan."
+                          : "The first scan pulls new repos from GitHub, Hacker News and the people you follow."
+                      }
+                      action={scanButton("default")}
+                    />
+                  )}
 
-                {data && data.total > 0 && items.length === 0 && (
-                  <EmptyState
-                    title={filter === "all" ? "You're caught up." : "Nothing here right now."}
-                    body={
-                      filter === "all"
-                        ? "Everything has been starred, snoozed or dismissed. New signals land overnight."
-                        : "Try another filter, or scan now to pull fresh signals."
-                    }
-                  />
-                )}
+                  {hasInbox && items.length === 0 && (
+                    <RadarEmpty
+                      title={filter === "all" ? "You're caught up." : "Nothing here right now."}
+                      body={
+                        filter === "all"
+                          ? "Everything has been starred, snoozed or dismissed. New signals land overnight."
+                          : "Try another filter, or scan now to pull fresh signals."
+                      }
+                    />
+                  )}
 
-                {items.length > 0 && (
-                  <ol className="space-y-2">
-                    {items.map((item, index) => (
-                      <RadarRow
-                        key={item.id}
-                        item={item}
-                        active={index === activeIndex}
-                        tags={tags}
-                        collections={collections}
-                        onFocus={() => setCursor(index)}
-                        onStarred={() => onStarred(item)}
-                        onDismiss={() => triage(item, "dismissed")}
-                        onSnooze={() => triage(item, "snoozed")}
-                      />
-                    ))}
-                  </ol>
-                )}
+                  {items.length > 0 && (
+                    <ol className="flex flex-col gap-3">
+                      {items.map((item, index) => (
+                        <RadarRow
+                          key={item.id}
+                          item={item}
+                          active={index === activeIndex}
+                          tags={tags}
+                          collections={collections}
+                          onFocus={() => setCursor(index)}
+                          onStarred={() => onStarred(item)}
+                          onDismiss={() => triage(item, "dismissed")}
+                          onSnooze={() => triage(item, "snoozed")}
+                        />
+                      ))}
+                    </ol>
+                  )}
+                </div>
 
-                {items.length > 0 && (
-                  <p className="mt-6 hidden items-center gap-3 text-[11px] text-muted-foreground/70 md:flex">
-                    <span className="flex items-center gap-1">
-                      <Kbd>j</Kbd>
-                      <Kbd>k</Kbd> move
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Kbd>x</Kbd> dismiss
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Kbd>z</Kbd> snooze a week
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Kbd>o</Kbd> open on GitHub
-                    </span>
-                  </p>
+                {hasInbox && (
+                  <aside className="hidden xl:block">
+                    <div className="sticky top-20 flex flex-col gap-4">
+                      <div className="rounded-lg border border-border/60 bg-card">
+                        <div className="border-b border-border/40 px-4 py-3 text-sm font-medium">
+                          Keyboard
+                        </div>
+                        <dl className="flex flex-col gap-2 px-4 py-3 text-xs text-muted-foreground">
+                          <ShortcutRow keys={["j", "k"]} label="Move" />
+                          <ShortcutRow keys={["x"]} label="Dismiss" />
+                          <ShortcutRow keys={["z"]} label="Snooze a week" />
+                          <ShortcutRow keys={["o"]} label="Open on GitHub" />
+                        </dl>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-card">
+                        <div className="border-b border-border/40 px-4 py-3 text-sm font-medium">
+                          How it ranks
+                        </div>
+                        <p className="px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+                          A taste profile built from your stars scores every candidate. A star from
+                          someone you follow outranks a topic match. Dismissed repos stay gone;
+                          snoozed ones return in a week.
+                        </p>
+                      </div>
+                    </div>
+                  </aside>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </main>
       </SidebarInset>
     </SidebarProvider>
   )
 }
 
-function EmptyState({
+function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt>{label}</dt>
+      <dd className="flex items-center gap-1">
+        {keys.map((k) => (
+          <Kbd key={k}>{k}</Kbd>
+        ))}
+      </dd>
+    </div>
+  )
+}
+
+function RadarEmpty({
   title,
   body,
   action,
@@ -459,12 +512,16 @@ function EmptyState({
   action?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/70 px-6 py-16 text-center">
-      <Telescope className="h-6 w-6 text-muted-foreground/50" />
-      <p className="text-sm font-medium">{title}</p>
-      <p className="max-w-sm text-sm text-muted-foreground">{body}</p>
-      {action}
-    </div>
+    <Empty className="min-h-64 border border-border/60 bg-card">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Telescope />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{body}</EmptyDescription>
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
   )
 }
 
@@ -488,122 +545,149 @@ function RadarRow({
   onSnooze: () => void
 }) {
   const langColor = item.language ? (LANGUAGE_COLORS[item.language] ?? "#64748b") : null
-  const rail = KIND_COLOR[item.reasons[0]?.kind ?? "topic"]
   const age = item.ghCreatedAt
     ? formatDistanceToNow(new Date(item.ghCreatedAt), { addSuffix: false })
     : null
+  // The strongest signal gets the badge; topic and language matches read as the evidence line.
+  const signal = item.reasons.find((r) => KIND_LABEL[r.kind])
+  const evidence = item.reasons.filter((r) => r !== signal)
 
   return (
     <li
       id={`radar-row-${item.id}`}
+      data-active={active || undefined}
       onMouseEnter={onFocus}
       className={cn(
-        "relative flex gap-3 rounded-lg border bg-card py-3 pl-4 pr-3 transition-colors duration-150",
-        active ? "border-muted-foreground/40" : "border-border hover:border-muted-foreground/25",
+        "group rounded-lg border bg-card transition-colors duration-150",
+        active
+          ? "border-foreground/40 bg-muted/20"
+          : "border-border/60 hover:border-muted-foreground/30",
       )}
     >
-      <span aria-hidden className={cn("absolute inset-y-3 left-0 w-0.5 rounded-r", rail)} />
+      <div className="p-4">
+        <div className="flex gap-3">
+          <Avatar className="h-9 w-9 shrink-0">
+            <AvatarImage src={item.avatarUrl} alt="" />
+            <AvatarFallback className="text-xs">{item.owner[0]?.toUpperCase()}</AvatarFallback>
+          </Avatar>
 
-      <Avatar className="mt-0.5 h-8 w-8 shrink-0">
-        <AvatarImage src={item.avatarUrl} alt="" />
-        <AvatarFallback className="text-xs">{item.owner[0]?.toUpperCase()}</AvatarFallback>
-      </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <a
+                  href={item.htmlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group/link inline-flex min-h-6 max-w-full items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  <span className="min-w-0 truncate font-mono text-sm font-medium text-foreground transition-colors group-hover/link:text-primary">
+                    <span className="text-muted-foreground">{item.owner}/</span>
+                    {item.name}
+                  </span>
+                  <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground/0 transition-colors group-hover/link:text-muted-foreground" />
+                </a>
+                {evidence.length > 0 && (
+                  <ul className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground/80">
+                    {evidence.map((r) => (
+                      <li key={r.kind + r.text} className="flex items-center gap-1.5">
+                        <span
+                          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", KIND_DOT[r.kind])}
+                        />
+                        {r.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <a
-            href={item.htmlUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group/link min-w-0 truncate font-mono text-sm"
-          >
-            <span className="text-muted-foreground">{item.owner}/</span>
-            <span className="font-medium group-hover/link:underline">{item.name}</span>
-            <ExternalLink className="ml-1 inline h-3 w-3 align-[-1px] text-muted-foreground/50" />
-          </a>
-          <div className="flex shrink-0 items-center gap-3 text-xs tabular-nums text-muted-foreground">
-            <span className="flex items-center gap-1">
+              {signal && (
+                <span
+                  className={cn(
+                    "inline-flex h-6 shrink-0 items-center gap-1.5 self-start rounded-full border border-border/60 bg-background/60 px-2.5 text-[11px] font-medium text-foreground/90",
+                  )}
+                >
+                  <span className={cn("h-1.5 w-1.5 rounded-full", KIND_DOT[signal.kind])} />
+                  {signal.kind === "hn" && item.hn ? (
+                    <a
+                      href={item.hn.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {signal.text}
+                    </a>
+                  ) : (
+                    signal.text
+                  )}
+                </span>
+              )}
+            </div>
+
+            {item.description && (
+              <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                {item.description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+            {item.language && (
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: langColor ?? undefined }}
+                />
+                {item.language}
+              </span>
+            )}
+            <span className="flex items-center gap-1 tabular-nums">
               <Star className="h-3 w-3" />
               {formatNumber(item.stargazersCount)}
               {item.starsDelta7d !== null && item.starsDelta7d >= 100 && (
                 <span className="text-violet-400">+{formatNumber(item.starsDelta7d)}</span>
               )}
             </span>
-            <span className="hidden items-center gap-1 sm:flex">
+            <span className="flex items-center gap-1 tabular-nums">
               <GitFork className="h-3 w-3" />
               {formatNumber(item.forksCount)}
             </span>
-          </div>
-        </div>
-
-        {item.description && (
-          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-            {item.description}
-          </p>
-        )}
-
-        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          {item.reasons.map((r) => (
-            <li
-              key={r.kind + r.text}
-              className="flex items-center gap-1.5 text-xs text-foreground/80"
-            >
-              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", KIND_COLOR[r.kind])} />
-              {r.kind === "hn" && item.hn ? (
-                <a
-                  href={item.hn.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline"
-                >
-                  {r.text}
-                </a>
-              ) : (
-                r.text
-              )}
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3 text-[11px] text-muted-foreground">
-            {item.language && (
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: langColor ?? undefined }}
-                />
-                {item.language}
-              </span>
-            )}
-            {age && <span>{age} old</span>}
+            {age && <span className="text-muted-foreground/70">{age} old</span>}
             {item.topics.slice(0, 3).map((t) => (
-              <span key={t} className="hidden truncate sm:inline">
-                #{t}
-              </span>
+              <Badge
+                key={t}
+                variant="secondary"
+                className="hidden h-5 px-1.5 py-0 text-xs font-normal sm:inline-flex"
+              >
+                {t}
+              </Badge>
             ))}
           </div>
+
           <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSnooze}
-              className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-              aria-label={`Snooze ${item.fullName} for a week`}
-            >
-              <MoonStar className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Snooze</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDismiss}
-              className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-              aria-label={`Dismiss ${item.fullName}`}
-            >
-              <X className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Dismiss</span>
-            </Button>
+            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 group-data-[active]:opacity-100 max-sm:opacity-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSnooze}
+                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-label={`Snooze ${item.fullName} for a week`}
+              >
+                <MoonStar className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Snooze</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDismiss}
+                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-label={`Dismiss ${item.fullName}`}
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Dismiss</span>
+              </Button>
+            </div>
             <SearchStarPopover
               repo={item}
               tags={tags}
