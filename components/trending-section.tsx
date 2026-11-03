@@ -1,8 +1,5 @@
 "use client"
 
-import { useRef } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { RepoCard } from "./repo-card"
 import type { StarredRepo } from "@/lib/types"
 
@@ -13,47 +10,19 @@ interface TrendingSectionProps {
   onRepoClick: (repo: StarredRepo) => void
 }
 
+// Same card grid as All Stars, so "From your stars" reads as part of the app, not a carousel.
 export function TrendingSection({ title, description, repos, onRepoClick }: TrendingSectionProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const scroll = (direction: "left" | "right") => {
-    if (scrollRef.current) {
-      const scrollAmount = direction === "left" ? -400 : 400
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" })
-    }
-  }
-
   if (repos.length === 0) return null
 
   return (
-    <section className="w-full space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll("left")}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scroll("right")}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-
-      <div
-        ref={scrollRef}
-        className="flex w-full gap-4 overflow-x-auto pb-1 scrollbar-hide"
-        style={{
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
-        {repos.map((repo) => (
-          <div key={repo.id} className="w-[320px] flex-shrink-0 h-[280px]">
-            <RepoCard repo={repo} onClick={() => onRepoClick(repo)} />
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {repos.slice(0, 8).map((repo) => (
+          <RepoCard key={repo.id} repo={repo} onClick={() => onRepoClick(repo)} />
         ))}
       </div>
     </section>

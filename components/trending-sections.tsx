@@ -57,7 +57,7 @@ export function TrendingSections() {
         <p className="text-sm text-muted-foreground">
           From your last {analysis.totalAnalyzed} stars:{" "}
           {analysis.topLanguages.slice(0, 3).join(", ")}
-          {analysis.topTopics.length > 0 && ` · ${analysis.topTopics.slice(0, 3).join(", ")}`}
+          {analysis.topTopics.length > 0 && `, ${analysis.topTopics.slice(0, 3).join(", ")}`}
         </p>
       )}
       {analysis.categories.map((c) => (
