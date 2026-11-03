@@ -9,3 +9,15 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # zod 4 breaks every generateObject schema; migrate on purpose, not by bump
+      - dependency-name: zod
+        update-types: ["version-update:semver-major"]
+      # @ai-sdk/* 4.x needs ai 7; bump them together by hand
+      - dependency-name: "@ai-sdk/*"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint caps TypeScript below 6.1
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # mcp-handler 1.x pins the SDK to 1.26.0 exactly
+      - dependency-name: "@modelcontextprotocol/sdk"
