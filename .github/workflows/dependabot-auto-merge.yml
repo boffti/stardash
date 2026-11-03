@@ -1,0 +1,28 @@
+name: Dependabot auto-merge
+
+# Plain pull_request, not pull_request_target: fork PRs never get a write token.
+# Dependabot PRs may raise their token's permissions through this block.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'boffti/stardash'
+    runs-on: ubuntu-latest
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Minor and patch only. Majors wait for a human.
+      - if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        env:
+          PR: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr review --approve "$PR" --body "Minor or patch update. Merges once the required checks pass."
+          gh pr merge --auto --squash "$PR"

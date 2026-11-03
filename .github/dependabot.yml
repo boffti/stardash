@@ -1,3 +1,8 @@
+# Protocol: minor and patch updates arrive as at most three grouped PRs a week and
+# merge themselves once CI passes (see workflows/dependabot-auto-merge.yml).
+# Majors arrive one per PR and are never auto-merged: a human migrates them.
+# Cooldown: a version must be at least 3 days old before Dependabot proposes it.
+# Security updates skip the cooldown.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -5,10 +10,16 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
     groups:
-      dev-dependencies:
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+      development:
         dependency-type: development
+        update-types: [minor, patch]
     ignore:
       # zod 4 breaks every generateObject schema; migrate on purpose, not by bump
       - dependency-name: zod
@@ -21,3 +32,17 @@ updates:
         update-types: ["version-update:semver-major"]
       # mcp-handler 1.x pins the SDK to 1.26.0 exactly
       - dependency-name: "@modelcontextprotocol/sdk"
+      # Sentry 11 drops the named withSentryConfig export; migrate next.config by hand
+      - dependency-name: "@sentry/nextjs"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns: ["*"]
