@@ -6,7 +6,6 @@ import {
   FolderOpen,
   Tag,
   Clock,
-  TrendingUp,
   AlertTriangle,
   GitPullRequestArrow,
   Plus,
@@ -185,7 +184,6 @@ export function AppSidebar({
     { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 },
   )
   const radarCount = radar?.total ?? 0
-  const isTrendingRoute = pathname === "/trending"
   const isIntelRoute = pathname === "/intel"
   const isContributeRoute = pathname === "/contribute"
   const isSettingsRoute = pathname === "/settings"
@@ -220,6 +218,21 @@ export function AppSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
+              {RADAR_ENABLED && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isRadarRoute}>
+                    <Link href="/radar">
+                      <Telescope className="h-4 w-4" />
+                      <span>Radar</span>
+                      {radarCount > 0 && (
+                        <SidebarMenuBadge className="bg-accent/15 text-accent">
+                          {radarCount}
+                        </SidebarMenuBadge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 {isHomeRoute ? (
                   <SidebarMenuButton
@@ -250,21 +263,6 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
-              {RADAR_ENABLED && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isRadarRoute}>
-                    <Link href="/radar">
-                      <Telescope className="h-4 w-4" />
-                      <span>Radar</span>
-                      {radarCount > 0 && (
-                        <SidebarMenuBadge className="bg-accent/15 text-accent">
-                          {radarCount}
-                        </SidebarMenuBadge>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isSearchRoute}>
                   <Link href="/search">
@@ -281,14 +279,6 @@ export function AppSidebar({
                     {resolvedRecentCount > 0 && (
                       <SidebarMenuBadge>{resolvedRecentCount}</SidebarMenuBadge>
                     )}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isTrendingRoute}>
-                  <Link href="/trending">
-                    <TrendingUp className="h-4 w-4" />
-                    <span>Trending</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

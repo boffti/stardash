@@ -1,5 +1,6 @@
-import { TrendingDashboard } from "@/components/trending-dashboard"
+import { redirect } from "next/navigation"
 
+// Trending lives inside Radar now ("From your stars" tab). Keep old links working.
 export default function TrendingPage() {
-  return <TrendingDashboard />
+  redirect("/radar?tab=stars")
 }
