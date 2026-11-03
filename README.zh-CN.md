@@ -38,7 +38,7 @@
 
 **按你的口味排序，而不是按 GitHub 的。** Radar 从你的星标建立一个画像：你反复关注的主题和语言，再按你对每个仓库的处理方式加权。标为 `tried-dropped` 的星标会给它的主题减分。每晚它从 GitHub 搜索、Hacker News 和你关注的人那里拉取候选仓库，并用这个画像给每一个打分。你关注的人点过星，排名高于主题匹配。
 
-**每一行都自带理由。** 没有黑箱分数。一行会写 _Matches ai, llm, python in your stars_、_3 people you follow starred this_、_+2.1k stars this week_ 或 _40 points on Hacker News_。用键盘点星、推迟一周或忽略。
+**每一行都自带理由。** 没有黑箱分数。一行会写 _Matches ai, llm, python in your stars_、_3 people you follow starred this_、_+2.1k stars this week_ 或 _40 points on Hacker News_。用键盘推迟一周或忽略，点星只需一下。
 
 **你的智能体也能用。** StarDash 自带 MCP 服务器。Claude Code、Cursor 或任何 MCP 客户端都能用你已经付费的订阅来搜索星标、归类，以及处理 Radar。
 
@@ -220,7 +220,7 @@ Next.js 16 单进程，通过 `node:sqlite` 使用 SQLite，没有外部服务�
 | `NEXT_PUBLIC_RADAR_ENABLED`                 | 设为 `false` 隐藏 Radar。                                                     |
 | `DATABASE_PATH`                             | SQLite 文件。容器内为 `/data/stardash.db`。                                   |
 
-**GitHub Enterprise，或者机器上没有浏览器：** 在登录页选择 _Paste a personal access token instead_。
+**机器上没有浏览器：** 在登录页选择 _Paste a personal access token instead_。StarDash 目前只连接 GitHub.com，暂不支持 GitHub Enterprise Server。
 
 **局域网内的纯 HTTP** 也能用，只是会话 cookie 不会标记为 Secure。公开访问请放在 HTTPS 后面。
 
