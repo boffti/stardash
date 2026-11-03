@@ -439,6 +439,45 @@ OPENROUTER_API_KEY=sk-or-... docker compose up -d
 | `CRON_SECRET`                               | optional | Lets an external scheduler call `/api/cron/*`. Not needed: nightly jobs run in-process.                               |
 | `DISABLE_SCHEDULER`                         | optional | Turn the in-process nightly jobs off.                                                                                 |
 
+### Reverse proxy
+
+When publishing a self-hosted instance behind a reverse proxy, terminate TLS at the proxy and forward the original request host and protocol to StarDash. The GitHub App setup and OAuth callback URLs are derived from this public origin.
+
+**Caddy**
+
+```caddyfile
+stardash.example.com {
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+```
+
+Caddy obtains and renews HTTPS certificates automatically when the domain's DNS points to the server and ports 80/443 are reachable.
+
+**nginx**
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name stardash.example.com;
+
+    # Configure ssl_certificate and ssl_certificate_key for your certificate.
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Configure nginx with a valid TLS certificate before exposing the service publicly. In both examples, the upstream points to StarDash's port 3000; keep that application port private and let the proxy handle public traffic.
+
+**When to set `APP_URL`:** StarDash uses `APP_URL` as the explicit public origin when it is set; otherwise it builds the origin from `X-Forwarded-Host` and `X-Forwarded-Proto` (falling back to the request URL). Set `APP_URL=https://stardash.example.com` when your proxy or hosting platform cannot pass those headers reliably, or when you need to pin the canonical public origin. Do not include a path or trailing slash. Only trust forwarded headers from a proxy under your control.
+
 Behind a reverse proxy, serve it over HTTPS; on plain HTTP (a LAN address) it works too, the session cookie just is not marked Secure.
 
 **GitHub Enterprise or no browser on the box:** choose "Paste a personal access token instead" on the login page.
