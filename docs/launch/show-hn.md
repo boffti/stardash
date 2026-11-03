@@ -25,11 +25,11 @@ I star a lot of repos and then forget them. The list is a graveyard: things I me
 
 StarDash is my fix for both halves.
 
-Radar is the front door. Nightly it pulls new and rising repos from GitHub search, Hacker News, and the stars of people you follow. Then it ranks them against your own stars: topics and languages weighted by what you marked as currently-using versus tried-and-dropped. Every row says why it surfaced ("3 people you follow starred this", "+2.1k stars this week", "matches local-first, sqlite"). You star, snooze, or dismiss with j/k/x/z. The whole scoring function is about 150 lines in lib/radar.ts; social signal outranks a topic match, which turned out to be the single most useful rule.
+Radar is the front door. Nightly it pulls new and rising repos from GitHub search, Hacker News, and the stars of people you follow. Then it ranks them against your own stars: topics and languages weighted by what you marked as currently-using versus tried-and-dropped. Every row says why it surfaced ("3 people you follow starred this", "+2.1k stars this week", "matches local-first, sqlite"). You move with j/k, dismiss with x and snooze with z; starring is one click. The whole scoring function is about 150 lines in lib/radar.ts; social signal outranks a topic match, which turned out to be the single most useful rule.
 
 The rest is the organizer: every star searchable, a status per repo, notes, collections and tags (hand-made or one AI pass over 500 repos for about a cent).
 
-It is one container. `docker run -p 3000:3000 -v stardash-data:/data ghcr.io/boffti/stardash:latest`, then click Connect GitHub. The instance creates its own GitHub App through the manifest flow, so there is no OAuth app to register and no secrets to paste. SQLite on a volume, nightly jobs in-process, no external services. The earlier version needed Supabase, Vercel cron and a hand-made OAuth app before you saw a single star, and nobody ran it. This one takes under two minutes, timed.
+It is one container. `docker run -d --name stardash -p 3000:3000 -v stardash-data:/data ghcr.io/boffti/stardash:latest`, then click Connect GitHub. The instance creates its own GitHub App through the manifest flow, so there is no OAuth app to register and no secrets to paste. SQLite on a volume, nightly jobs in-process, no external services. The earlier version needed Supabase, Vercel cron and a hand-made OAuth app before you saw a single star, and nobody ran it. This one takes under two minutes, timed.
 
 There is also an MCP server at /api/mcp. Claude Code or Cursor can search your stars, read today's Radar, and star or dismiss from inside a coding session. Tokens are minted in Settings or from a shell with `docker exec stardash node bin/stardash.mjs token claude-code`.
 

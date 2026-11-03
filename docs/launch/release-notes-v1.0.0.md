@@ -16,11 +16,11 @@ Image tags: `1.0.0`, `1.0`, `latest`. Multi-arch (amd64, arm64).
 
 ## What is in 1.0
 
-**Radar is the front door.** An inbox of new and rising repos from GitHub search, Hacker News and the people you follow, ranked against your own stars. Every row says why it surfaced: "3 people you follow starred this", "+2.1k stars this week", "matches local-first, sqlite". Star, snooze, dismiss. Keyboard: `j` `k` `x` `z` `o`.
+**Radar is the front door.** An inbox of new and rising repos from GitHub search, Hacker News and the people you follow, ranked against your own stars. Every row says why it surfaced: "3 people you follow starred this", "+2.1k stars this week", "matches local-first, sqlite". Star in one click; move, dismiss, snooze and open from the keyboard with `j` `k` `x` `z` `o`.
 
 **One container, one file.** SQLite through `node:sqlite`, no ORM, no external services. Everything lives on the `/data` volume. Nightly jobs (star snapshots, Radar ingest) run in-process.
 
-**Sign in without setup.** The instance creates its own GitHub App through the manifest flow. Two clicks on GitHub and the app is yours. Paste a personal access token instead for GitHub Enterprise or headless boxes.
+**Sign in without setup.** The instance creates its own GitHub App through the manifest flow. Two clicks on GitHub and the app is yours. Paste a GitHub.com personal access token instead on a box without a browser. GitHub Enterprise Server is not supported yet.
 
 **MCP server.** Claude Code, Cursor or any MCP client can search, organize and triage your stars with your own subscription. Tools: `search_stars`, `get_repo`, `list_taxonomy`, `organize_repo`, `radar_feed`, `radar_action`, `star_repo`. Mint tokens in Settings, or from a shell with `docker exec stardash node bin/stardash.mjs token claude-code`.
 

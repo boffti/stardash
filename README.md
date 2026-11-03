@@ -38,7 +38,7 @@ Starring is how developers bookmark. Then the list grows past a few hundred and 
 
 **Ranked by your taste, not by GitHub's.** Radar builds a profile from your stars: the topics and languages you keep coming back to, weighted by what you did with each repo. A `tried-dropped` star counts against its topics. Every night it pulls candidates from GitHub search, Hacker News and the people you follow, and scores each one against that profile. A star from someone you follow outranks a topic match.
 
-**Every row explains itself.** No black-box score. A row says _Matches ai, llm, python in your stars_, _3 people you follow starred this_, _+2.1k stars this week_ or _40 points on Hacker News_. Star it, snooze it for a week, or dismiss it, from the keyboard.
+**Every row explains itself.** No black-box score. A row says _Matches ai, llm, python in your stars_, _3 people you follow starred this_, _+2.1k stars this week_ or _40 points on Hacker News_. Snooze it for a week or dismiss it from the keyboard, or star it in one click.
 
 **Your agent can use it.** StarDash ships an MCP server. Claude Code, Cursor or any MCP client can search your stars, file them, and triage Radar on the subscription you already pay for.
 
@@ -220,7 +220,7 @@ All optional.
 | `NEXT_PUBLIC_RADAR_ENABLED`                 | `false` hides Radar.                                                                                |
 | `DATABASE_PATH`                             | The SQLite file. `/data/stardash.db` in the container.                                              |
 
-**GitHub Enterprise, or no browser on the box:** choose _Paste a personal access token instead_ on the login page.
+**No browser on the box:** choose _Paste a personal access token instead_ on the login page. StarDash talks to GitHub.com only; GitHub Enterprise Server is not supported yet.
 
 **Plain HTTP on a LAN** works. The session cookie is not marked Secure there. Put it behind HTTPS for anything public.
 
