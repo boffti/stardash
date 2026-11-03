@@ -1,6 +1,8 @@
 # Protocol: minor and patch updates arrive as at most three grouped PRs a week and
 # merge themselves once CI passes (see workflows/dependabot-auto-merge.yml).
 # Majors arrive one per PR and are never auto-merged: a human migrates them.
+# Cooldown: a version must be at least 3 days old before Dependabot proposes it.
+# Security updates skip the cooldown.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,6 +10,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
     groups:
       production:
@@ -37,6 +41,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 3
     groups:
       actions:
         patterns: ["*"]
