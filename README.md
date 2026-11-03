@@ -224,6 +224,41 @@ All optional.
 
 **Plain HTTP on a LAN** works. The session cookie is not marked Secure there. Put it behind HTTPS for anything public.
 
+#### Reverse proxy
+
+Terminate TLS at the proxy and forward the original host and protocol. The GitHub App setup and OAuth callback URLs are built from that origin.
+
+**Caddy**
+
+```caddyfile
+stardash.example.com {
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+```
+
+**nginx**
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name stardash.example.com;
+
+    # ssl_certificate and ssl_certificate_key go here.
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Keep port 3000 private and let the proxy take public traffic. `APP_URL` wins when set; otherwise the origin comes from `X-Forwarded-Host` and `X-Forwarded-Proto`, then the request URL. Set `APP_URL=https://stardash.example.com` (no path, no trailing slash) when your proxy cannot pass those headers reliably or you want to pin the canonical origin. Only trust forwarded headers from a proxy you control.
+
 **Without Docker:** Node 22.5 or later and pnpm, then `pnpm install && pnpm build && pnpm start`.
 
 </details>
