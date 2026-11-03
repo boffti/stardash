@@ -298,7 +298,7 @@ export function RadarFeed() {
         uncategorizedCount={uncategorizedCount}
         userId={user?.id}
       />
-      <SidebarInset className="overflow-x-hidden">
+      <SidebarInset className="overflow-x-clip">
         <AppPageHeader lastSynced={null} hideNavActions />
 
         <main className="flex-1 p-6">
@@ -489,6 +489,18 @@ export function RadarFeed() {
   )
 }
 
+// Hacker News reasons keep their discussion link wherever they render.
+function ReasonText({ reason, hn }: { reason: RadarItem["reasons"][number]; hn: RadarItem["hn"] }) {
+  if (reason.kind === "hn" && hn) {
+    return (
+      <a href={hn.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+        {reason.text}
+      </a>
+    )
+  }
+  return <>{reason.text}</>
+}
+
 function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -593,7 +605,7 @@ function RadarRow({
                         <span
                           className={cn("h-1.5 w-1.5 shrink-0 rounded-full", KIND_DOT[r.kind])}
                         />
-                        {r.text}
+                        <ReasonText reason={r} hn={item.hn} />
                       </li>
                     ))}
                   </ul>
@@ -601,24 +613,14 @@ function RadarRow({
               </div>
 
               {signal && (
-                <span
-                  className={cn(
-                    "inline-flex h-6 shrink-0 items-center gap-1.5 self-start rounded-full border border-border/60 bg-background/60 px-2.5 text-[11px] font-medium text-foreground/90",
-                  )}
-                >
-                  <span className={cn("h-1.5 w-1.5 rounded-full", KIND_DOT[signal.kind])} />
-                  {signal.kind === "hn" && item.hn ? (
-                    <a
-                      href={item.hn.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {signal.text}
-                    </a>
-                  ) : (
-                    signal.text
-                  )}
+                <span className="inline-flex max-w-full min-h-6 items-start gap-1.5 self-start rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-[11px] leading-4 font-medium text-foreground/90 [overflow-wrap:anywhere] sm:max-w-[40%]">
+                  <span
+                    className={cn(
+                      "mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full",
+                      KIND_DOT[signal.kind],
+                    )}
+                  />
+                  <ReasonText reason={signal} hn={item.hn} />
                 </span>
               )}
             </div>
