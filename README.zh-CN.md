@@ -224,6 +224,41 @@ Next.js 16 单进程，通过 `node:sqlite` 使用 SQLite，没有外部服务�
 
 **局域网内的纯 HTTP** 也能用，只是会话 cookie 不会标记为 Secure。公开访问请放在 HTTPS 后面。
 
+#### 反向代理
+
+在代理上终止 TLS，并转发原始的 host 和协议。GitHub App 的设置地址和 OAuth 回调地址都由这个来源生成。
+
+**Caddy**
+
+```caddyfile
+stardash.example.com {
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+```
+
+**nginx**
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name stardash.example.com;
+
+    # 在这里配置 ssl_certificate 和 ssl_certificate_key。
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+让 3000 端口保持私有，公开流量交给代理。设置了 `APP_URL` 时以它为准；否则依次使用 `X-Forwarded-Host` 和 `X-Forwarded-Proto`，最后是请求 URL。当代理无法可靠地传递这些头，或者你想固定规范地址时，设置 `APP_URL=https://stardash.example.com`（不带路径，不带结尾斜杠）。只信任你自己控制的代理发来的转发头。
+
 **不用 Docker：** Node 22.5 或更高版本加 pnpm，然后运行 `pnpm install && pnpm build && pnpm start`。
 
 </details>
