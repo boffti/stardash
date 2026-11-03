@@ -2,7 +2,7 @@
 
 First tagged release. StarDash is a self-hosted dashboard for your GitHub stars: it remembers what you starred, and Radar tells you which new repos your taste says to look at.
 
-![Radar: new and rising repos ranked against your stars](https://raw.githubusercontent.com/boffti/stardash/v1.0.0/assets/radar.gif)
+![StarDash: Radar triage, your stars, a repo page, Intel and Contribute](https://raw.githubusercontent.com/boffti/stardash/v1.0.0/assets/demo.webp)
 
 ## Run it
 

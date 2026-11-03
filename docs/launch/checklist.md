@@ -32,7 +32,7 @@ Order matters: HN first, the rest the same morning.
 10. [ ] **r/selfhosted**, an hour or two later. Flair Release. Title and body in `reddit-selfhosted.md`. Optional cross-post to r/github.
 11. [ ] **awesome-mcp-servers PR**, same day. Line, position and commands in `awesome-lists.md`.
 12. [ ] **awesome-selfhosted**: not now. Earliest 2027-03-03 (first release must be 4 months old). Calendar reminder. Write the yml yourself; see `awesome-lists.md` for why.
-13. [ ] **Product Hunt**, schedule for the following Tuesday, 12:01am PT. Tagline under 60 chars: "New GitHub repos, ranked by the ones you already starred". Gallery: the Radar GIF plus two screenshots (All Stars, MCP settings). First comment: the Show HN comment, trimmed.
+13. [ ] **Product Hunt**, schedule for the following Tuesday, 12:01am PT. Tagline under 60 chars: "New GitHub repos, ranked by the ones you already starred". Gallery: the README demo (convert `assets/demo.webp` to MP4 or GIF, since Product Hunt does not take WebP) plus two screenshots from `assets/screenshots/` (`all-stars.png`, `settings-mcp.png`). First comment: the Show HN comment, trimmed.
 
 ## After
 

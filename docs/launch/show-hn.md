@@ -41,4 +41,4 @@ What I would like to know: does the ranking match your taste, and which signal i
 
 - Submit on a weekday between 8 and 10am ET.
 - Do not ask anyone to upvote. Reply to every comment within the first few hours.
-- The GIF at the top of the README is the demo. No separate landing page needed.
+- The full-window demo at the top of the README is the demo. No separate landing page needed.
