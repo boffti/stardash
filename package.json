@@ -21,6 +21,7 @@
     "clean:cache": "rm -rf .next/dev/cache/turbopack",
     "prepare": "husky",
     "check:radar": "node --experimental-strip-types scripts/radar-score.check.ts",
+    "check:agent": "node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/agent.check.ts",
     "check:db": "node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/db.check.ts"
   },
   "lint-staged": {

@@ -27,6 +27,12 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useAIKey } from "@/lib/use-ai-key"
+import {
+  AgentRequestNotice,
+  agentPollInterval,
+  isAgentPending,
+  type AgentRequestState,
+} from "@/components/agent-request-notice"
 import { formatDistanceToNow } from "date-fns"
 import type {
   RepoIntel,
@@ -408,6 +414,8 @@ function days(v: number | null, fallback = "N/A") {
 
 export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const [refreshKey, setRefreshKey] = useState(0)
+  // refresh=true only until the server answers; agent-mode polling must not re-queue.
+  const [refreshPending, setRefreshPending] = useState(false)
   const { getHeaders } = useAIKey()
   const [intelLimit, setIntelLimit] = useState<{
     remaining: number | null
@@ -418,7 +426,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   // server DB cache remains authoritative and gets populated when missing.
   const localCached = refreshKey === 0 ? lsGet(owner, name) : null
 
-  const apiUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}${refreshKey > 0 ? "&refresh=true" : ""}`
+  const apiUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}&_k=${refreshKey}${refreshPending ? "&refresh=true" : ""}`
 
   const fetchIntel = useCallback(
     async (url: string) => {
@@ -443,20 +451,22 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
     [getHeaders],
   )
 
-  const { data, error, isLoading } = useSWR<{ intel: RepoIntel; cached: boolean }>(
-    apiUrl,
-    fetchIntel,
-    {
-      revalidateOnFocus: false,
-      shouldRetryOnError: false,
-      fallbackData: localCached ?? undefined,
-      onSuccess(result) {
-        lsSet(owner, name, result)
-      },
+  const { data, error, isLoading } = useSWR<
+    AgentRequestState & { intel?: RepoIntel; cached: boolean }
+  >(apiUrl, fetchIntel, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    fallbackData: localCached ?? undefined,
+    refreshInterval: agentPollInterval,
+    keepPreviousData: true,
+    onSuccess(result) {
+      if (isAgentPending(result)) setRefreshPending(false)
+      if (result.intel) lsSet(owner, name, result as { intel: RepoIntel; cached: boolean })
     },
-  )
+  })
 
   const handleRefresh = useCallback(() => {
+    setRefreshPending(true)
     setRefreshKey((k) => k + 1)
   }, [])
 
@@ -494,6 +504,11 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
         </div>
       </div>
     )
+  }
+
+  // ── Waiting on the user's agent, nothing cached yet ───────────────────────
+  if (!error && !intel && data?.request) {
+    return <AgentRequestNotice state={data} className="my-2" />
   }
 
   // ── Error ─────────────────────────────────────────────────────────────────
@@ -543,6 +558,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      <AgentRequestNotice state={data} />
       {/* ── Score hero ──────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-border/80 bg-background shadow-sm shadow-black/5">
         <div className="flex flex-wrap items-center justify-between gap-4 p-4">

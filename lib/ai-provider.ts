@@ -48,3 +48,7 @@ export function getAIModel(request: Request): AIModelConfig {
       return { model: createOpenRouter({ apiKey })(DEFAULT_MODELS.openrouter), provider, isUserKey }
   }
 }
+
+/** No key anywhere: AI work is queued for the user's own agent instead (lib/agent-requests.ts). */
+export const hasAIKey = (request: Request) =>
+  !!(request.headers.get("x-ai-key") || process.env.OPENROUTER_API_KEY)
