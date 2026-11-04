@@ -73,9 +73,16 @@ const RepoBatchSchema = z.object({
 })
 
 const BATCH_SIZE = 100
+// ponytail: local models (Ollama's default 4k context) silently truncate long prompts, so
+// they get small batches and a taxonomy drawn from a spread-out sample. Ceiling: the
+// taxonomy only sees LOCAL_TAXONOMY_SAMPLE repos; make these configurable if 4k is too tight.
+const LOCAL_BATCH_SIZE = 10
+const LOCAL_TAXONOMY_SAMPLE = 40
 
 interface CategorizeReposOptions {
   providerOptions?: Record<string, Record<string, string>>
+  /** Small prompts for local models with a short context window. */
+  compact?: boolean
   existingTaxonomy?: {
     collections: Collection[]
     tags: Tag[]
@@ -89,7 +96,8 @@ export async function categorizeRepos(
 ): Promise<CategorizationResult> {
   const reposToAnalyze = repos.slice(0, 500)
   const repoIdSet = new Set(reposToAnalyze.map((r) => r.id))
-  const { existingTaxonomy, providerOptions = {} } = options
+  const { existingTaxonomy, providerOptions = {}, compact = false } = options
+  const batchSize = compact ? LOCAL_BATCH_SIZE : BATCH_SIZE
   const shouldUseExistingTaxonomy = Boolean(
     existingTaxonomy?.collections.length && existingTaxonomy.tags.length,
   )
@@ -97,7 +105,7 @@ export async function categorizeRepos(
   const summaries = reposToAnalyze.map((r) => ({
     id: r.id,
     name: r.name,
-    description: r.description || "",
+    description: (r.description || "").slice(0, compact ? 120 : undefined),
     language: r.language || "",
     topics: r.topics.join(", "),
   }))
@@ -113,6 +121,10 @@ export async function categorizeRepos(
     tagVocabulary = existingTaxonomy.tags.map((tag) => tag.label)
   } else {
     // Phase 1: generate collection taxonomy + shared tag vocabulary from all repo summaries
+    const step = compact ? Math.max(1, Math.floor(summaries.length / LOCAL_TAXONOMY_SAMPLE)) : 1
+    const taxonomyInput = summaries
+      .filter((_, i) => i % step === 0)
+      .slice(0, compact ? LOCAL_TAXONOMY_SAMPLE : undefined)
     const { object: taxonomyObj } = await generateObject({
       model,
       schema: TaxonomySchema,
@@ -131,7 +143,7 @@ Tag rules:
 
 Collection name rules: short and scannable, max 22 characters (e.g. "AI & ML", "Frontend", "CLI Tools", "Databases", "DevOps", "Data Science")
 Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
-      prompt: `Define a taxonomy for these ${reposToAnalyze.length} starred repos:\n\n${JSON.stringify(summaries)}`,
+      prompt: `Define a taxonomy for these ${taxonomyInput.length} starred repos:\n\n${JSON.stringify(taxonomyInput)}`,
     })
 
     collections = taxonomyObj.collections.map((c, i) => ({
@@ -157,8 +169,8 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
     existingTaxonomy.tags.forEach((tag) => allTagsMap.set(tag.label, tag))
   }
 
-  for (let i = 0; i < reposToAnalyze.length; i += BATCH_SIZE) {
-    const batch = summaries.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < reposToAnalyze.length; i += batchSize) {
+    const batch = summaries.slice(i, i + batchSize)
 
     const { object: batchObj } = await generateObject({
       model,
