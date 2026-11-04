@@ -460,7 +460,6 @@ export function ContributionDashboard() {
   const [difficulty, setDifficulty] = useState<SelectableDifficulty>("all")
   const [contributionType, setContributionType] = useState<SelectableType>("all")
   const [search, setSearch] = useState("")
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [opportunities, setOpportunities] = useState<ContributionOpportunity[]>([])
   const [scannedRepos, setScannedRepos] = useState(0)
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
@@ -769,7 +768,6 @@ export function ContributionDashboard() {
           onRefresh={isTokenExpired ? undefined : handleRefreshRepos}
           isRefreshing={isRefreshing}
           searchLabel="Search opportunities..."
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           hideNavActions
           desktopControls={
             <>
@@ -1233,8 +1231,6 @@ export function ContributionDashboard() {
       </Dialog>
 
       <ContributionCommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
         opportunities={opportunities}
         filteredOpportunities={filteredOpportunities}
         language={language}

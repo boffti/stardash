@@ -133,7 +133,6 @@ export function Dashboard() {
     nextAllowedAt: string | null
   }>({ remaining: null, nextAllowedAt: null })
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [repoToRemove, setRepoToRemove] = useState<StarredRepo | null>(null)
 
   const { getHeaders } = useAIKey()
@@ -964,13 +963,8 @@ export function Dashboard() {
             onCategorize={handleCategorize}
             isCategorizing={isCategorizing}
             categorizeLimit={categorizeLimit}
-            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           />
           <DashboardCommandPalette
-            open={commandPaletteOpen}
-            onOpenChange={setCommandPaletteOpen}
-            repos={repos}
-            filteredRepos={filteredRepos}
             collections={collections}
             tags={allTags}
             languages={languages}
@@ -982,7 +976,6 @@ export function Dashboard() {
             showUncategorized={showUncategorized}
             sortBy={sortBy}
             viewMode={viewMode}
-            isRefreshing={isLoading}
             isCategorizing={isCategorizing}
             onSearchChange={setSearchQuery}
             onSelectCollection={handleSelectCollection}
@@ -992,7 +985,6 @@ export function Dashboard() {
             onShowUncategorized={handleShowUncategorized}
             onSortChange={setSortBy}
             onViewModeChange={setViewMode}
-            onRefresh={() => handleRefresh("dashboard-command-palette")}
             onCategorize={handleCategorize}
             onRepoOpen={handleRepoClick}
             onClearFilters={clearAllFilters}

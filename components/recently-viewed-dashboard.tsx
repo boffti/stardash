@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
-import { History, RefreshCw, Search } from "lucide-react"
+import { History, Search } from "lucide-react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,7 @@ import { useStarredRepos } from "@/lib/use-starred-repos"
 import { useRecentlyViewed, trackRecentlyViewedRepo } from "@/lib/recently-viewed"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
 import { AppPageHeader } from "@/components/app-page-header"
-import { RepoCommandPalette } from "@/components/repo-command-palette"
+import { usePaletteGroups } from "@/components/command-palette"
 import { useUser } from "@/components/providers/user-provider"
 
 export function RecentlyViewedDashboard() {
@@ -25,7 +25,6 @@ export function RecentlyViewedDashboard() {
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
   const { data, isRefreshing, refresh } = useStarredRepos(user?.id)
@@ -118,6 +117,23 @@ export function RecentlyViewedDashboard() {
     setDetailPanelOpen(true)
   }
 
+  usePaletteGroups({
+    onRepo: handleRepoClick,
+    groups: [
+      {
+        heading: "Recently viewed",
+        limit: 12,
+        items: recentRepos.map(({ repo }) => ({
+          id: `recent-${repo.fullName}`,
+          label: repo.fullName,
+          hint: repo.description ?? undefined,
+          icon: History,
+          onSelect: () => handleRepoClick(repo),
+        })),
+      },
+    ],
+  })
+
   const handleCloseDetail = () => {
     setDetailPanelOpen(false)
     setTimeout(() => setSelectedRepo(null), 200)
@@ -151,7 +167,6 @@ export function RecentlyViewedDashboard() {
       <SidebarInset className="overflow-x-hidden">
         <AppPageHeader
           searchLabel="Search recently viewed repos"
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           lastSynced={lastSynced}
           onRefresh={() => handleRefresh("recently-viewed-navbar-refresh")}
           isRefreshing={isRefreshing}
@@ -220,27 +235,6 @@ export function RecentlyViewedDashboard() {
           )}
         </main>
       </SidebarInset>
-
-      <RepoCommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
-        title="Search Recently Viewed"
-        description="Search recently viewed repositories and run quick actions."
-        headerLabel="Search recently viewed repositories and actions"
-        placeholder="Jump to a recently viewed repo or action..."
-        emptyHint="Try a repo name or a language from your recent stack."
-        repos={recentRepos.map(({ repo }) => repo)}
-        actions={[
-          {
-            value: "refresh-recent",
-            label: "Refresh starred repositories",
-            shortcut: "Sync",
-            icon: RefreshCw,
-            onSelect: () => handleRefresh("recently-viewed-command-palette"),
-          },
-        ]}
-        onRepoOpen={handleRepoClick}
-      />
 
       <RepoDetailPanel
         repo={selectedRepo}
