@@ -95,7 +95,7 @@ assert(
   "https origin: Secure",
 )
 for (const bad of ["//evil.com", "/\\evil.com", "/a b", "http://x", "", undefined]) {
-  assert(safeNext(bad) === "/dashboard", `safeNext rejects ${JSON.stringify(bad)}`)
+  assert(safeNext(bad) === "/radar", `safeNext rejects ${JSON.stringify(bad)}`)
 }
 assert(safeNext("/radar?x=1") === "/radar?x=1", "safeNext keeps a same-origin path")
 console.log("session: ok")
