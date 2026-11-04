@@ -12,8 +12,16 @@ services:
     environment:
       # Optional. Enables the in-app AI features (categorize, intel, briefs, Discover).
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      # Optional. OpenAI-compatible server instead of OpenRouter, e.g. Ollama on the host:
+      # AI_BASE_URL=http://host.docker.internal:11434/v1 AI_MODEL=qwen3:8b
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
       # Optional. Public origin if a reverse proxy does not send X-Forwarded-Host/Proto.
       APP_URL: ${APP_URL:-}
+    # Lets host.docker.internal reach the host on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:

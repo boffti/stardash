@@ -122,7 +122,7 @@ Single-owner. Two ways in, same tail (`signInWithGitHubToken()` in `lib/github-l
 
 ### AI Categorization
 
-`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter, default model in `lib/ai-provider.ts` (`AI_MODEL` env overrides; users may bring OpenAI/Anthropic keys via Settings, sent as `x-ai-key`/`x-ai-provider` headers) via Vercel AI SDK `generateObject()`.
+`lib/ai-categorize.ts` + `POST /api/ai/categorize` — OpenRouter, default model in `lib/ai-provider.ts` (`AI_MODEL` env overrides; `AI_BASE_URL` switches the server to any OpenAI-compatible endpoint such as Ollama, with `AI_MODEL` required; users may bring OpenAI/Anthropic keys via Settings, sent as `x-ai-key`/`x-ai-provider` headers, which win over the server config) via Vercel AI SDK `generateObject()`.
 
 1. **Taxonomy** — up to 500 repo summaries → 5–12 collections + 15–25 tags
 2. **Classification** — batches of 100 → 1–3 collections + 1–3 tags per repo
@@ -189,7 +189,8 @@ Custom components: `bento-grid`, `border-beam`, `marquee`, `particles`, `shine-b
 DATABASE_PATH                   # SQLite file, default ./data/stardash.db
 
 OPENROUTER_API_KEY
-AI_MODEL                        # Optional OpenRouter model id override
+AI_MODEL                        # Optional OpenRouter model id override (required with AI_BASE_URL)
+AI_BASE_URL / AI_API_KEY        # Optional OpenAI-compatible endpoint (Ollama, LM Studio, vLLM) instead of OpenRouter
 CRON_SECRET                     # Optional: lets an external scheduler call /api/cron/*; DISABLE_SCHEDULER turns in-process jobs off
 GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token
 GITHUB_CLIENT_ID / _SECRET      # Optional: use a pre-made GitHub App instead of the manifest flow

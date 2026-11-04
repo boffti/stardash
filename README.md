@@ -55,7 +55,7 @@ Radar reads the same pool of new repos for everyone. What reaches the top depend
 | Self-hosted apps you run at home | A home-lab dashboard three people you follow starred yesterday. _People you follow_ outranks every topic match. |
 
 > [!NOTE]
-> AI is optional. Search, status, notes, Radar and Contribute all work without a key. Categorize, Intel and Discover use an OpenRouter key (`OPENROUTER_API_KEY`) or your own OpenAI or Anthropic key pasted in Settings. A full categorize run over 500 repos costs about a cent on the default model.
+> AI is optional. Search, status, notes, Radar and Contribute all work without a key. Categorize, Intel and Discover use an OpenRouter key (`OPENROUTER_API_KEY`) your own OpenAI or Anthropic key pasted in Settings, or a local model through any OpenAI-compatible server such as Ollama (`AI_BASE_URL`). A full categorize run over 500 repos costs about a cent on the default model.
 
 ## Quick start
 
@@ -209,16 +209,20 @@ Single owner: the first GitHub account to sign in owns the instance.
 
 All optional.
 
-| Variable                                    | Purpose                                                                                             |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `OPENROUTER_API_KEY`                        | Turns on the AI features.                                                                           |
-| `AI_MODEL`                                  | Any OpenRouter model id. The default is a cheap model that handles structured output.               |
-| `APP_URL`                                   | Public origin, when a reverse proxy does not send `X-Forwarded-Host` and `X-Forwarded-Proto`.       |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | Use a GitHub App you made yourself instead of the one-click flow.                                   |
-| `GITHUB_PAT`                                | Token for the nightly jobs. Defaults to the owner's.                                                |
-| `CRON_SECRET`                               | Lets an external scheduler call `/api/cron/*`. `DISABLE_SCHEDULER=1` turns the in-process jobs off. |
-| `NEXT_PUBLIC_RADAR_ENABLED`                 | `false` hides Radar.                                                                                |
-| `DATABASE_PATH`                             | The SQLite file. `/data/stardash.db` in the container.                                              |
+| Variable                                    | Purpose                                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `OPENROUTER_API_KEY`                        | Turns on the AI features.                                                                              |
+| `AI_MODEL`                                  | Any OpenRouter model id. The default is a cheap model that handles structured output.                  |
+| `AI_BASE_URL`                               | An OpenAI-compatible endpoint (Ollama, LM Studio, vLLM). Used instead of OpenRouter; needs `AI_MODEL`. |
+| `AI_API_KEY`                                | Key for `AI_BASE_URL`, if the server wants one.                                                        |
+| `APP_URL`                                   | Public origin, when a reverse proxy does not send `X-Forwarded-Host` and `X-Forwarded-Proto`.          |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | Use a GitHub App you made yourself instead of the one-click flow.                                      |
+| `GITHUB_PAT`                                | Token for the nightly jobs. Defaults to the owner's.                                                   |
+| `CRON_SECRET`                               | Lets an external scheduler call `/api/cron/*`. `DISABLE_SCHEDULER=1` turns the in-process jobs off.    |
+| `NEXT_PUBLIC_RADAR_ENABLED`                 | `false` hides Radar.                                                                                   |
+| `DATABASE_PATH`                             | The SQLite file. `/data/stardash.db` in the container.                                                 |
+
+**Local models:** run Ollama on the host, pull a model that handles JSON output well (`ollama pull qwen3:8b`), then set `AI_BASE_URL=http://host.docker.internal:11434/v1` and `AI_MODEL=qwen3:8b`. From `pnpm dev` use `http://localhost:11434/v1`. An 8B model needs roughly 8 GB of free RAM. Models under 2B run but group poorly (everything lands in one collection); if Categorize or Intel fails or looks wrong, try a larger one.
 
 **No browser on the box:** choose _Paste a personal access token instead_ on the login page. StarDash talks to GitHub.com only; GitHub Enterprise Server is not supported yet.
 
