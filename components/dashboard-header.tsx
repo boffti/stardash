@@ -25,7 +25,6 @@ interface DashboardHeaderProps {
   onCategorize?: () => void
   isCategorizing?: boolean
   categorizeLimit?: { remaining: number | null; nextAllowedAt: string | null }
-  onOpenCommandPalette?: () => void
 }
 
 export function DashboardHeader({
@@ -43,7 +42,6 @@ export function DashboardHeader({
   onCategorize,
   isCategorizing = false,
   categorizeLimit,
-  onOpenCommandPalette,
 }: DashboardHeaderProps) {
   const searchLabel = searchQuery
     ? `Search: ${searchQuery}`
@@ -158,7 +156,6 @@ export function DashboardHeader({
   return (
     <AppPageHeader
       searchLabel={searchLabel}
-      onOpenCommandPalette={onOpenCommandPalette}
       desktopControls={filterControls}
       mobileControls={mobileFilterControls}
       lastSynced={lastSynced}

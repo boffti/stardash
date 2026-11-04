@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
 import {
@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Sparkles,
   Search,
-  Check,
   SlidersHorizontal,
   ArrowRight,
   TrendingUp,
@@ -50,25 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-  CommandShortcut,
-} from "@/components/ui/command"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import { useCommandPaletteShortcut } from "@/components/use-command-palette-shortcut"
+import { usePaletteGroups } from "@/components/command-palette"
 import {
   Accordion,
   AccordionContent,
@@ -620,272 +601,70 @@ const sortLabels: Record<SortField, string> = {
   name: "Name A-Z",
 }
 
-function includesQuery(value: string | undefined | null, query: string) {
-  return Boolean(value?.toLowerCase().includes(query))
-}
-
-function IntelCommandPalette({
-  open,
-  onOpenChange,
-  intel,
-  filteredIntel,
-  search,
-  verdictFilter,
-  sortField,
-  sortDir,
-  verdictOptions,
-  onSearchChange,
-  onVerdictFilterChange,
-  onSortChange,
-  onOpenRepo,
-  onClearFilters,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+function IntelCommandPalette(p: {
   intel: RepoIntel[]
-  filteredIntel: RepoIntel[]
-  search: string
   verdictFilter: VerdictFilter
   sortField: SortField
-  sortDir: SortDir
   verdictOptions: { value: VerdictFilter; label: string; dotClass: string }[]
+  search: string
   onSearchChange: (query: string) => void
   onVerdictFilterChange: (filter: VerdictFilter) => void
   onSortChange: (field: SortField) => void
   onOpenRepo: (repoFullName: string) => void
   onClearFilters: () => void
 }) {
-  const [query, setQuery] = useState("")
-  const [selectedValue, setSelectedValue] = useState("")
-  useCommandPaletteShortcut(open, onOpenChange)
-
-  useEffect(() => {
-    if (!open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setQuery("")
-      setSelectedValue("")
-    }
-  }, [open])
-
-  const normalizedQuery = query.trim().toLowerCase()
-  const hasActiveFilters = Boolean(search || verdictFilter !== "all")
-
-  const visibleIntel = useMemo(() => {
-    const baseIntel = normalizedQuery ? intel : filteredIntel
-    const matched = normalizedQuery
-      ? intel.filter(
-          (item) =>
-            includesQuery(item.repoFullName, normalizedQuery) ||
-            includesQuery(item.summary, normalizedQuery) ||
-            includesQuery(item.recommendation, normalizedQuery) ||
-            includesQuery(item.maintenanceVerdict, normalizedQuery) ||
-            includesQuery(item.adoptionReadiness, normalizedQuery) ||
-            item.topPainPoints?.some((point) => includesQuery(point, normalizedQuery)),
-        )
-      : baseIntel
-
-    return matched.slice(0, 20)
-  }, [filteredIntel, intel, normalizedQuery])
-
-  const orderedItemMatches = useMemo(() => {
-    const matches: Array<{ value: string; matchesQuery: boolean }> = []
-
-    if (query.trim()) {
-      matches.push({ value: `search-${query}`, matchesQuery: true })
-    }
-
-    matches.push({
-      value: "clear-filters",
-      matchesQuery: hasActiveFilters && "clear active filters reset".includes(normalizedQuery),
-    })
-
-    verdictOptions.forEach((option) => {
-      matches.push({
-        value: `verdict-${option.value}`,
-        matchesQuery: option.label.toLowerCase().includes(normalizedQuery),
-      })
-    })
-
-    Object.entries(sortLabels).forEach(([value, label]) => {
-      matches.push({
-        value: `sort-${value}`,
-        matchesQuery: label.toLowerCase().includes(normalizedQuery),
-      })
-    })
-
-    visibleIntel.forEach((item) => {
-      matches.push({
-        value: `repo-${item.repoFullName}`,
-        matchesQuery: [
-          item.repoFullName,
-          item.summary,
-          item.recommendation,
-          item.maintenanceVerdict,
-          item.adoptionReadiness,
-          ...(item.topPainPoints ?? []),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery),
-      })
-    })
-
-    return matches
-  }, [hasActiveFilters, normalizedQuery, query, verdictOptions, visibleIntel])
-
-  useEffect(() => {
-    if (!open) return
-    const nextSelection =
-      orderedItemMatches.find((item) => item.matchesQuery)?.value ??
-      orderedItemMatches[0]?.value ??
-      ""
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedValue(nextSelection)
-  }, [open, orderedItemMatches])
-
-  const runAndClose = (action: () => void) => {
-    action()
-    onOpenChange(false)
-  }
-
-  const applySearch = () => {
-    if (!query.trim()) return
-    runAndClose(() => onSearchChange(query.trim()))
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl overflow-hidden p-0" showCloseButton={false}>
-        <DialogHeader className="sr-only">
-          <DialogTitle>Search Repo Intel</DialogTitle>
-          <DialogDescription>
-            Search analyzed repositories, change Intel filters, and switch sort order.
-          </DialogDescription>
-        </DialogHeader>
-        <Command
-          shouldFilter={false}
-          value={selectedValue}
-          onValueChange={setSelectedValue}
-          className="rounded-none bg-popover text-popover-foreground [&_[data-slot=command-input-wrapper]]:h-14 [&_[data-slot=command-input-wrapper]]:border-b [&_[data-slot=command-input-wrapper]]:border-border/70 [&_[data-slot=command-input-wrapper]]:px-4 [&_[data-slot=command-input-wrapper]_svg]:h-4 [&_[data-slot=command-input-wrapper]_svg]:w-4 [&_[data-slot=command-input]]:h-14 [&_[data-slot=command-input]]:text-sm"
-        >
-          <div className="border-b border-border/70 bg-secondary/20">
-            <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs text-muted-foreground">
-              <span className="truncate">Search Intel reports, filters, and sort options</span>
-              <KbdGroup className="hidden shrink-0 sm:flex">
-                <Kbd>Esc</Kbd>
-                <Kbd>Enter</Kbd>
-              </KbdGroup>
-            </div>
-          </div>
-          <CommandInput
-            value={query}
-            onValueChange={setQuery}
-            placeholder="Search intel, jump to a repo, or change filters..."
-          />
-
-          <CommandList className="max-h-[min(72vh,640px)] px-2 py-2">
-            <CommandEmpty>No Intel results found.</CommandEmpty>
-
-            {query.trim() && (
-              <CommandGroup heading="Search">
-                <CommandItem
-                  value={`search-${query}`}
-                  onSelect={applySearch}
-                  className="rounded-md"
-                >
-                  <Search className="h-4 w-4" />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate">Filter Intel for &quot;{query.trim()}&quot;</span>
-                    <span className="text-xs text-muted-foreground">
-                      Updates the Repo Intel list
-                    </span>
-                  </div>
-                  <CommandShortcut>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </CommandShortcut>
-                </CommandItem>
-              </CommandGroup>
-            )}
-
-            <CommandGroup heading="Repositories">
-              {visibleIntel.map((item) => (
-                <CommandItem
-                  key={item.id}
-                  value={`repo-${item.repoFullName}`}
-                  onSelect={() => runAndClose(() => onOpenRepo(item.repoFullName))}
-                  className="rounded-md"
-                >
-                  <Brain className="h-4 w-4" />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-mono text-sm">{item.repoFullName}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {item.healthScore} health /{" "}
-                      {verdictConfig[item.maintenanceVerdict]?.label ?? item.maintenanceVerdict}
-                    </span>
-                  </div>
-                  <CommandShortcut>Open</CommandShortcut>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-
-            <CommandSeparator />
-
-            <CommandGroup heading="Filters">
-              {verdictOptions.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={`verdict-${option.value}`}
-                  onSelect={() => runAndClose(() => onVerdictFilterChange(option.value))}
-                  className="rounded-md"
-                >
-                  <Check
-                    className={cn(
-                      "h-4 w-4",
-                      verdictFilter === option.value ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span className={cn("h-1.5 w-1.5 rounded-full", option.dotClass)} />
-                  <span className="flex-1">{option.label}</span>
-                </CommandItem>
-              ))}
-              <CommandItem
-                value="clear-filters"
-                onSelect={() => runAndClose(onClearFilters)}
-                disabled={!hasActiveFilters}
-                className="rounded-md"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="flex-1">Clear Intel filters</span>
-                <CommandShortcut>{hasActiveFilters ? "Reset" : "Idle"}</CommandShortcut>
-              </CommandItem>
-            </CommandGroup>
-
-            <CommandSeparator />
-
-            <CommandGroup heading="Sort">
-              {(Object.keys(sortLabels) as SortField[]).map((field) => (
-                <CommandItem
-                  key={field}
-                  value={`sort-${field}`}
-                  onSelect={() => runAndClose(() => onSortChange(field))}
-                  className="rounded-md"
-                >
-                  <Check
-                    className={cn("h-4 w-4", sortField === field ? "opacity-100" : "opacity-0")}
-                  />
-                  <span className="flex-1">{sortLabels[field]}</span>
-                  <CommandShortcut>
-                    {sortField === field ? sortDir.toUpperCase() : ""}
-                  </CommandShortcut>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </DialogContent>
-    </Dialog>
-  )
+  usePaletteGroups({
+    placeholder: "Search Intel, jump to a repo, or change filters...",
+    search: { label: "Filter Intel", run: p.onSearchChange },
+    groups: [
+      {
+        heading: "Intel reports",
+        limit: 20,
+        items: p.intel.map((item) => ({
+          id: `intel-${item.repoFullName}`,
+          label: item.repoFullName,
+          hint: `${item.healthScore} health, ${verdictConfig[item.maintenanceVerdict]?.label ?? item.maintenanceVerdict}`,
+          keywords: [
+            item.summary,
+            item.recommendation,
+            item.adoptionReadiness,
+            ...(item.topPainPoints ?? []),
+          ].join(" "),
+          icon: Brain,
+          onSelect: () => p.onOpenRepo(item.repoFullName),
+        })),
+      },
+      {
+        heading: "Intel filters",
+        items: [
+          ...p.verdictOptions.map((o) => ({
+            id: `verdict-${o.value}`,
+            label: o.label,
+            checked: p.verdictFilter === o.value,
+            onSelect: () => p.onVerdictFilterChange(o.value),
+          })),
+          {
+            id: "intel-clear",
+            label: "Clear Intel filters",
+            keywords: "reset",
+            icon: SlidersHorizontal,
+            disabled: !(p.search || p.verdictFilter !== "all"),
+            onSelect: p.onClearFilters,
+          },
+        ],
+      },
+      {
+        heading: "Sort",
+        items: (Object.entries(sortLabels) as [SortField, string][]).map(([field, label]) => ({
+          id: `sort-${field}`,
+          label,
+          checked: p.sortField === field,
+          onSelect: () => p.onSortChange(field),
+        })),
+      },
+    ],
+  })
+  return null
 }
 
 export function IntelDashboard() {
@@ -894,7 +673,6 @@ export function IntelDashboard() {
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>("all")
   const [search, setSearch] = useState("")
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState<StarredRepo | null>(null)
   const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false)
@@ -1153,7 +931,6 @@ export function IntelDashboard() {
         <AppPageHeader
           searchLabel={searchLabel}
           searchShortcutLabel="⌘"
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           desktopControls={filterControls}
           mobileControls={mobileFilterControls}
           lastSynced={null}
@@ -1266,14 +1043,10 @@ export function IntelDashboard() {
       </SidebarInset>
 
       <IntelCommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
         intel={allIntel}
-        filteredIntel={filtered}
         search={search}
         verdictFilter={verdictFilter}
         sortField={sortField}
-        sortDir={sortDir}
         verdictOptions={verdictOptions}
         onSearchChange={setSearch}
         onVerdictFilterChange={setVerdictFilter}

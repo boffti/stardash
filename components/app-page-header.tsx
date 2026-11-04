@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatWhen } from "@/lib/utils"
+import { useOptionalCommandPalette } from "@/components/command-palette"
 
 const UserMenu = dynamic(() => import("@/components/user-menu").then((module) => module.UserMenu), {
   ssr: false,
@@ -26,7 +27,6 @@ const UserMenu = dynamic(() => import("@/components/user-menu").then((module) =>
 interface AppPageHeaderProps {
   searchLabel?: string
   searchShortcutLabel?: string
-  onOpenCommandPalette?: () => void
   desktopControls?: React.ReactNode
   mobileControls?: React.ReactNode
   actions?: React.ReactNode
@@ -41,9 +41,8 @@ interface AppPageHeaderProps {
 }
 
 export function AppPageHeader({
-  searchLabel,
+  searchLabel = "Search pages, stars and actions",
   searchShortcutLabel = "⌘",
-  onOpenCommandPalette,
   desktopControls,
   mobileControls,
   actions,
@@ -70,7 +69,9 @@ export function AppPageHeader({
     }
   }
 
-  const hasSearch = Boolean(onOpenCommandPalette && searchLabel)
+  const palette = useOptionalCommandPalette()
+  const onOpenCommandPalette = () => palette?.setOpen(true)
+  const hasSearch = Boolean(palette)
   const hasMobileControls = Boolean(mobileControls)
 
   return (
