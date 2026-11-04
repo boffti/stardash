@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  Sparkles,
   Star,
   Sun,
   Telescope,
@@ -88,6 +89,8 @@ export interface PaletteRegistration {
 interface PaletteContext {
   open: boolean
   setOpen: (open: boolean) => void
+  /** Opens the palette in ask mode: question placeholder, only the Ask item. */
+  openAsk: () => void
 }
 
 // ponytail: one module-level slot (one palette, one page at a time). Pages write it after
@@ -105,8 +108,14 @@ export function useCommandPalette() {
 /** Same as useCommandPalette, but null outside the signed-in app (e.g. landing pages). */
 export function useOptionalCommandPalette() {
   const ctx = useContext(Ctx)
-  return ctx ? { open: ctx.open, setOpen: ctx.setOpen } : null
+  return ctx ? { open: ctx.open, setOpen: ctx.setOpen, openAsk: ctx.openAsk } : null
 }
+
+/** All Stars in ask mode: /dashboard?ask=<question>. */
+export const askHref = (question: string) => `/dashboard?ask=${encodeURIComponent(question)}`
+
+// A question reads like one: ends in "?", or three or more words.
+const looksLikeQuestion = (q: string) => q.endsWith("?") || q.split(/\s+/).length >= 3
 
 /**
  * Registers this page's palette content. Call it every render with fresh values;
@@ -154,10 +163,18 @@ const ITEM = "rounded-md data-[selected=true]:bg-muted data-[selected=true]:text
 
 export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
   const [page, setPage] = useState<PaletteRegistration | null | undefined>(undefined)
+  const [askMode, setAskMode] = useState(false)
   const open = page !== undefined
-  const setOpen = useCallback((next: boolean) => setPage(next ? slot.current : undefined), [])
+  const setOpen = useCallback((next: boolean) => {
+    setAskMode(false)
+    setPage(next ? slot.current : undefined)
+  }, [])
+  const openAsk = useCallback(() => {
+    setAskMode(true)
+    setPage(slot.current)
+  }, [])
   useCommandPaletteShortcut(open, setOpen)
-  const value = useMemo(() => ({ open, setOpen }), [open, setOpen])
+  const value = useMemo(() => ({ open, setOpen, openAsk }), [open, setOpen, openAsk])
 
   return (
     <Ctx.Provider value={value}>
@@ -174,14 +191,26 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
               Jump to a page or a starred repo, run an action, or use this page&apos;s commands.
             </DialogDescription>
           </DialogHeader>
-          {open && <PaletteBody onClose={() => setOpen(false)} page={page ?? null} />}
+          {open && (
+            <PaletteBody onClose={() => setOpen(false)} page={page ?? null} askMode={askMode} />
+          )}
         </DialogContent>
       </Dialog>
     </Ctx.Provider>
   )
 }
 
-function PaletteBody({ onClose, page }: { onClose: () => void; page: PaletteRegistration | null }) {
+function PaletteBody({
+  onClose,
+  page: registered,
+  askMode,
+}: {
+  onClose: () => void
+  page: PaletteRegistration | null
+  askMode: boolean
+}) {
+  // Ask mode shows nothing but the question box and the Ask item.
+  const page = askMode ? null : registered
   const router = useRouter()
   const { user } = useUser()
   const { data: starData, refresh, isRefreshing } = useStarredRepos(user?.id)
@@ -252,9 +281,24 @@ function PaletteBody({ onClose, page }: { onClose: () => void; page: PaletteRegi
     <PaletteGroupView key={g.heading} group={g} run={run} />
   ))
   const openRepo = page?.onRepo ?? ((r: StarredRepo) => router.push(`/repo/${r.owner}/${r.name}`))
-  const nothing =
-    pageGroups.length + universalGroups.length + repos.length === 0 &&
-    !(page?.search && query.trim())
+  const trimmed = query.trim()
+  // Ask is always offered while typing: first when it reads like a question, else last.
+  const askFirst = askMode || looksLikeQuestion(trimmed)
+  const askItem = trimmed ? (
+    <CommandGroup heading="Ask">
+      <CommandItem
+        value="__ask"
+        onSelect={() => run(() => router.push(askHref(trimmed)))}
+        className={ITEM}
+      >
+        <Sparkles className="h-4 w-4" />
+        <span className="flex-1 truncate">Ask your stars: &quot;{trimmed}&quot;</span>
+        <CommandShortcut>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </CommandShortcut>
+      </CommandItem>
+    </CommandGroup>
+  ) : null
 
   return (
     <Command
@@ -265,10 +309,22 @@ function PaletteBody({ onClose, page }: { onClose: () => void; page: PaletteRegi
       <CommandInput
         value={query}
         onValueChange={setQuery}
-        placeholder={page?.placeholder ?? "Jump to a page, a starred repo, or an action..."}
+        placeholder={
+          askMode
+            ? "Ask your stars, e.g. what could replace Redis?"
+            : (page?.placeholder ?? "Jump to a page, a starred repo, or an action...")
+        }
       />
       <CommandList className="max-h-[min(64vh,560px)] px-2 py-2">
-        {navFirst && universal}
+        {askMode && !trimmed && (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+            Ask in plain words. The answer opens on All Stars with the matching repos.
+          </p>
+        )}
+
+        {askFirst && askItem}
+
+        {!askMode && navFirst && universal}
 
         {page?.search && query.trim() && (
           <CommandGroup heading="Search">
@@ -292,9 +348,9 @@ function PaletteBody({ onClose, page }: { onClose: () => void; page: PaletteRegi
           <PaletteGroupView key={g.heading} group={g} run={run} />
         ))}
 
-        {!navFirst && universal}
+        {!askMode && !navFirst && universal}
 
-        {repos.length > 0 && (
+        {!askMode && repos.length > 0 && (
           <CommandGroup heading={q ? "Your stars" : "Pinned and recent stars"}>
             {repos.map((repo) => (
               <CommandItem
@@ -321,14 +377,7 @@ function PaletteBody({ onClose, page }: { onClose: () => void; page: PaletteRegi
           </CommandGroup>
         )}
 
-        {nothing && (
-          <div className="py-10 text-center">
-            <p className="text-sm font-medium">No results for &quot;{query.trim()}&quot;</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Try a repo name, a page, or an action.
-            </p>
-          </div>
-        )}
+        {!askFirst && askItem}
       </CommandList>
       <div className="flex items-center justify-end gap-3 border-t border-border/70 px-4 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
