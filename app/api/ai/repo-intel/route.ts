@@ -2,16 +2,17 @@ import { NextResponse } from "next/server"
 import { after } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 import { getUser } from "@/lib/auth"
-import { db, fromJson, nowIso, toJson } from "@/lib/db"
+import { db, nowIso, toJson } from "@/lib/db"
 import { getValidGitHubToken } from "@/lib/tokens"
 import {
   fetchRepoCommunityFileSignals,
   fetchRepoIntelData,
   GitHubRateLimitError,
 } from "@/lib/repo-intel"
-import { analyzeRepoIntel } from "@/lib/ai-repo-intel"
+import { analyzeRepoIntel, getCachedInsight, saveRepoInsight } from "@/lib/ai-repo-intel"
+import { agentWatching, latestRequest, queueRequest } from "@/lib/agent-requests"
 import { langfuseSpanProcessor } from "@/instrumentation"
-import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
+import { getAIModel, getProviderOptions, hasAIKey, type AIModelConfig } from "@/lib/ai-provider"
 import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from "@/lib/ai-weekly-limit"
 import type { RepoIntel } from "@/lib/types"
 import { type RepoInsightRow, rowToIntel } from "@/lib/repo-insight-row"
@@ -19,27 +20,6 @@ import { type RepoInsightRow, rowToIntel } from "@/lib/repo-insight-row"
 export const maxDuration = 60
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
-
-// SQLite stores top_pain_points and metrics as JSON text.
-type StoredInsightRow = Omit<RepoInsightRow, "top_pain_points" | "metrics"> & {
-  top_pain_points: string | null
-  metrics: string | null
-}
-
-function parseInsightRow(row: StoredInsightRow): RepoInsightRow {
-  return {
-    ...row,
-    top_pain_points: fromJson<string[] | null>(row.top_pain_points, null),
-    metrics: fromJson<RepoIntel["metrics"] | null>(row.metrics, null),
-  }
-}
-
-function getCachedInsight(repoFullName: string): RepoInsightRow | undefined {
-  const row = db
-    .prepare("select * from repo_insights where repo_full_name = ?")
-    .get(repoFullName) as StoredInsightRow | undefined
-  return row ? parseInsightRow(row) : undefined
-}
 
 function communityFilesChanged(
   current: RepoIntel["metrics"]["hasCommunityFiles"],
@@ -68,6 +48,41 @@ export async function GET(request: Request) {
 
     // Check global cache
     const cached = getCachedInsight(repoFullName)
+
+    // No AI key: the user's own agent does the analysis (lib/agent-requests.ts).
+    // Polling this URL without refresh reports the request until it lands.
+    if (!hasAIKey(request)) {
+      const intel = cached ? rowToIntel(cached) : undefined
+      const last = latestRequest(user.id, "intel", repoFullName)
+      const agent = { watching: agentWatching(user.id) }
+      const lastIsNewer = last && (!cached || last.created_at > cached.analyzed_at)
+      if (last && (last.status === "queued" || last.status === "claimed")) {
+        return NextResponse.json({ intel, cached: !!intel, request: last, agent })
+      }
+      if (!refresh && (intel || last?.status === "failed")) {
+        return NextResponse.json({
+          intel,
+          cached: !!intel,
+          request: lastIsNewer ? last : undefined,
+          agent,
+        })
+      }
+      const { token, error: tokenError } = await getValidGitHubToken()
+      if (tokenError === "expired") {
+        return NextResponse.json(
+          { error: "GitHub token expired. Please sign out and sign in again." },
+          { status: 401 },
+        )
+      }
+      const raw = await fetchRepoIntelData(owner, repo, token ?? undefined)
+      const queued = queueRequest(user.id, "intel", repoFullName, {
+        repoFullName,
+        metrics: raw.metrics,
+        issueSamples: raw.issueSamples,
+        contributorCount: raw.contributorCount,
+      })
+      return NextResponse.json({ intel, cached: !!intel, request: queued, agent })
+    }
 
     // Return fresh cached data without hitting rate limit
     if (cached && !refresh) {
@@ -163,42 +178,20 @@ export async function GET(request: Request) {
 
     // AI synthesis
     const analysis = await analyzeRepoIntel(
-      repoFullName,
-      rawData.metrics,
-      rawData.issueSamples,
-      rawData.contributorCount,
+      {
+        repoFullName,
+        metrics: rawData.metrics,
+        issueSamples: rawData.issueSamples,
+        contributorCount: rawData.contributorCount,
+      },
       modelConfig.model,
       getProviderOptions(modelConfig.provider),
     )
 
     // Upsert to global cache
-    let upserted: StoredInsightRow | undefined
+    let upserted: RepoInsightRow | undefined
     try {
-      upserted = db
-        .prepare(
-          `insert into repo_insights (repo_full_name, analyzed_at, health_score, maintenance_verdict,
-             community_sentiment, adoption_readiness, top_pain_points, summary, recommendation, metrics)
-           values (@repo_full_name, @analyzed_at, @health_score, @maintenance_verdict,
-             @community_sentiment, @adoption_readiness, @top_pain_points, @summary, @recommendation, @metrics)
-           on conflict (repo_full_name) do update set
-             analyzed_at = excluded.analyzed_at, health_score = excluded.health_score,
-             maintenance_verdict = excluded.maintenance_verdict, community_sentiment = excluded.community_sentiment,
-             adoption_readiness = excluded.adoption_readiness, top_pain_points = excluded.top_pain_points,
-             summary = excluded.summary, recommendation = excluded.recommendation, metrics = excluded.metrics
-           returning *`,
-        )
-        .get({
-          repo_full_name: repoFullName,
-          analyzed_at: nowIso(),
-          health_score: analysis.healthScore,
-          maintenance_verdict: analysis.maintenanceVerdict,
-          community_sentiment: analysis.communitySentiment,
-          adoption_readiness: analysis.adoptionReadiness,
-          top_pain_points: toJson(analysis.topPainPoints),
-          summary: analysis.summary,
-          recommendation: analysis.recommendation,
-          metrics: toJson(analysis.metrics),
-        }) as StoredInsightRow | undefined
+      upserted = saveRepoInsight(repoFullName, analysis)
     } catch (upsertError) {
       Sentry.captureException(upsertError)
     }
@@ -219,7 +212,7 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({
-      intel: rowToIntel(parseInsightRow(upserted)),
+      intel: rowToIntel(upserted),
       cached: false,
       remaining: limitResult?.remaining ?? null,
     })

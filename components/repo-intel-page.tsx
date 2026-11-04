@@ -47,6 +47,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { useUser } from "@/components/providers/user-provider"
+import {
+  AgentRequestNotice,
+  agentPollInterval,
+  isAgentPending,
+  type AgentRequestState,
+} from "@/components/agent-request-notice"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,8 +76,8 @@ interface HealthEntry {
   starVelocity: StarVelocity | null
 }
 
-type RepoIntelResponse = {
-  intel: RepoIntel
+type RepoIntelResponse = AgentRequestState & {
+  intel?: RepoIntel
   cached: boolean
   limitReached?: boolean
   remaining?: number | null
@@ -720,6 +726,8 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
 export function RepoIntelPage({ owner, repo }: Props) {
   const { user } = useUser()
   const [refreshKey, setRefreshKey] = useState(0)
+  // refresh=true only until the server answers; agent-mode polling must not re-queue.
+  const [refreshPending, setRefreshPending] = useState(false)
   const [intelCacheHydrated, setIntelCacheHydrated] = useState(false)
   const [localIntelData, setLocalIntelData] = useState<RepoIntelResponse | null>(null)
   const [healthCacheHydrated, setHealthCacheHydrated] = useState(false)
@@ -743,7 +751,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
     }
   }, [owner, repo])
 
-  const intelUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&_k=${refreshKey}${refreshKey > 0 ? "&refresh=true" : ""}`
+  const intelUrl = `/api/ai/repo-intel?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&_k=${refreshKey}${refreshPending ? "&refresh=true" : ""}`
   const shouldFetchIntel = intelCacheHydrated
   const {
     data: intelData,
@@ -755,7 +763,11 @@ export function RepoIntelPage({ owner, repo }: Props) {
     revalidateOnMount: true,
     revalidateOnReconnect: false,
     fallbackData: localIntelData ?? undefined,
+    refreshInterval: agentPollInterval,
+    keepPreviousData: true,
     onSuccess(result) {
+      if (isAgentPending(result)) setRefreshPending(false)
+      if (!result.intel) return
       writeLocalCache(intelCacheKey(owner, repo), result)
       setLocalIntelData(result)
     },
@@ -859,6 +871,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
     : null
 
   const handleRefresh = () => {
+    setRefreshPending(true)
     setRefreshKey((key) => key + 1)
   }
 
@@ -904,7 +917,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 size="sm"
                 className="gap-1.5"
                 onClick={handleRefresh}
-                disabled={isLoading}
+                disabled={isLoading || isAgentPending(intelData)}
               >
                 {isLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -958,7 +971,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 size="sm"
                 className="gap-1.5"
                 onClick={handleRefresh}
-                disabled={isLoading}
+                disabled={isLoading || isAgentPending(intelData)}
               >
                 {isLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -987,6 +1000,8 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 Failed to load intel. Check your AI key or try again.
               </div>
             )}
+
+            {!isLoading && <AgentRequestNotice state={intelData} />}
 
             {/* Limit warning */}
             {!isLoading && intelData?.limitReached && (

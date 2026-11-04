@@ -10,8 +10,10 @@ import type {
   RepoMaintenanceAssessment,
 } from "./types"
 import type { IssueSample } from "./repo-intel"
+import { db, fromJson, nowIso, toJson } from "./db"
+import type { RepoInsightRow } from "./repo-insight-row"
 
-const RepoIntelSchema = z.object({
+export const RepoIntelSchema = z.object({
   healthScore: z
     .number()
     .int()
@@ -117,45 +119,49 @@ RECENT OPEN ISSUES (sample for pain point analysis)
 ${issueList}`
 }
 
-export async function analyzeRepoIntel(
-  repoFullName: string,
-  metrics: RepoIntelMetrics,
-  issueSamples: IssueSample[],
-  contributorCount: number,
-  model: LanguageModel,
-  providerOptions: Record<string, Record<string, string>> = {},
-): Promise<Omit<RepoIntel, "id" | "repoFullName" | "analyzedAt">> {
-  const maintenanceAssessment = metrics.maintenanceAssessment ?? {
-    verdict: "lightly-maintained" as MaintenanceVerdict,
-    confidence: 0.35,
-    score: 45,
-    reasons: ["Maintenance assessment was unavailable for this cached record."],
-    signals: {
-      commitRecency: "unknown" as const,
-      commitVelocity: "unknown" as const,
-      issueResponsiveness: "unknown" as const,
-      prActivity: "unknown" as const,
-      releaseRecency: "unknown" as const,
-    },
-  }
+export const INTEL_SYSTEM = `You are an expert open-source project analyst. Given structured health metrics, a deterministic maintenance assessment, and a sample of open issues for a GitHub repository, produce a concise, data-driven analysis. Use the deterministic maintenance verdict as fixed input; do not override it. Be honest — if a project looks abandoned or unhealthy, say so clearly. Avoid generic statements.`
 
-  const prompt = formatMetricsForPrompt(
-    repoFullName,
-    metrics,
-    issueSamples,
-    contributorCount,
-    maintenanceAssessment,
+/** Everything needed to run the analysis, in-app or by the user's agent. */
+export interface IntelInput {
+  repoFullName: string
+  metrics: RepoIntelMetrics
+  issueSamples: IssueSample[]
+  contributorCount: number
+}
+
+function assessmentOf(metrics: RepoIntelMetrics): RepoMaintenanceAssessment {
+  return (
+    metrics.maintenanceAssessment ?? {
+      verdict: "lightly-maintained" as MaintenanceVerdict,
+      confidence: 0.35,
+      score: 45,
+      reasons: ["Maintenance assessment was unavailable for this cached record."],
+      signals: {
+        commitRecency: "unknown" as const,
+        commitVelocity: "unknown" as const,
+        issueResponsiveness: "unknown" as const,
+        prActivity: "unknown" as const,
+        releaseRecency: "unknown" as const,
+      },
+    }
+  )
+}
+
+export const buildIntelPrompt = (input: IntelInput) =>
+  formatMetricsForPrompt(
+    input.repoFullName,
+    input.metrics,
+    input.issueSamples,
+    input.contributorCount,
+    assessmentOf(input.metrics),
   )
 
-  const { object } = await generateObject({
-    model,
-    schema: RepoIntelSchema,
-    providerOptions,
-    experimental_telemetry: { isEnabled: true, functionId: "repo-intel-analysis" },
-    system: `You are an expert open-source project analyst. Given structured health metrics, a deterministic maintenance assessment, and a sample of open issues for a GitHub repository, produce a concise, data-driven analysis. Use the deterministic maintenance verdict as fixed input; do not override it. Be honest — if a project looks abandoned or unhealthy, say so clearly. Avoid generic statements.`,
-    prompt,
-  })
-
+/** Turns the model's (or agent's) object into stored intel. */
+export function finishIntel(
+  input: IntelInput,
+  object: z.output<typeof RepoIntelSchema>,
+): Omit<RepoIntel, "id" | "repoFullName" | "analyzedAt"> {
+  const maintenanceAssessment = assessmentOf(input.metrics)
   // Anchor the AI's health score to the deterministic maintenance score so the
   // two signals can't diverge. The blend weights the deterministic score at 60%
   // and the AI's qualitative read at 40%, then clamps to 0–100.
@@ -169,9 +175,77 @@ export async function analyzeRepoIntel(
     maintenanceVerdict: maintenanceAssessment.verdict,
     communitySentiment: object.communitySentiment as CommunitySentiment,
     adoptionReadiness: object.adoptionReadiness as AdoptionReadiness,
-    topPainPoints: object.topPainPoints,
+    topPainPoints: object.topPainPoints.slice(0, 3),
     summary: object.summary,
     recommendation: object.recommendation,
-    metrics,
+    metrics: input.metrics,
   }
+}
+
+export async function analyzeRepoIntel(
+  input: IntelInput,
+  model: LanguageModel,
+  providerOptions: Record<string, Record<string, string>> = {},
+) {
+  const { object } = await generateObject({
+    model,
+    schema: RepoIntelSchema,
+    providerOptions,
+    experimental_telemetry: { isEnabled: true, functionId: "repo-intel-analysis" },
+    system: INTEL_SYSTEM,
+    prompt: buildIntelPrompt(input),
+  })
+  return finishIntel(input, object)
+}
+
+type StoredInsightRow = Omit<RepoInsightRow, "top_pain_points" | "metrics"> & {
+  top_pain_points: string | null
+  metrics: string | null
+}
+
+export function parseInsightRow(row: StoredInsightRow): RepoInsightRow {
+  return {
+    ...row,
+    top_pain_points: fromJson<string[] | null>(row.top_pain_points, null),
+    metrics: fromJson<RepoIntel["metrics"] | null>(row.metrics, null),
+  }
+}
+
+export function getCachedInsight(repoFullName: string): RepoInsightRow | undefined {
+  const row = db
+    .prepare("select * from repo_insights where repo_full_name = ?")
+    .get(repoFullName) as StoredInsightRow | undefined
+  return row ? parseInsightRow(row) : undefined
+}
+
+export function saveRepoInsight(
+  repoFullName: string,
+  analysis: Omit<RepoIntel, "id" | "repoFullName" | "analyzedAt">,
+): RepoInsightRow | undefined {
+  const row = db
+    .prepare(
+      `insert into repo_insights (repo_full_name, analyzed_at, health_score, maintenance_verdict,
+         community_sentiment, adoption_readiness, top_pain_points, summary, recommendation, metrics)
+       values (@repo_full_name, @analyzed_at, @health_score, @maintenance_verdict,
+         @community_sentiment, @adoption_readiness, @top_pain_points, @summary, @recommendation, @metrics)
+       on conflict (repo_full_name) do update set
+         analyzed_at = excluded.analyzed_at, health_score = excluded.health_score,
+         maintenance_verdict = excluded.maintenance_verdict, community_sentiment = excluded.community_sentiment,
+         adoption_readiness = excluded.adoption_readiness, top_pain_points = excluded.top_pain_points,
+         summary = excluded.summary, recommendation = excluded.recommendation, metrics = excluded.metrics
+       returning *`,
+    )
+    .get({
+      repo_full_name: repoFullName,
+      analyzed_at: nowIso(),
+      health_score: analysis.healthScore,
+      maintenance_verdict: analysis.maintenanceVerdict,
+      community_sentiment: analysis.communitySentiment,
+      adoption_readiness: analysis.adoptionReadiness,
+      top_pain_points: toJson(analysis.topPainPoints),
+      summary: analysis.summary,
+      recommendation: analysis.recommendation,
+      metrics: toJson(analysis.metrics),
+    }) as StoredInsightRow | undefined
+  return row ? parseInsightRow(row) : undefined
 }

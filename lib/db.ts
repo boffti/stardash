@@ -202,7 +202,23 @@ create table if not exists api_tokens (
 `
 
 // Append-only. Each entry runs once, in order, when user_version is below its index + 1.
-const MIGRATIONS: string[] = []
+const MIGRATIONS: string[] = [
+  // 1: work queued for the user's own agent (Claude Code, Codex...) when no AI key is set.
+  `create table agent_requests (
+    id text primary key default (lower(hex(randomblob(8)))),
+    user_id text not null references profiles(id) on delete cascade,
+    kind text not null,
+    target text,
+    input text not null default '{}',
+    status text not null default 'queued' check (status in ('queued','claimed','done','failed')),
+    result text,
+    error text,
+    created_at text not null default ${NOW},
+    claimed_at text,
+    done_at text
+  );
+  create index agent_requests_open on agent_requests (user_id, status, created_at);`,
+]
 
 function open() {
   const path = process.env.DATABASE_PATH ?? "./data/stardash.db"
