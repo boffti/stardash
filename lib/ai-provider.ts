@@ -3,11 +3,11 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { createAnthropic } from "@ai-sdk/anthropic"
 import type { LanguageModel } from "ai"
 
-export type AIProvider = "openrouter" | "openai" | "anthropic"
+export type AIProvider = "openrouter" | "openai" | "anthropic" | "compatible"
 
 // Cheap, decent, good at structured output. A full categorize run over 500 repos
 // is a few cents on any of these. AI_MODEL overrides the OpenRouter default.
-const DEFAULT_MODELS: Record<AIProvider, string> = {
+const DEFAULT_MODELS: Record<Exclude<AIProvider, "compatible">, string> = {
   openrouter: process.env.AI_MODEL || "anthropic/claude-haiku-5.5",
   openai: "gpt-5-mini",
   anthropic: "claude-haiku-5-5",
@@ -33,6 +33,19 @@ export function getAIModel(request: Request): AIModelConfig {
   const headerProvider = (request.headers.get("x-ai-provider") ?? "openrouter") as AIProvider
 
   const isUserKey = !!headerKey
+
+  // Server-side OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, llama.cpp...).
+  // A key pasted in Settings still wins for that browser's requests.
+  const baseURL = process.env.AI_BASE_URL
+  if (!isUserKey && baseURL) {
+    const modelId = process.env.AI_MODEL
+    if (!modelId)
+      throw new Error("AI service not configured: AI_MODEL is required with AI_BASE_URL")
+    // .chat(): local servers speak /chat/completions, not OpenAI's Responses API.
+    const model = createOpenAI({ baseURL, apiKey: process.env.AI_API_KEY || "local" }).chat(modelId)
+    return { model, provider: "compatible", isUserKey }
+  }
+
   const apiKey = headerKey ?? process.env.OPENROUTER_API_KEY ?? ""
 
   if (!apiKey) throw new Error("AI service not configured")
