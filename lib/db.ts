@@ -226,11 +226,20 @@ function open() {
   // busy_timeout first: `next build` evaluates routes in parallel workers that all open this file.
   db.exec("pragma busy_timeout = 5000; pragma journal_mode = wal; pragma foreign_keys = on;")
   db.exec(SCHEMA)
-  const version = (db.prepare("pragma user_version").get() as { user_version: number }).user_version
-  MIGRATIONS.slice(version).forEach((sql, i) => {
-    db.exec(sql)
-    db.exec(`pragma user_version = ${version + i + 1}`)
-  })
+  // Write lock before reading the version, so parallel build workers apply each migration once.
+  db.exec("begin immediate")
+  try {
+    const version = (db.prepare("pragma user_version").get() as { user_version: number })
+      .user_version
+    MIGRATIONS.slice(version).forEach((sql, i) => {
+      db.exec(sql)
+      db.exec(`pragma user_version = ${version + i + 1}`)
+    })
+    db.exec("commit")
+  } catch (err) {
+    db.exec("rollback")
+    throw err
+  }
   return db
 }
 
