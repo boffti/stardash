@@ -37,6 +37,7 @@ import { Kbd } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchStarPopover } from "@/components/search-star-popover"
 import { TrendingSections } from "@/components/trending-sections"
+import { ReleasesInbox } from "@/components/releases-inbox"
 import { useUser } from "@/components/providers/user-provider"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { LANGUAGE_COLORS, type UserMetadata } from "@/lib/types"
@@ -47,6 +48,7 @@ import { cn } from "@/lib/utils"
 const RADAR_KEY = "/api/radar"
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
+type Tab = "inbox" | "releases" | "stars"
 type Filter = "all" | "following" | "hn" | "velocity" | "new"
 
 // Same tile vocabulary as Intel's stats row: icon chip, big number, small label.
@@ -99,9 +101,10 @@ async function sendAction(
 export function RadarFeed() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const tab: "inbox" | "stars" = searchParams.get("tab") === "stars" ? "stars" : "inbox"
-  const setTab = (next: "inbox" | "stars") =>
-    router.replace(next === "stars" ? "/radar?tab=stars" : "/radar", { scroll: false })
+  const rawTab = searchParams.get("tab")
+  const tab: Tab = rawTab === "stars" || rawTab === "releases" ? rawTab : "inbox"
+  const setTab = (next: Tab) =>
+    router.replace(next === "inbox" ? "/radar" : `/radar?tab=${next}`, { scroll: false })
   const { user } = useUser()
   const { data: starData } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(user?.id ? "/api/user/metadata" : null, fetcher, {
@@ -193,8 +196,9 @@ export function RadarFeed() {
     }
   }, [mutate])
 
-  // Keyboard triage: j/k move, x dismiss, z snooze, o open.
+  // Keyboard triage: j/k move, x dismiss, z snooze, o open. Releases has its own.
   useEffect(() => {
+    if (tab !== "inbox") return
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return
@@ -223,7 +227,7 @@ export function RadarFeed() {
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [items, activeIndex, triage])
+  }, [tab, items, activeIndex, triage])
 
   useEffect(() => {
     document
@@ -313,7 +317,7 @@ export function RadarFeed() {
                   )}
                 </p>
               </div>
-              {scanButton()}
+              {tab === "inbox" && scanButton()}
             </div>
 
             <div
@@ -324,6 +328,7 @@ export function RadarFeed() {
               {(
                 [
                   ["inbox", "Inbox"],
+                  ["releases", "Releases"],
                   ["stars", "From your stars"],
                 ] as const
               ).map(([id, label]) => (
@@ -346,6 +351,8 @@ export function RadarFeed() {
           </section>
 
           {tab === "stars" && <TrendingSections />}
+
+          {tab === "releases" && <ReleasesInbox />}
 
           {tab === "inbox" && (
             <>

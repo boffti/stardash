@@ -202,7 +202,22 @@ create table if not exists api_tokens (
 `
 
 // Append-only. Each entry runs once, in order, when user_version is below its index + 1.
-const MIGRATIONS: string[] = []
+const MIGRATIONS: string[] = [
+  // 1: releases inbox. Releases are global per repo; "seen" is per user.
+  `create table repo_releases (
+    repo_id text not null references repos(id) on delete cascade,
+    tag text not null,
+    name text,
+    url text not null,
+    published_at text not null,
+    body text,
+    summary text,
+    breaking integer not null default 0,
+    primary key (repo_id, tag)
+  );
+  create index repo_releases_published on repo_releases (repo_id, published_at);
+  alter table user_starred_repos add column releases_seen_at text;`,
+]
 
 function open() {
   const path = process.env.DATABASE_PATH ?? "./data/stardash.db"

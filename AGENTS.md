@@ -82,6 +82,8 @@ app/
 │   ├── user/metadata|repo-id
 │   ├── cron/star-snapshots   # Daily snapshots (called by lib/scheduler.ts, or externally with CRON_SECRET)
 │   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (same scheduler)
+│   ├── cron/releases-ingest  # GitHub Releases for currently-using repos (same scheduler, lib/releases.ts)
+│   ├── releases/             # GET unread feed · seen (mark read / undo) · scan ("Check now")
 │   ├── health                # Container healthcheck
 │   ├── mcp                   # MCP server (mcp-handler, bearer tokens from api_tokens)
 │   ├── tokens                # Mint/list/revoke agent tokens (Settings → Agents)
@@ -139,22 +141,25 @@ Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub
 
 `GET /api/radar` builds a taste profile from the user's stars (`lib/radar.ts`: topic/language weights × status, `tried-dropped` is negative) and scores every candidate. Social signal outranks a full topic match. Reasons are returned as plain-language strings and rendered as the row's evidence line. Triage actions live in `radar_actions`; starring uses the existing `/api/github/star` route.
 
+**Releases tab.** Nightly `releases-ingest` fetches GitHub Releases (ETag, skips drafts and prereleases, first sight stores only the latest) for repos any user marks `currently-using`. `isBreaking()` flags major bumps and breaking-change wording at once; with an AI key one batched call adds summaries and may raise the flag, never lower it.
+
 ### Database Schema
 
-| Table                                     | Purpose                                                       |
-| ----------------------------------------- | ------------------------------------------------------------- |
-| `profiles`                                | Owner identity, GitHub token + refresh token, sync timestamps |
-| `repos`                                   | Repo catalog (one row per GitHub repo)                        |
-| `user_starred_repos`                      | Per-user: status, notes, pinned                               |
-| `tags` / `collections`                    | User-owned taxonomy                                           |
-| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                        |
-| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)    |
-| `radar_candidates`                        | Pool of new/rising repos                                      |
-| `radar_signals`                           | Per-user: people you follow starred repo X                    |
-| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred                |
-| `discover_searches`                       | Cached Discover search results per user                       |
-| `repo_insights`                           | AI repo intel cache (7d)                                      |
-| `meta`                                    | Key/value: session secret, GitHub App client id/secret        |
+| Table                                     | Purpose                                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `profiles`                                | Owner identity, GitHub token + refresh token, sync timestamps                          |
+| `repos`                                   | Repo catalog (one row per GitHub repo)                                                 |
+| `user_starred_repos`                      | Per-user: status, notes, pinned                                                        |
+| `tags` / `collections`                    | User-owned taxonomy                                                                    |
+| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                                                 |
+| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)                             |
+| `radar_candidates`                        | Pool of new/rising repos                                                               |
+| `radar_signals`                           | Per-user: people you follow starred repo X                                             |
+| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred                                         |
+| `repo_releases`                           | Releases of currently-using repos; read state is `user_starred_repos.releases_seen_at` |
+| `discover_searches`                       | Cached Discover search results per user                                                |
+| `repo_insights`                           | AI repo intel cache (7d)                                                               |
+| `meta`                                    | Key/value: session secret, GitHub App client id/secret                                 |
 
 **Scoping:** there is no RLS. Every query on a per-user table carries `where user_id = ?`. Postgres arrays/jsonb became JSON text (`topics`, `sources`, `results`, `pipeline_events`, `metrics`, `top_pain_points`), booleans are 0/1, timestamps are ISO strings.
 

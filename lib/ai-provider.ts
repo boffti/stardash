@@ -48,3 +48,7 @@ export function getAIModel(request: Request): AIModelConfig {
       return { model: createOpenRouter({ apiKey })(DEFAULT_MODELS.openrouter), provider, isUserKey }
   }
 }
+
+/** True when an AI call can run: a user key in the headers or the server's OpenRouter key. */
+export const hasAIKey = (request: Request) =>
+  !!(request.headers.get("x-ai-key") || process.env.OPENROUTER_API_KEY)

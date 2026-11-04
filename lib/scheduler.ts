@@ -7,6 +7,7 @@ import { cronSecret } from "@/lib/cron-auth"
 const JOBS = [
   { name: "star-snapshots", path: "/api/cron/star-snapshots" },
   { name: "radar-ingest", path: "/api/cron/radar-ingest" },
+  { name: "releases-ingest", path: "/api/cron/releases-ingest" },
 ]
 const EVERY_MS = 20 * 60 * 60 * 1000
 const TICK_MS = 15 * 60 * 1000
@@ -55,5 +56,5 @@ export function startScheduler() {
   g.__schedulerStarted = true
   setTimeout(tick, FIRST_TICK_MS).unref()
   setInterval(tick, TICK_MS).unref()
-  console.info("[scheduler] started: star snapshots and radar ingest every 20h")
+  console.info("[scheduler] started: star snapshots, radar and releases every 20h")
 }
