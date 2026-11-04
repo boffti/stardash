@@ -22,6 +22,7 @@
     "prepare": "husky",
     "check:radar": "node --experimental-strip-types scripts/radar-score.check.ts",
     "check:releases": "node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/releases.check.ts",
+    "check:ask": "node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/ask.check.ts",
     "check:db": "node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/db.check.ts"
   },
   "lint-staged": {

@@ -9,6 +9,7 @@ import { DashboardCommandPalette } from "./dashboard-command-palette"
 import { DashboardHeader } from "./dashboard-header"
 import { RepoGrid, RepoGridSkeleton } from "./repo-grid"
 import { RepoList } from "./repo-list"
+import { AskResults } from "./ask-results"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
 import { ProactiveAlerts } from "./proactive-alerts"
@@ -99,6 +100,14 @@ export function Dashboard() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  // Ask your stars: /dashboard?ask=<question> swaps the grid for the answer.
+  const askQuestion = searchParams.get("ask")?.trim() || null
+  const clearAsk = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("ask")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
   const [viewMode, setViewModeState] = useState<"grid" | "list">("grid")
@@ -1038,7 +1047,18 @@ export function Dashboard() {
             )}
 
             {/* Content — shown even when token expired if cached data exists */}
-            {hasRepoData && (
+            {hasRepoData && askQuestion && user?.id && (
+              <AskResults
+                question={askQuestion}
+                userId={user.id}
+                repos={repos}
+                onRepoClick={handleRepoClick}
+                onRemoveStar={handleRemoveStarRequest}
+                onClear={clearAsk}
+              />
+            )}
+
+            {hasRepoData && !askQuestion && (
               <>
                 {/* Active Filters */}
                 {hasActiveFilters && (

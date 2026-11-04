@@ -2,7 +2,14 @@
 
 import dynamic from "next/dynamic"
 import React, { useState } from "react"
-import { Menu, RefreshCw, Search, Sparkles, User as UserIcon } from "lucide-react"
+import {
+  Menu,
+  MessageCircleQuestion,
+  RefreshCw,
+  Search,
+  Sparkles,
+  User as UserIcon,
+} from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -94,6 +101,21 @@ export function AppPageHeader({
                 <Kbd>K</Kbd>
               </KbdGroup>
             </button>
+          )}
+
+          {hasSearch && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => palette?.openAsk()}
+              className="h-9 shrink-0 gap-1.5 rounded-xl px-2.5 text-muted-foreground hover:text-foreground"
+              aria-label="Ask your stars"
+              title="Ask your stars a question"
+            >
+              <MessageCircleQuestion className="h-4 w-4" />
+              <span className="hidden lg:inline">Ask</span>
+            </Button>
           )}
 
           {desktopControls && (
