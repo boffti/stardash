@@ -265,7 +265,7 @@ export function plainExcerpt(md: string) {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/^#+\s*/gm, "")
-    .replace(/[*_`>]/g, "")
+    .replace(/[*_`<>]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 280)
