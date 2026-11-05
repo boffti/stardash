@@ -29,7 +29,7 @@ export function SearchHero({
 }: SearchHeroProps) {
   const { t } = useI18n()
   return (
-    <div className={`border-b border-border/50 px-6 ${hasResults ? "py-5" : "py-12"}`}>
+    <div className={`px-6 ${hasResults ? "py-5" : "py-12"}`}>
       <div className="mx-auto max-w-3xl space-y-5">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
@@ -41,7 +41,7 @@ export function SearchHero({
             event.preventDefault()
             if (query.trim()) onSearch(query.trim())
           }}
-          className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm"
+          className="flex items-center gap-2 rounded-lg bg-card p-2 shadow-sm dark:shadow-black/20"
         >
           <Search className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
           <input
@@ -84,7 +84,7 @@ export function SearchHero({
               type="button"
               aria-pressed={scope === value}
               onClick={() => onScopeChange(value)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${scope === value ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${scope === value ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               {label}
             </button>

@@ -17,7 +17,7 @@ interface DashboardCommandPaletteProps {
   healthFilter: RepoHealthFilter | null
   showUncategorized: boolean
   sortBy: string
-  viewMode: "grid" | "list"
+  viewMode: "grid" | "list" | "graph"
   isCategorizing: boolean
   onSearchChange: (query: string) => void
   onSelectCollection: (collectionId: string | null) => void

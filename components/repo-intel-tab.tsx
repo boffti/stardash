@@ -288,7 +288,7 @@ function StatusCell({
   icon: React.ElementType
 }) {
   return (
-    <div className={cn("min-w-0 rounded-lg border px-3 py-2.5 transition-colors", className)}>
+    <div className={cn("min-w-0 rounded-lg px-3 py-2.5 transition-colors", className)}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[10px] font-medium uppercase tracking-[0.16em] opacity-70">{category}</p>
         <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden="true" />
@@ -315,7 +315,7 @@ function SignalBar({
   fillColor?: string
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
+    <div className="rounded-lg bg-background/60 px-3 py-3">
       <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground leading-none">
         {label}
       </p>
@@ -564,7 +564,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* ── Score hero ──────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border/80 bg-background shadow-sm shadow-black/5">
+      <div className="overflow-hidden rounded-xl bg-background shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 p-4">
           <HealthScoreRing score={intel.healthScore} />
           <div
@@ -667,7 +667,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       {assessment && (
         <div>
           <SectionLabel>{t("Maintenance Rationale", "维护状况依据")}</SectionLabel>
-          <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
+          <div className="rounded-lg bg-background/60 px-3 py-3">
             <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
               <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
@@ -731,7 +731,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
             {intel.topPainPoints.map((point, i) => (
               <li
                 key={i}
-                className="flex items-start gap-2.5 rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2.5"
+                className="flex items-start gap-2.5 rounded-lg bg-orange-500/5 px-3 py-2.5"
               >
                 <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border border-orange-500/25 bg-orange-500/15 font-mono text-[10px] font-bold leading-none text-orange-700 dark:text-orange-400">
                   {i + 1}
@@ -744,7 +744,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       )}
 
       {/* ── Recommendation ──────────────────────────────────────────────── */}
-      <div className="flex gap-3 rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 py-3 dark:bg-blue-500/8">
+      <div className="flex gap-3 rounded-xl bg-blue-500/10 px-4 py-3 dark:bg-blue-500/8">
         <Zap
           className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
           aria-hidden="true"

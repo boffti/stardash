@@ -49,8 +49,8 @@ export function SearchResultCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden border-border bg-card py-0 h-full",
-        "hover:border-muted-foreground/30 hover:bg-card/80 transition-all duration-200",
+        "group relative overflow-hidden border-0 bg-card shadow-sm py-0 h-full",
+        "hover:bg-muted/50 transition-colors duration-200",
         className,
       )}
     >
@@ -114,7 +114,7 @@ export function SearchResultCard({
 
           {/* Evidence strip */}
           {repo.evidence.length > 0 && (
-            <div className="mt-2 mb-2 pt-2 border-t border-border/40 space-y-1">
+            <div className="mt-2 mb-2 pt-2 space-y-1">
               {repo.evidence.map((e, i) => (
                 <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground/70">
                   <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5 text-emerald-500/60" />
@@ -127,7 +127,7 @@ export function SearchResultCard({
 
         {/* Footer - pinned to bottom */}
         <div className="mt-auto">
-          <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2">
+          <div className="pt-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {langColor && (
                 <div className="flex items-center gap-1.5">

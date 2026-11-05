@@ -107,7 +107,7 @@ export function SearchPipelineTimeline({
     : Math.max(8, Math.round((completedCount / PIPELINE_STEPS.length) * 100))
 
   return (
-    <div className={cn("rounded-lg border border-border/70 bg-card/70 p-4 shadow-sm", className)}>
+    <div className={cn("rounded-lg bg-card/70 p-4 shadow-sm", className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background">

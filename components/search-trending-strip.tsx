@@ -46,8 +46,8 @@ export function SearchTrendingStrip({
             <div
               key={repo.id}
               className={cn(
-                "shrink-0 w-48 rounded-lg border border-border/60 bg-card p-3",
-                "flex flex-col gap-2 hover:border-muted-foreground/30 hover:bg-card/80 transition-all",
+                "shrink-0 w-48 rounded-lg bg-card p-3 shadow-sm",
+                "flex flex-col gap-2 hover:bg-muted/50 transition-colors",
               )}
             >
               <div className="flex items-center gap-2 min-w-0">

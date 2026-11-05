@@ -262,7 +262,7 @@ function InlineMd({ children }: { children: string }) {
 
 function OpportunitySkeleton() {
   return (
-    <Card className="border-border/60 bg-card">
+    <Card className="border-0 bg-card shadow-sm">
       <CardHeader className="gap-3">
         <Skeleton className="h-5 w-2/3 bg-muted" />
         <div className="flex gap-2">
@@ -289,7 +289,7 @@ function EmptyOpportunities({
   const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20">
+      <div className="flex h-16 w-16 items-center justify-center">
         <Search className="h-7 w-7 text-muted-foreground/50" />
       </div>
       <div className="flex max-w-md flex-col gap-2">
@@ -298,8 +298,8 @@ function EmptyOpportunities({
         </h3>
         <p className="text-sm leading-6 text-muted-foreground">
           {t(
-            "Try broadening the filters or syncing your starred repos first. The MVP scans active starred repos with open issues.",
-            "试着放宽筛选条件，或先同步星标仓库。系统会扫描有未关闭议题的活跃星标仓库。",
+            "Try broadening the filters or syncing your starred repos.",
+            "试着放宽筛选条件，或先同步星标仓库。",
           )}
         </p>
       </div>
@@ -330,7 +330,7 @@ function OpportunityCard({
   const langColor = languageColors[opportunity.repoLanguage ?? ""] ?? "#6b7280"
 
   return (
-    <Card className="flex flex-col overflow-hidden border-border/60 bg-card/75 transition-colors hover:border-border">
+    <Card className="flex flex-col overflow-hidden border-0 bg-card shadow-sm transition-colors hover:bg-muted/50">
       <CardHeader className="gap-2.5 pb-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -783,7 +783,7 @@ export function ContributionDashboard() {
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger
                   aria-label={t("Language filter", "语言筛选")}
-                  className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  className="w-32 lg:w-36 h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Language", "语言")} />
                 </SelectTrigger>
@@ -802,7 +802,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Difficulty filter", "难度筛选")}
-                  className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  className="w-32 lg:w-36 h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Difficulty", "难度")} />
                 </SelectTrigger>
@@ -819,7 +819,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Contribution type filter", "贡献类型筛选")}
-                  className="w-36 lg:w-40 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  className="w-36 lg:w-40 h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Contribution type", "贡献类型")} />
                 </SelectTrigger>
@@ -839,7 +839,7 @@ export function ContributionDashboard() {
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger
                   aria-label={t("Language filter", "语言筛选")}
-                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  className="w-full h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Language", "语言")} />
                 </SelectTrigger>
@@ -858,7 +858,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Difficulty filter", "难度筛选")}
-                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  className="w-full h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Difficulty", "难度")} />
                 </SelectTrigger>
@@ -875,7 +875,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Contribution type filter", "贡献类型筛选")}
-                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  className="w-full h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Contribution type", "贡献类型")} />
                 </SelectTrigger>
@@ -942,15 +942,9 @@ export function ContributionDashboard() {
               <h1 className="text-2xl font-semibold tracking-tight">
                 {t("Contribute", "参与贡献")}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "Open issues from repos you already starred, ranked by fit.",
-                  "来自你星标仓库的未关闭议题，按匹配程度排序。",
-                )}
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+              <div className="px-1 py-2">
                 <span className="text-sm font-semibold tabular-nums">
                   {filteredOpportunities.length}
                 </span>
@@ -958,13 +952,13 @@ export function ContributionDashboard() {
                   {t("Matches", "匹配项")}
                 </span>
               </div>
-              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+              <div className="px-1 py-2">
                 <span className="text-sm font-semibold tabular-nums">{topStats.starter}</span>
                 <span className="ml-1.5 text-xs text-muted-foreground">
                   {t("Beginner", "入门")}
                 </span>
               </div>
-              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+              <div className="px-1 py-2">
                 <span className="text-sm font-semibold tabular-nums">{scannedRepos}</span>
                 <span className="ml-1.5 text-xs text-muted-foreground">
                   {t("Repos scanned", "已扫描仓库")}
@@ -1014,7 +1008,7 @@ export function ContributionDashboard() {
           )}
 
           {scanCooldownSeconds !== null && !opportunityError && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
               <RefreshCw className="h-3.5 w-3.5 shrink-0" />
               Showing cached results. Next scan available in {Math.ceil(
                 scanCooldownSeconds / 60,
@@ -1093,7 +1087,7 @@ export function ContributionDashboard() {
           </DialogHeader>
 
           {briefLoadingId && (
-            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/20 p-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Generating a practical first-pass plan...
             </div>
@@ -1186,7 +1180,7 @@ export function ContributionDashboard() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                <div className="rounded-lg bg-muted/30 p-3">
                   <article
                     className="prose dark:prose-invert prose-sm max-w-full
                     prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-1

@@ -364,11 +364,9 @@ export function RadarFeed() {
                         aria-selected={active}
                         onClick={() => setFilter(f.id)}
                         className={cn(
-                          "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors duration-200",
+                          "flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left transition-colors duration-200",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          active
-                            ? "border-foreground/40 bg-muted/30"
-                            : "border-border/60 bg-card hover:border-muted-foreground/30",
+                          active ? "bg-muted" : "bg-muted/20 hover:bg-muted/50",
                         )}
                       >
                         <span
@@ -495,7 +493,7 @@ function RadarEmpty({
   action?: React.ReactNode
 }) {
   return (
-    <Empty className="min-h-64 border border-border/60 bg-card">
+    <Empty className="min-h-64 bg-transparent">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Telescope />
@@ -542,10 +540,8 @@ function RadarRow({
       data-active={active || undefined}
       onMouseEnter={onFocus}
       className={cn(
-        "group rounded-lg border bg-card transition-colors duration-150",
-        active
-          ? "border-foreground/40 bg-muted/20"
-          : "border-border/60 hover:border-muted-foreground/30",
+        "group rounded-lg bg-card shadow-sm transition-colors duration-150",
+        active ? "bg-muted/50" : "hover:bg-muted/30",
       )}
     >
       <div className="p-4">
@@ -585,7 +581,7 @@ function RadarRow({
               </div>
 
               {signal && (
-                <span className="inline-flex max-w-full min-h-6 items-start gap-1.5 self-start rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-[11px] leading-4 font-medium text-foreground/90 [overflow-wrap:anywhere] sm:max-w-[40%]">
+                <span className="inline-flex max-w-full min-h-6 items-start gap-1.5 self-start rounded-full bg-background/60 px-2.5 py-1 text-[11px] leading-4 font-medium text-foreground/90 [overflow-wrap:anywhere] sm:max-w-[40%]">
                   <span
                     className={cn(
                       "mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full",
@@ -605,7 +601,7 @@ function RadarRow({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
             {item.language && (
               <span className="flex items-center gap-1.5">

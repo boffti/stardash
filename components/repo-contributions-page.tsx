@@ -316,7 +316,7 @@ function BriefPanel({
 }) {
   const { t } = useI18n()
   return (
-    <aside className="overflow-hidden rounded-xl border border-border/60 bg-card xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
+    <aside className="overflow-hidden rounded-xl bg-card shadow-sm xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
       <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
         <div className="min-w-0">
           <p className="text-sm font-medium">{t("AI contribution brief", "AI 贡献简报")}</p>
@@ -355,14 +355,14 @@ function BriefPanel({
         )}
 
         {opportunity && isLoading && (
-          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/20 p-4 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             {t("Generating plan…", "正在生成计划…")}
           </div>
         )}
 
         {opportunity && briefError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {briefError}
           </div>
         )}
@@ -430,7 +430,7 @@ function BriefPanel({
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+              <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
                 {brief.codingAssistantPrompt}
               </pre>
             </section>
@@ -706,7 +706,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
             </Button>
           </div>
 
-          <section className="overflow-hidden rounded-xl border border-border/60 bg-card">
+          <section className="overflow-hidden rounded-xl bg-card shadow-sm">
             <div className="px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex min-w-0 gap-3">
@@ -791,7 +791,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
               ],
               [t("Bugfixes", "问题修复"), stats.bugfix],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-border/60 bg-card px-4 py-3">
+              <div key={label} className="rounded-lg bg-card shadow-sm px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                   {label}
                 </p>
@@ -800,7 +800,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
             ))}
           </section>
 
-          <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 md:flex-row md:items-center">
+          <div className="flex flex-col gap-3 rounded-lg bg-card shadow-sm p-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -862,13 +862,13 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           )}
 
           {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error.message}
             </div>
           )}
 
           {!reposLoading && !repo && (
-            <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center">
+            <div className="rounded-lg bg-card shadow-sm px-4 py-10 text-center">
               <p className="font-medium">{t("Repository not found", "未找到仓库")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t("This repository is not in your starred repos.", "此仓库不在你的星标列表中。")}
@@ -877,7 +877,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           )}
 
           {repo && !isLoading && filtered.length === 0 && (
-            <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center">
+            <div className="rounded-lg bg-card shadow-sm px-4 py-10 text-center">
               <GitPullRequestArrow className="mx-auto size-8 text-muted-foreground" />
               <p className="mt-3 font-medium">
                 {t("No matching opportunities", "没有匹配的贡献机会")}
@@ -891,7 +891,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           <div className="grid min-h-0 gap-5 xl:h-[calc(100vh-2.5rem)] xl:grid-cols-[minmax(0,1fr)_560px] 2xl:grid-cols-[minmax(0,1fr)_640px]">
             <div className="min-w-0 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
               {filtered.length > 0 && (
-                <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+                <div className="overflow-hidden rounded-xl bg-card shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
                     <div>
                       <p className="text-sm font-medium">{t("Issue queue", "议题列表")}</p>

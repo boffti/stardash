@@ -65,8 +65,8 @@ export function SearchSavedSection({
           <div
             key={search.id}
             className={cn(
-              "group rounded-lg border border-border/70 bg-card/60 p-3",
-              "hover:border-muted-foreground/30 hover:bg-card transition-colors",
+              "group rounded-lg bg-card/60 p-3 shadow-sm",
+              "hover:bg-muted/50 transition-colors",
             )}
           >
             <div className="flex items-start justify-between gap-3">

@@ -50,9 +50,9 @@ export function DashboardHeader({
     ? t(`Search: ${searchQuery}`, `搜索：${searchQuery}`)
     : t("Search", "搜索")
   const desktopControlClassName =
-    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+    "h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
   const mobileControlClassName =
-    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+    "h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
 
   const filterControls = (
     <>

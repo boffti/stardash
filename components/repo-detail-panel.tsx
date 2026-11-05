@@ -265,12 +265,12 @@ export function RepoDetailPanel({
 
         {/* Quick Actions */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="secondary" size="sm" asChild>
             <Link href={`/repo/${repo.owner}/${repo.name}`}>
               {t("Open full page", "打开完整页面")}
             </Link>
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" asChild>
+          <Button variant="ghost" size="sm" className="gap-1.5" asChild>
             <a
               href={`https://github.com/${repo.fullName}`}
               target="_blank"
@@ -280,12 +280,12 @@ export function RepoDetailPanel({
               {t("View on GitHub", "在 GitHub 查看")}
             </a>
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={onViewReadme}>
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={onViewReadme}>
             <BookOpen className="h-3.5 w-3.5" />
             {t("View README", "查看 README")}
           </Button>
           {repo.homepage && (
-            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5" asChild>
               <a href={repo.homepage} target="_blank" rel="noopener noreferrer">
                 <Globe className="h-3.5 w-3.5" />
                 {t("Homepage", "主页")}
@@ -306,7 +306,7 @@ export function RepoDetailPanel({
 
         {/* Tab bar */}
         <div className="mt-5 flex items-center gap-2">
-          <div className="flex flex-1 gap-1 p-1 rounded-lg bg-muted/40 border border-border/50">
+          <div className="flex flex-1 gap-1 p-1 rounded-lg bg-muted/40">
             <button
               onClick={() => setActiveTab("overview")}
               className={cn(
@@ -327,7 +327,6 @@ export function RepoDetailPanel({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <span>⚡</span>
               {t("Intel", "情报")}
             </button>
           </div>
@@ -335,8 +334,9 @@ export function RepoDetailPanel({
             asChild
             variant="ghost"
             size="sm"
-            className="h-8 w-8 shrink-0 rounded-lg border border-border/50 bg-muted/40 p-0 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 shrink-0 rounded-lg p-0 text-muted-foreground hover:text-foreground"
             title={t("Open full intel report", "打开完整情报报告")}
+            aria-label={t("Open full intel report", "打开完整情报报告")}
           >
             <Link href={`/intel/${repo.owner}/${repo.name}`}>
               <ExternalLink className="h-3.5 w-3.5" />
@@ -351,34 +351,26 @@ export function RepoDetailPanel({
         ) : (
           <>
             {/* Stats */}
-            <div className="mt-6 grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center text-muted-foreground">
-                  <Star className="h-4 w-4" />
-                </div>
-                <p className="mt-1 text-lg font-semibold">{formatNumber(repo.stargazersCount)}</p>
-                <p className="text-xs text-muted-foreground">{t("Stars", "星标")}</p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center text-muted-foreground">
-                  <GitFork className="h-4 w-4" />
-                </div>
-                <p className="mt-1 text-lg font-semibold">{formatNumber(repo.forksCount)}</p>
-                <p className="text-xs text-muted-foreground">{t("Forks", "分叉")}</p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center text-muted-foreground">
-                  <AlertCircle className="h-4 w-4" />
-                </div>
-                <p className="mt-1 text-lg font-semibold">{formatNumber(repo.openIssuesCount)}</p>
-                <p className="text-xs text-muted-foreground">{t("Issues", "议题")}</p>
-              </div>
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5" title={t("Stars", "星标")}>
+                <Star className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("Stars", "星标")}: </span>
+                {formatNumber(repo.stargazersCount)}
+              </span>
+              <span className="flex items-center gap-1.5" title={t("Forks", "分叉")}>
+                <GitFork className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("Forks", "分叉")}: </span>
+                {formatNumber(repo.forksCount)}
+              </span>
+              <span className="flex items-center gap-1.5" title={t("Issues", "议题")}>
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("Issues", "议题")}: </span>
+                {formatNumber(repo.openIssuesCount)}
+              </span>
             </div>
 
-            <Separator className="my-6" />
-
             {/* Meta Info */}
-            <div className="space-y-3">
+            <div className="mt-6 space-y-3">
               {repo.language && (
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted-foreground shrink-0">{t("Language", "语言")}</span>
@@ -431,6 +423,9 @@ export function RepoDetailPanel({
                   size="icon"
                   className="h-8 w-8 shrink-0"
                   onClick={handleCopyClone}
+                  aria-label={
+                    copied ? t("Copied", "已复制") : t("Copy clone command", "复制克隆命令")
+                  }
                 >
                   {copied ? (
                     <Check className="h-4 w-4 text-green-500" />
@@ -474,10 +469,10 @@ export function RepoDetailPanel({
                         onStatusChange?.(repo, repo.status === key ? null : (key as RepoStatus))
                       }
                       className={cn(
-                        "text-xs px-2.5 py-1 rounded-full border transition-all",
+                        "text-xs px-2.5 py-1 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         repo.status === key
                           ? color
-                          : "border-border text-muted-foreground hover:border-muted-foreground",
+                          : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                     >
                       {t(
@@ -657,7 +652,7 @@ export function RepoDetailPanel({
 
               {/* Note Prompt - appears after collection/tag assignment */}
               {showNotePrompt && (
-                <div className="bg-muted/50 rounded-lg p-3 border border-border/50">
+                <div className="bg-muted/50 rounded-lg p-3">
                   <label className="text-xs text-muted-foreground mb-2 block">
                     {t("Why are you adding this here?", "添加备注")}
                   </label>

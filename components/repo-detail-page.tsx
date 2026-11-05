@@ -104,10 +104,10 @@ function SectionCard({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+    <div className="rounded-lg bg-muted/30 overflow-hidden">
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-3 border-b border-border/40",
+          "flex items-center justify-between px-4 py-3",
           collapsible && "cursor-pointer hover:bg-muted/30 transition-colors",
         )}
         onClick={collapsible ? () => setOpen((o) => !o) : undefined}
@@ -429,7 +429,7 @@ function MiniContribCard({ opp }: { opp: ContributionOpportunity }) {
   return (
     <a
       href={workspaceUrl}
-      className="block rounded-md border border-border/50 bg-background/40 px-3 py-2.5 hover:border-border hover:bg-muted/30 transition-all group"
+      className="block rounded-md bg-background/40 px-3 py-2.5 hover:bg-muted/50 transition-colors group"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium leading-snug line-clamp-2 flex-1">{opp.title}</p>
@@ -545,10 +545,10 @@ function OrganizeSection({
         <button
           onClick={onPinToggle}
           className={cn(
-            "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all",
+            "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             repo.isPinned
-              ? "border-accent/40 bg-accent/10 text-accent"
-              : "border-border text-muted-foreground hover:border-muted-foreground",
+              ? "bg-accent/10 text-accent"
+              : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <Pin className={cn("h-3 w-3", repo.isPinned && "fill-accent")} />
@@ -567,10 +567,10 @@ function OrganizeSection({
               key={key}
               onClick={() => onStatusChange(repo.status === key ? null : (key as RepoStatus))}
               className={cn(
-                "text-xs px-2.5 py-1 rounded-full border transition-all",
+                "text-xs px-2.5 py-1 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 repo.status === key
                   ? color
-                  : "border-border text-muted-foreground hover:border-muted-foreground",
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {label}
@@ -1058,7 +1058,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
           </div>
 
           {/* Hero */}
-          <div className="rounded-xl border border-border/60 bg-card mb-5 overflow-hidden">
+          <div className="rounded-xl bg-card shadow-sm mb-5 overflow-hidden">
             {repo.archived && (
               <div className="flex items-center gap-2 px-5 py-2 bg-orange-500/10 border-b border-orange-500/20 text-orange-400 text-xs">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
