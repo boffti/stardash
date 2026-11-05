@@ -544,7 +544,7 @@ function IntelCard({
               className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              Full report
+              {t("Full report", "完整报告")}
               <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
@@ -560,7 +560,7 @@ function IntelCard({
               <AccordionTrigger className="min-h-11 px-3 py-2 text-xs hover:no-underline">
                 <span className="flex min-w-0 items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="font-medium text-foreground">Review notes</span>
+                  <span className="font-medium text-foreground">{t("Review notes", "查看笔记")}</span>
                   <Badge variant="secondary" className="h-5 rounded-md px-1.5 text-[10px]">
                     {painPoints.length}
                   </Badge>

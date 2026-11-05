@@ -94,7 +94,7 @@ export function AppPageHeader({
               type="button"
               onClick={onOpenCommandPalette}
               className="hidden h-9 min-w-0 flex-1 items-center gap-3 rounded-md border border-transparent bg-muted/40 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[320px]"
-              aria-label="Open command palette"
+              aria-label={t("Open command palette", "打开命令面板")}
             >
               <Search className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{searchLabel}</span>
@@ -112,8 +112,8 @@ export function AppPageHeader({
               size="sm"
               onClick={() => palette?.openAsk()}
               className="h-9 shrink-0 gap-1.5 rounded-xl px-2.5 text-muted-foreground hover:text-foreground"
-              aria-label="Ask your stars"
-              title="Ask your stars a question"
+              aria-label={t("Ask your stars", "询问收藏")}
+              title={t("Ask your stars a question", "向收藏提问")}
             >
               <MessageCircleQuestion className="h-4 w-4" />
               <span className="hidden lg:inline">{t("Ask", "提问")}</span>
@@ -129,8 +129,8 @@ export function AppPageHeader({
               type="button"
               className="xl:hidden inline-flex h-8 w-8 items-center justify-center rounded bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0"
               onClick={() => setMobileControlsOpen((open) => !open)}
-              aria-label="Toggle filters"
-              title="Filters"
+              aria-label={t("Toggle filters", "切换筛选")}
+              title={t("Filters", "筛选")}
             >
               <Menu className="h-4 w-4" />
             </button>
@@ -141,8 +141,8 @@ export function AppPageHeader({
               type="button"
               className="inline-flex h-8 w-8 items-center justify-center rounded bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0 md:hidden"
               onClick={onOpenCommandPalette}
-              aria-label="Open command palette"
-              title="Search"
+              aria-label={t("Open command palette", "打开命令面板")}
+              title={t("Search", "搜索")}
             >
               <Search className="h-4 w-4" />
             </button>

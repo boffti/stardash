@@ -377,7 +377,7 @@ function RepoHero({
                 <span className="font-mono font-semibold text-foreground">
                   {formatNumber(repo.openIssuesCount)}
                 </span>
-                <span className="text-xs">issues</span>
+                <span className="text-xs">{t("issues", "议题")}</span>
               </span>
               {repo.language && (
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
