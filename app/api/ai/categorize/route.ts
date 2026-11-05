@@ -122,7 +122,14 @@ export async function POST(request: Request) {
     const user = await getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    modelConfig = getAIModel(request)
+    try {
+      modelConfig = getAIModel(request)
+    } catch {
+      return NextResponse.json(
+        { error: "Configure an AI provider in Settings to categorize repositories." },
+        { status: 503 },
+      )
+    }
 
     if (!modelConfig.isUserKey) {
       userIdForRelease = user.id
@@ -200,7 +207,7 @@ export async function POST(request: Request) {
 
     const result = await categorizeRepos(reposToCategorize, modelConfig.model, {
       providerOptions: getProviderOptions(modelConfig.provider),
-      compact: modelConfig.provider === "compatible",
+      compact: modelConfig.provider === "compatible" || modelConfig.provider === "ollama",
       // Reuse the existing taxonomy when both tags and collections exist (categorizeRepos checks); otherwise generate both.
       existingTaxonomy: { collections: existingCollections, tags: existingTags },
     })

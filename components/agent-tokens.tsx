@@ -99,7 +99,7 @@ export function AgentTokens() {
         </form>
 
         {config && (
-          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
+          <div className="space-y-2 rounded-xl bg-muted/20 p-3">
             <p className="text-xs text-muted-foreground">
               {t(
                 "Copy this now. Paste it into .mcp.json (Claude Code) or your client’s MCP settings.",
@@ -121,7 +121,7 @@ export function AgentTokens() {
         )}
 
         {tokens && tokens.length > 0 && (
-          <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+          <ul className="divide-y divide-border/40 rounded-xl bg-muted/20">
             {tokens.map((token) => (
               <li
                 key={token.id}

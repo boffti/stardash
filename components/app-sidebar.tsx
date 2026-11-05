@@ -1,25 +1,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import {
-  Star,
-  FolderOpen,
-  Tag,
-  Clock,
-  AlertTriangle,
-  GitPullRequestArrow,
-  Plus,
-  ChevronDown,
-  Search,
-  Settings,
-  Radar,
-  Telescope,
-} from "lucide-react"
+import { Codicon } from "@/components/icons/codicon"
 import { useDroppable } from "@dnd-kit/core"
 import useSWR from "swr"
 import { RADAR_ENABLED } from "@/lib/flags"
 import Link from "next/link"
-import Image from "next/image"
 import { useI18n } from "@/components/i18n-provider"
 import { usePathname } from "next/navigation"
 import {
@@ -80,46 +66,6 @@ function DroppableItem({
   return <div ref={setNodeRef}>{children(isOver)}</div>
 }
 
-function CollectionsEmptyState({ onAICategorize }: { onAICategorize?: () => void }) {
-  const { t } = useI18n()
-  return (
-    <div className="mx-2 my-1 rounded-md border border-dashed border-border/50 px-3 py-4 flex flex-col items-center gap-2 text-center">
-      <div className="flex h-7 w-7 items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/30">
-        <FolderOpen className="h-3.5 w-3.5 text-muted-foreground/40" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground/70">
-          {t("No collections yet", "暂无收藏夹")}
-        </p>
-        {onAICategorize && (
-          <button
-            onClick={onAICategorize}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            {t("Categorize", "自动分类")}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function TagsEmptyState() {
-  const { t } = useI18n()
-  return (
-    <div className="mx-2 my-1 rounded-md border border-dashed border-border/50 px-3 py-4 flex flex-col items-center gap-2 text-center">
-      <div className="flex h-7 w-7 items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/30">
-        <Tag className="h-3.5 w-3.5 text-muted-foreground/40" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground/70">
-          {t("No tags yet", "暂无标签")}
-        </p>
-      </div>
-    </div>
-  )
-}
-
 interface AppSidebarProps {
   collections: Collection[]
   tags: TagType[]
@@ -152,7 +98,6 @@ export function AppSidebar({
   uncategorizedCount,
   recentCount,
   userId,
-  onAICategorize,
   onCreateCollection,
   onCreateTag,
   isLoading = false,
@@ -193,12 +138,11 @@ export function AppSidebar({
 
   return (
     <Sidebar className="border-r border-sidebar-border">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+      <SidebarHeader className="px-4 py-4">
         <Link
           href="/dashboard"
           className="flex items-center gap-2 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Image src="/icon.svg" alt="" width={32} height={32} className="rounded-md" />
           <span className="text-sm font-semibold tracking-tight text-foreground">Stellan</span>
         </Link>
       </SidebarHeader>
@@ -211,10 +155,10 @@ export function AppSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={isRadarRoute}>
                     <Link href="/radar">
-                      <Telescope className="h-4 w-4" />
+                      <Codicon name="compass" className="h-4 w-4" />
                       <span>{t("Radar", "雷达")}</span>
                       {radarCount > 0 && (
-                        <SidebarMenuBadge className="bg-accent/15 text-accent">
+                        <SidebarMenuBadge className="text-muted-foreground">
                           {radarCount}
                         </SidebarMenuBadge>
                       )}
@@ -230,7 +174,7 @@ export function AppSidebar({
                       onSelectCollection(null)
                     }}
                   >
-                    <Star className="h-4 w-4" />
+                    <Codicon name="star" className="h-4 w-4" />
                     <span>{t("All Stars", "全部星标")}</span>
                     {isLoading ? (
                       <Skeleton className="ml-auto h-4 w-6 rounded" />
@@ -241,7 +185,7 @@ export function AppSidebar({
                 ) : (
                   <SidebarMenuButton asChild isActive={false}>
                     <Link href="/dashboard">
-                      <Star className="h-4 w-4" />
+                      <Codicon name="star" className="h-4 w-4" />
                       <span>{t("All Stars", "全部星标")}</span>
                       {isLoading ? (
                         <Skeleton className="ml-auto h-4 w-6 rounded" />
@@ -255,7 +199,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isSearchRoute}>
                   <Link href="/search">
-                    <Search className="h-4 w-4" />
+                    <Codicon name="search" className="h-4 w-4" />
                     <span>{t("Discover", "发现")}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -263,7 +207,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isRecentlyViewedRoute}>
                   <Link href="/recently-viewed">
-                    <Clock className="h-4 w-4" />
+                    <Codicon name="history" className="h-4 w-4" />
                     <span>{t("Recently Viewed", "最近浏览")}</span>
                     {resolvedRecentCount > 0 && (
                       <SidebarMenuBadge>{resolvedRecentCount}</SidebarMenuBadge>
@@ -274,7 +218,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isIntelRoute}>
                   <Link href="/intel">
-                    <Radar className="h-4 w-4" />
+                    <Codicon name="target" className="h-4 w-4" />
                     <span>{t("Intel", "情报")}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -282,7 +226,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isContributeRoute}>
                   <Link href="/contribute">
-                    <GitPullRequestArrow className="h-4 w-4" />
+                    <Codicon name="git-pull-request" className="h-4 w-4" />
                     <span>{t("Contribute", "贡献")}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -290,7 +234,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isSettingsRoute}>
                   <Link href="/settings">
-                    <Settings className="h-4 w-4" />
+                    <Codicon name="settings-gear" className="h-4 w-4" />
                     <span>{t("Settings", "设置")}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -303,10 +247,10 @@ export function AppSidebar({
                       onShowUncategorized(!showUncategorized)
                     }}
                   >
-                    <AlertTriangle className="h-4 w-4" />
+                    <Codicon name="warning" className="h-4 w-4" />
                     <span>{t("Uncategorized", "未分类")}</span>
                     {uncategorizedCount > 0 && (
-                      <SidebarMenuBadge className="bg-orange-500/20 text-orange-400">
+                      <SidebarMenuBadge className="text-muted-foreground">
                         {uncategorizedCount}
                       </SidebarMenuBadge>
                     )}
@@ -314,10 +258,10 @@ export function AppSidebar({
                 ) : (
                   <SidebarMenuButton asChild isActive={false}>
                     <Link href={createDashboardFilterHref({ uncategorized: true })}>
-                      <AlertTriangle className="h-4 w-4" />
+                      <Codicon name="warning" className="h-4 w-4" />
                       <span>{t("Uncategorized", "未分类")}</span>
                       {uncategorizedCount > 0 && (
-                        <SidebarMenuBadge className="bg-orange-500/20 text-orange-400">
+                        <SidebarMenuBadge className="text-muted-foreground">
                           {uncategorizedCount}
                         </SidebarMenuBadge>
                       )}
@@ -334,7 +278,8 @@ export function AppSidebar({
             <div className="flex items-center justify-between px-2">
               <CollapsibleTrigger asChild>
                 <SidebarGroupLabel className="cursor-pointer hover:text-foreground flex items-center gap-1">
-                  <ChevronDown
+                  <Codicon
+                    name="chevron-down"
                     className={`h-3 w-3 transition-transform ${collectionsOpen ? "" : "-rotate-90"}`}
                   />
                   {t("Collections", "收藏夹")}
@@ -344,9 +289,10 @@ export function AppSidebar({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
+                aria-label={t("Add collection", "新建收藏夹")}
                 onClick={() => setCollectionModalOpen(true)}
               >
-                <Plus className="h-3 w-3" />
+                <Codicon name="plus" className="h-3 w-3" />
               </Button>
             </div>
             <CollapsibleContent>
@@ -363,9 +309,6 @@ export function AppSidebar({
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
-                  {!isLoading && collections.length === 0 && (
-                    <CollectionsEmptyState onAICategorize={onAICategorize} />
-                  )}
                   {collections.map((collection) => (
                     <DroppableItem key={collection.id} id={`collection::${collection.id}`}>
                       {(isOver) => (
@@ -381,7 +324,7 @@ export function AppSidebar({
                                 {collection.name}
                               </span>
                               {isOver ? (
-                                <Plus className="h-3 w-3 shrink-0 text-violet-400" />
+                                <Codicon name="plus" className="h-3 w-3 shrink-0 text-violet-400" />
                               ) : (
                                 <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
                               )}
@@ -400,7 +343,10 @@ export function AppSidebar({
                                   {collection.name}
                                 </span>
                                 {isOver ? (
-                                  <Plus className="h-3 w-3 shrink-0 text-violet-400" />
+                                  <Codicon
+                                    name="plus"
+                                    className="h-3 w-3 shrink-0 text-violet-400"
+                                  />
                                 ) : (
                                   <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
                                 )}
@@ -422,7 +368,8 @@ export function AppSidebar({
             <div className="flex items-center justify-between px-2">
               <CollapsibleTrigger asChild>
                 <SidebarGroupLabel className="cursor-pointer hover:text-foreground flex items-center gap-1">
-                  <ChevronDown
+                  <Codicon
+                    name="chevron-down"
                     className={`h-3 w-3 transition-transform ${tagsOpen ? "" : "-rotate-90"}`}
                   />
                   {t("Tags", "标签")}
@@ -432,9 +379,10 @@ export function AppSidebar({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
+                aria-label={t("Add tag", "新建标签")}
                 onClick={() => setTagModalOpen(true)}
               >
-                <Plus className="h-3 w-3" />
+                <Codicon name="plus" className="h-3 w-3" />
               </Button>
             </div>
             <CollapsibleContent>
@@ -450,13 +398,14 @@ export function AppSidebar({
                       </SidebarMenuItem>
                     ))}
                   </SidebarMenu>
-                ) : tags.length === 0 ? (
-                  <TagsEmptyState />
-                ) : (
+                ) : tags.length === 0 ? null : (
                   <>
                     {tags.length > TAGS_VISIBLE_DEFAULT && (
                       <div className="relative mx-2 mb-1">
-                        <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+                        <Codicon
+                          name="search"
+                          className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50"
+                        />
                         <Input
                           placeholder={t(
                             `Search ${tags.length} tags…`,
@@ -489,13 +438,17 @@ export function AppSidebar({
                                       isOver && "ring-1 ring-violet-500 bg-violet-500/10",
                                     )}
                                   >
-                                    <Tag
+                                    <Codicon
+                                      name="tag"
                                       className="h-3 w-3 shrink-0"
                                       style={{ color: isOver ? "#8b5cf6" : tag.color }}
                                     />
                                     <span className="flex-1 truncate min-w-0">{tag.label}</span>
                                     {isOver && (
-                                      <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />
+                                      <Codicon
+                                        name="plus"
+                                        className="h-3 w-3 shrink-0 ml-auto text-violet-400"
+                                      />
                                     )}
                                   </SidebarMenuButton>
                                 ) : (
@@ -507,13 +460,17 @@ export function AppSidebar({
                                     )}
                                   >
                                     <Link href={createDashboardFilterHref({ tagId: tag.id })}>
-                                      <Tag
+                                      <Codicon
+                                        name="tag"
                                         className="h-3 w-3 shrink-0"
                                         style={{ color: isOver ? "#8b5cf6" : tag.color }}
                                       />
                                       <span className="flex-1 truncate min-w-0">{tag.label}</span>
                                       {isOver && (
-                                        <Plus className="h-3 w-3 shrink-0 ml-auto text-violet-400" />
+                                        <Codicon
+                                          name="plus"
+                                          className="h-3 w-3 shrink-0 ml-auto text-violet-400"
+                                        />
                                       )}
                                     </Link>
                                   </SidebarMenuButton>
@@ -529,7 +486,7 @@ export function AppSidebar({
                             onClick={() => setTagsExpanded(true)}
                             className="text-muted-foreground/60 hover:text-muted-foreground"
                           >
-                            <Plus className="h-3 w-3 shrink-0" />
+                            <Codicon name="plus" className="h-3 w-3 shrink-0" />
                             <span className="text-xs">{hiddenCount} more tags</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -540,7 +497,7 @@ export function AppSidebar({
                             onClick={() => setTagsExpanded(false)}
                             className="text-muted-foreground/60 hover:text-muted-foreground"
                           >
-                            <ChevronDown className="h-3 w-3 shrink-0 rotate-180" />
+                            <Codicon name="chevron-down" className="h-3 w-3 shrink-0 rotate-180" />
                             <span className="text-xs">{t("Show less", "收起")}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

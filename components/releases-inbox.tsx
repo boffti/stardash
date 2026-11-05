@@ -318,10 +318,8 @@ function ReleaseRow({
       data-active={active || undefined}
       onMouseEnter={onFocus}
       className={cn(
-        "group rounded-lg border bg-card transition-colors duration-150",
-        active
-          ? "border-foreground/40 bg-muted/20"
-          : "border-border/60 hover:border-muted-foreground/30",
+        "group rounded-lg bg-card shadow-sm transition-colors duration-150",
+        active ? "bg-muted/50" : "hover:bg-muted/30",
       )}
     >
       <div className="flex gap-3 p-4">

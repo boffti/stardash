@@ -9,6 +9,7 @@ import { DashboardCommandPalette } from "./dashboard-command-palette"
 import { DashboardHeader } from "./dashboard-header"
 import { RepoGrid, RepoGridSkeleton } from "./repo-grid"
 import { RepoList } from "./repo-list"
+import { RepoGraph } from "./repo-graph"
 import { AskResults } from "./ask-results"
 import { RepoDetailPanel } from "./repo-detail-panel"
 import { ReadmeViewer } from "./readme-viewer"
@@ -21,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Network,
   List,
   StarOff,
   LogIn,
@@ -113,18 +115,18 @@ export function Dashboard() {
   }
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
-  const [viewMode, setViewModeState] = useState<"grid" | "list">("list")
+  const [viewMode, setViewModeState] = useState<"grid" | "list" | "graph">("list")
 
   // Load view mode from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_MODE_KEY)
-    if (stored === "list" || stored === "grid") {
+    if (stored === "list" || stored === "grid" || stored === "graph") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setViewModeState(stored)
     }
   }, [])
 
-  const setViewMode = (value: "grid" | "list") => {
+  const setViewMode = (value: "grid" | "list" | "graph") => {
     setViewModeState(value)
     localStorage.setItem(VIEW_MODE_KEY, value)
   }
@@ -579,6 +581,18 @@ export function Dashboard() {
         const result = await response.json()
         setCategorizeLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
         toast.info(`AI categorize runs once a week. Next run ${formatWhen(result.nextAllowedAt)}.`)
+        return
+      }
+      if (response.status === 503) {
+        toast.error(
+          t("Set up an AI provider to categorize repositories", "请先配置 AI 服务，再进行分类"),
+          {
+            action: {
+              label: t("Settings", "设置"),
+              onClick: () => router.push("/settings"),
+            },
+          },
+        )
         return
       }
       const result = await response.json()
@@ -1122,7 +1136,9 @@ export function Dashboard() {
                       <ToggleGroup
                         type="single"
                         value={viewMode}
-                        onValueChange={(value) => value && setViewMode(value as "grid" | "list")}
+                        onValueChange={(value) =>
+                          value && setViewMode(value as "grid" | "list" | "graph")
+                        }
                         className="bg-secondary rounded-md p-0.5"
                       >
                         <ToggleGroupItem
@@ -1139,9 +1155,16 @@ export function Dashboard() {
                         >
                           <List className="h-3.5 w-3.5" />
                         </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="graph"
+                          aria-label={t("Graph view", "关系图视图")}
+                          className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                        >
+                          <Network className="h-3.5 w-3.5" />
+                        </ToggleGroupItem>
                       </ToggleGroup>
                       <p className="text-sm text-muted-foreground">
-                        {pageSize === "all" || filteredRepos.length === 0
+                        {viewMode === "graph" || pageSize === "all" || filteredRepos.length === 0
                           ? t(
                               `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`,
                               `${filteredRepos.length} 个仓库`,
@@ -1154,7 +1177,7 @@ export function Dashboard() {
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
                       {/* Inline page nav */}
-                      {pageSize !== "all" && totalPages > 1 && (
+                      {viewMode !== "graph" && pageSize !== "all" && totalPages > 1 && (
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -1181,25 +1204,29 @@ export function Dashboard() {
                           </Button>
                         </div>
                       )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {t("Per page", "每页")}
-                        </span>
-                        <Select
-                          value={String(pageSize)}
-                          onValueChange={(val) => setPageSize(val === "all" ? "all" : Number(val))}
-                        >
-                          <SelectTrigger className="h-8 w-[80px] text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="24">24</SelectItem>
-                            <SelectItem value="48">48</SelectItem>
-                            <SelectItem value="96">96</SelectItem>
-                            <SelectItem value="all">{t("All", "全部")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {viewMode !== "graph" && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {t("Per page", "每页")}
+                          </span>
+                          <Select
+                            value={String(pageSize)}
+                            onValueChange={(val) =>
+                              setPageSize(val === "all" ? "all" : Number(val))
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-[80px] text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="24">24</SelectItem>
+                              <SelectItem value="48">48</SelectItem>
+                              <SelectItem value="96">96</SelectItem>
+                              <SelectItem value="all">{t("All", "全部")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1236,7 +1263,13 @@ export function Dashboard() {
 
                   {/* View */}
                   {repos.length > 0 &&
-                    (viewMode === "grid" ? (
+                    (viewMode === "graph" ? (
+                      <RepoGraph
+                        repos={filteredRepos}
+                        collections={collections}
+                        onRepoClick={handleRepoClick}
+                      />
+                    ) : viewMode === "grid" ? (
                       <RepoGrid
                         repos={paginatedReposWithHealth}
                         onRepoClick={handleRepoClick}
@@ -1247,62 +1280,65 @@ export function Dashboard() {
                     ))}
 
                   {/* Pagination controls - desktop (hidden on mobile) */}
-                  {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
-                    <div className="mt-6 hidden md:flex items-center justify-center">
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="gap-1 px-2.5"
-                              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                              disabled={currentPage === 1}
-                              aria-label={t("Go to previous page", "前往上一页")}
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                              <span className="hidden sm:block">{t("Previous", "上一页")}</span>
-                            </Button>
-                          </PaginationItem>
+                  {viewMode !== "graph" &&
+                    repos.length > 0 &&
+                    pageSize !== "all" &&
+                    totalPages > 1 && (
+                      <div className="mt-6 hidden md:flex items-center justify-center">
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1 px-2.5"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                aria-label={t("Go to previous page", "前往上一页")}
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                <span className="hidden sm:block">{t("Previous", "上一页")}</span>
+                              </Button>
+                            </PaginationItem>
 
-                          {getPageNumbers(currentPage, totalPages).map((page, idx) =>
-                            page === "ellipsis" ? (
-                              <PaginationItem key={`ellipsis-${idx}`}>
-                                <PaginationEllipsis />
-                              </PaginationItem>
-                            ) : (
-                              <PaginationItem key={page}>
-                                <PaginationLink
-                                  isActive={page === currentPage}
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    setCurrentPage(page as number)
-                                  }}
-                                  href="#"
-                                >
-                                  {page}
-                                </PaginationLink>
-                              </PaginationItem>
-                            ),
-                          )}
+                            {getPageNumbers(currentPage, totalPages).map((page, idx) =>
+                              page === "ellipsis" ? (
+                                <PaginationItem key={`ellipsis-${idx}`}>
+                                  <PaginationEllipsis />
+                                </PaginationItem>
+                              ) : (
+                                <PaginationItem key={page}>
+                                  <PaginationLink
+                                    isActive={page === currentPage}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      setCurrentPage(page as number)
+                                    }}
+                                    href="#"
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              ),
+                            )}
 
-                          <PaginationItem>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="gap-1 px-2.5"
-                              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                              disabled={currentPage === totalPages}
-                              aria-label={t("Go to next page", "前往下一页")}
-                            >
-                              <span className="hidden sm:block">{t("Next", "下一页")}</span>
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                    </div>
-                  )}
+                            <PaginationItem>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1 px-2.5"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                aria-label={t("Go to next page", "前往下一页")}
+                              >
+                                <span className="hidden sm:block">{t("Next", "下一页")}</span>
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    )}
                 </>
               )}
             </main>

@@ -47,8 +47,8 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
       <Card
         className={cn(
           "group relative cursor-pointer transition-all duration-200 h-full py-0 overflow-hidden",
-          "hover:border-muted-foreground/30 hover:bg-card/80",
-          "border-border bg-card",
+          "hover:bg-muted/50",
+          "border-0 bg-card shadow-sm",
         )}
         onClick={onClick}
       >
@@ -170,7 +170,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
           </div>
 
           {/* Footer - always at bottom */}
-          <div className="mt-4 pt-3 border-t border-border/50">
+          <div className="mt-4 pt-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 {repo.language && (

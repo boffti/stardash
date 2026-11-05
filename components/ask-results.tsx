@@ -84,7 +84,7 @@ export function AskResults({
 
   return (
     <section className="flex flex-col gap-4" aria-live="polite">
-      <div className="rounded-xl border border-border/70 bg-card p-4">
+      <div className="rounded-xl bg-card p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
             <Sparkles className="h-4 w-4 text-muted-foreground" />

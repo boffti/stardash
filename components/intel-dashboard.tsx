@@ -203,7 +203,7 @@ function IntelMetric({
   toneClass?: string
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-border/50 bg-muted/15 px-3 py-2">
+    <div className="min-w-0 rounded-md bg-muted/30 px-3 py-2">
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <Icon className={cn("h-3 w-3 shrink-0", toneClass)} />
         <span className="truncate">{label}</span>
@@ -228,7 +228,7 @@ function StatPill({
   colorClass: string
 }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card">
+    <div className="rounded-lg bg-card shadow-sm">
       <div className="flex items-center gap-3 px-4 py-3">
         <div
           className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md", colorClass)}
@@ -249,7 +249,7 @@ function StatPill({
 function EmptyState() {
   const { t } = useI18n()
   return (
-    <Empty className="min-h-80 border border-border/60 bg-card">
+    <Empty className="min-h-80 bg-transparent">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Brain />
@@ -277,7 +277,7 @@ function EmptyState() {
 function NoFilteredResults({ onClear }: { onClear: () => void }) {
   const { t } = useI18n()
   return (
-    <Empty className="min-h-64 border border-border/60 bg-card">
+    <Empty className="min-h-64 bg-transparent">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Search />
@@ -308,8 +308,8 @@ function IntelSectionCard({
   action?: React.ReactNode
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
-      <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+    <div className="overflow-hidden rounded-lg bg-card shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-medium">{title}</span>
@@ -327,7 +327,7 @@ function IntelListSkeleton() {
     <IntelSectionCard title={t("Reports", "报告")} icon={Brain}>
       <div className="flex flex-col gap-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-border/60 bg-background/40 p-4">
+          <div key={i} className="rounded-lg bg-background/40 p-4">
             <div className="flex gap-3">
               <Skeleton className="size-12 rounded-full" />
               <div className="min-w-0 flex-1">
@@ -410,7 +410,7 @@ function IntelCard({
   const painPoints = intel.topPainPoints ?? []
 
   return (
-    <div className="group overflow-hidden rounded-lg border border-border/60 bg-card transition-colors hover:border-muted-foreground/30">
+    <div className="group overflow-hidden rounded-lg bg-card shadow-sm transition-colors hover:bg-muted/40">
       <div className="p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="flex min-w-0 flex-1 gap-3">
@@ -551,16 +551,14 @@ function IntelCard({
         </div>
 
         {painPoints.length > 0 && (
-          <Accordion
-            type="single"
-            collapsible
-            className="mt-3 rounded-lg border border-border/60 bg-muted/10"
-          >
+          <Accordion type="single" collapsible className="mt-3 rounded-lg bg-muted/20">
             <AccordionItem value="pain-points" className="border-b-0">
               <AccordionTrigger className="min-h-11 px-3 py-2 text-xs hover:no-underline">
                 <span className="flex min-w-0 items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="font-medium text-foreground">{t("Review notes", "查看笔记")}</span>
+                  <span className="font-medium text-foreground">
+                    {t("Review notes", "查看笔记")}
+                  </span>
                   <Badge variant="secondary" className="h-5 rounded-md px-1.5 text-[10px]">
                     {painPoints.length}
                   </Badge>
@@ -569,10 +567,7 @@ function IntelCard({
               <AccordionContent className="px-3 pb-3">
                 <div className="flex flex-col gap-2">
                   {painPoints.map((point, i) => (
-                    <div
-                      key={i}
-                      className="flex gap-2 rounded-md border border-border/50 bg-background/60 px-3 py-2"
-                    >
+                    <div key={i} className="flex gap-2 rounded-md bg-background/60 px-3 py-2">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
                         {i + 1}
                       </span>
@@ -851,9 +846,9 @@ export function IntelDashboard() {
     ? `Intel: ${search}`
     : t("Search Intel reports and filters", "搜索分析报告和筛选项")
   const desktopControlClassName =
-    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+    "h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
   const mobileControlClassName =
-    "h-10 w-full rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+    "h-10 w-full rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
 
   const filterControls =
     allIntel.length > 0 ? (
@@ -981,12 +976,6 @@ export function IntelDashboard() {
               <h1 className="text-2xl font-semibold tracking-tight">
                 {t("Repo Intel", "仓库分析")}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "AI-powered health briefs for your starred repos",
-                  "为星标仓库生成的 AI 健康报告",
-                )}
-              </p>
             </div>
 
             {/* Stats row — only visible when there's data */}

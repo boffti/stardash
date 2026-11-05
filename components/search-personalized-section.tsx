@@ -47,7 +47,7 @@ export function SearchPersonalizedSection({
     if (!hasRepoSource && !nextAllowedAt) return null
 
     return (
-      <div className={cn("rounded-lg border border-dashed border-border/70 p-5", className)}>
+      <div className={cn("rounded-lg bg-muted/20 p-5", className)}>
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium">Based on your stars</h3>

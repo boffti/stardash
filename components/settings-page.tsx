@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useMemo, useState } from "react"
+import { type ReactNode, useMemo, useState, useSyncExternalStore } from "react"
 import useSWR from "swr"
 import { FolderOpen, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -43,6 +43,10 @@ import { useI18n, type Language } from "@/components/i18n-provider"
 import { useTheme } from "@/components/theme-provider"
 import { useUser } from "@/components/providers/user-provider"
 
+const subscribeToHydration = () => () => {}
+const clientSnapshot = () => true
+const serverSnapshot = () => false
+
 const TAG_PALETTE = [
   "#8b5cf6",
   "#3b82f6",
@@ -76,9 +80,9 @@ function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <Card className="border-dashed border-border/60 bg-muted/20">
+    <Card className="border-0 bg-transparent shadow-none">
       <CardContent className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/70 bg-background/80 shadow-sm">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/40">
           {icon}
         </div>
         <div className="space-y-1">
@@ -122,7 +126,7 @@ function CollectionEditor({
 
   return (
     <>
-      <Card className="border-border/60 bg-background/80 shadow-sm">
+      <Card className="border-0 bg-muted/30 shadow-none">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -152,7 +156,7 @@ function CollectionEditor({
               ) : (
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 text-base shadow-sm"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-base"
                     style={{ backgroundColor: `${color}16` }}
                   >
                     {emoji || "📁"}
@@ -296,7 +300,7 @@ function TagEditor({
 
   return (
     <>
-      <Card className="border-border/60 bg-background/80 shadow-sm">
+      <Card className="border-0 bg-muted/30 shadow-none">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -423,6 +427,7 @@ export function SettingsPage() {
   const { user } = useUser()
   const { language, setLanguage, t } = useI18n()
   const { theme, setTheme } = useTheme()
+  const hydrated = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot)
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false)
   const [createTagOpen, setCreateTagOpen] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
@@ -535,8 +540,8 @@ export function SettingsPage() {
 
           <main className="flex-1 p-6">
             <div className="flex w-full flex-col gap-6">
-              <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
-                <CardHeader className="border-b border-border/60 bg-muted/15 px-5 py-5 sm:px-6">
+              <Card className="overflow-hidden border-0 bg-transparent shadow-none">
+                <CardHeader className="px-5 py-5 sm:px-6">
                   <CardTitle className="text-base">
                     {t("Appearance & language", "外观与语言")}
                   </CardTitle>
@@ -562,8 +567,8 @@ export function SettingsPage() {
                           key={value}
                           type="button"
                           size="sm"
-                          variant={theme === value ? "default" : "outline"}
-                          aria-pressed={theme === value}
+                          variant={hydrated && theme === value ? "default" : "outline"}
+                          aria-pressed={hydrated && theme === value}
                           onClick={() => setTheme(value)}
                         >
                           {label}
@@ -611,8 +616,8 @@ export function SettingsPage() {
               </section>
               <Separator />
               <div className="grid gap-5">
-                <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
-                  <CardHeader className="border-b border-border/60 bg-muted/15 px-5 py-5 sm:px-6">
+                <Card className="overflow-hidden border-0 bg-transparent shadow-none">
+                  <CardHeader className="px-5 py-5 sm:px-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                       <div className="space-y-2">
                         <CardTitle className="flex items-center gap-2 text-base">
@@ -640,7 +645,7 @@ export function SettingsPage() {
 
                   <CardContent className="p-5 sm:p-6">
                     {isLoading ? (
-                      <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-border/60 bg-muted/10">
+                      <div className="flex min-h-[280px] items-center justify-center rounded-xl bg-muted/10">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
