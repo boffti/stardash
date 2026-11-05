@@ -55,7 +55,7 @@ Radar reads the same pool of new repos for everyone. What reaches the top depend
 | Self-hosted apps you run at home | A home-lab dashboard three people you follow starred yesterday. _People you follow_ outranks every topic match. |
 
 > [!NOTE]
-> AI is optional. Search, status, notes, Radar and Contribute all work without a key. Categorize, Intel and Discover use an OpenRouter key (`OPENROUTER_API_KEY`) your own OpenAI or Anthropic key pasted in Settings, or a local model through any OpenAI-compatible server such as Ollama (`AI_BASE_URL`). A full categorize run over 500 repos costs about a cent on the default model.
+> AI is optional. Search, status, notes, Radar and browsing the Contribute issue list work without a key. Generating a Contribute brief or coding-assistant prompt requires a configured AI provider. Categorize, Intel and Discover also require AI. Configure an OpenRouter key (`OPENROUTER_API_KEY`), paste your own OpenAI or Anthropic key in Settings, or use a local model through an OpenAI-compatible server such as Ollama (`AI_BASE_URL`). A full categorize run over 500 repos costs about a cent on the default model.
 
 ## Quick start
 
@@ -67,14 +67,27 @@ docker run -d --name stardash -p 3000:3000 -v stardash-data:/data ghcr.io/boffti
 
 Open `http://localhost:3000` and press **Connect GitHub**. GitHub shows a page that creates a GitHub App owned by you: press **Create GitHub App**, then **Authorize**. There is no OAuth app to register and no secret to copy. Your stars sync, and Radar fills on the first nightly scan, or right away when you press **Scan now**.
 
-With an AI key, use Compose:
+### Alternative: install with Docker Compose
+
+Compose is an alternative fresh install; use it instead of the `docker run` command above, not alongside it. It publishes the same host port (`3000`) and creates its own named volume (normally `stardash_stardash-data`), so it starts a separate instance with a separate database.
 
 ```bash
 curl -O https://raw.githubusercontent.com/boffti/stardash/main/docker-compose.yml
 OPENROUTER_API_KEY=sk-or-... docker compose up -d
 ```
 
-To update, pull the image and recreate the container. Your data stays on the `stardash-data` volume.
+To update either installation, pull the image and recreate its container. Keep using the same data volume.
+
+**Moving an existing `docker run` install to Compose:** stop and remove the old container without deleting its volume, then edit the downloaded Compose file's top-level volume declaration to reuse that existing volume:
+
+```yaml
+volumes:
+  stardash-data:
+    external: true
+    name: stardash-data
+```
+
+Then start Compose. Do not run both containers on port `3000`, and do not omit the `external` mapping when you intend to keep using the existing database.
 
 ## How it works
 
@@ -126,14 +139,14 @@ In Settings, open **Agents (MCP)**, press **New token**, and paste the config it
 
 Then talk to your agent in plain words:
 
-| You say                                                            | What happens                                                                       |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| _"What did I star about vector databases?"_                        | `search_stars` looks across names, descriptions, your notes, tags and collections. |
-| _"Tell me about duckdb and what I wrote about it."_                | `get_repo` returns the repo with your status, notes, tags and collections.         |
-| _"File every MCP server I starred under Agents and tag them mcp."_ | `list_taxonomy` and `organize_repo` create and assign tags and collections.        |
-| _"What's on my radar this week?"_                                  | `radar_feed` returns the ranked inbox with each row's reasons.                     |
-| _"Dismiss anything on my radar that is another Electron wrapper."_ | `radar_action` dismisses, snoozes or undoes.                                       |
-| _"Star the top two and put them in Want to try."_                  | `star_repo` stars on GitHub and files the repo in one step.                        |
+| You say                                                            | What happens                                                                                                                                                                                 |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _"What did I star about vector databases?"_                        | `search_stars` looks across names, descriptions, your notes, tags and collections.                                                                                                           |
+| _"Tell me about duckdb and what I wrote about it."_                | `get_repo` returns the repo with your status, notes, tags and collections.                                                                                                                   |
+| _"File every MCP server I starred under Agents and tag them mcp."_ | `list_taxonomy` and `organize_repo` create and assign tags and collections. Sync your GitHub stars in StarDash first; `organize_repo` only works on repos already synced into your instance. |
+| _"What's on my radar this week?"_                                  | `radar_feed` returns the ranked inbox with each row's reasons.                                                                                                                               |
+| _"Dismiss anything on my radar that is another Electron wrapper."_ | `radar_action` dismisses, snoozes or undoes.                                                                                                                                                 |
+| _"Star the top two and put them in Want to try."_                  | `star_repo` stars them on GitHub. Sync your stars in StarDash, then use `organize_repo` to assign a status, tags or collections.                                                             |
 
 ## A look inside
 
@@ -193,7 +206,7 @@ From the inbox you check over coffee to the repo you end up using.
 ## Your data
 
 > [!IMPORTANT]
-> Everything lives in one SQLite file on the `/data` volume: your stars, statuses, notes, taxonomy, Radar history and the GitHub App's credentials. Nothing is sent anywhere except GitHub, Hacker News's search API and, only if you set a key, your AI provider.
+> Your stars, statuses, notes, taxonomy, Radar history and GitHub App credentials live in one SQLite file on the `/data` volume. StarDash communicates with GitHub and Hacker News's search API, and sends AI requests to your configured AI provider when you use AI features. Optional observability integrations also send telemetry to their configured services: Sentry receives error/performance events when a Sentry DSN is set; Langfuse receives AI traces only when both `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set.
 
 | What                                      | Where                                                 |
 | ----------------------------------------- | ----------------------------------------------------- |
