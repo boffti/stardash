@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next"
+import { APP_NAME } from "@/lib/brand"
 import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
+import { I18nProvider } from "@/components/i18n-provider"
 import { MotionProvider } from "@/components/motion-provider"
 import { Toaster } from "sonner"
 import "./globals.css"
@@ -16,10 +18,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "StarDash - Your GitHub Stars, Organized",
-  description:
-    "A personal developer dashboard that transforms your GitHub starred repositories into an organized, searchable, and AI-enhanced workspace.",
-  generator: "v0.app",
+  title: APP_NAME,
+  description: "Your GitHub stars, organized.",
   icons: {
     icon: [
       {
@@ -43,22 +43,20 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geist.variable} ${geistMono.variable} dark`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="system"
           enableSystem
           storageKey="stardash-theme"
         >
-          <MotionProvider>
-            {children}
-            <Toaster richColors position="bottom-right" />
-          </MotionProvider>
+          <I18nProvider>
+            <MotionProvider>
+              {children}
+              <Toaster richColors position="bottom-right" />
+            </MotionProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

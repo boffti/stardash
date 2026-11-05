@@ -1,6 +1,7 @@
 // Smallest check that fails if Ask's context building breaks: pnpm check:ask
 process.env.DATABASE_PATH = ":memory:"
-const { loadStarLines, narrow, toLine, keepKnown } = await import("../lib/ask")
+const { loadStarLines, narrow, toLine, keepKnown, askStars } = await import("../lib/ask")
+const { MockLanguageModelV3 } = await import("ai/test")
 const { db } = await import("../lib/db")
 const assert = (cond: unknown, msg: string) => {
   if (!cond) throw new Error(`ask check failed: ${msg}`)
@@ -64,5 +65,59 @@ assert(
 assert(
   keepKnown([{ fullName: "df", reason: "bare" }], ["a/df", "b/df"]).length === 0,
   "ambiguous bare name is dropped",
+)
+
+db.prepare(
+  "insert into profiles (id, github_id, github_username) values ('u3', '3', 'large')",
+).run()
+const addRepo = db.prepare(
+  `insert into repos (id, github_repo_id, owner, name, full_name, description, topics)
+   values (?, ?, 'example', ?, ?, ?, '[]')`,
+)
+const addStar = db.prepare("insert into user_starred_repos (user_id, repo_id) values ('u3', ?)")
+for (let i = 0; i < 1201; i++) {
+  const name = `repo${i}`
+  addRepo.run(
+    name,
+    i + 100,
+    name,
+    `example/${name}`,
+    i === 1200 ? "audio transcription with whisper" : "unrelated",
+  )
+  addStar.run(name)
+}
+
+let calls = 0
+const model = new MockLanguageModelV3({
+  doGenerate: async ({ prompt }) => {
+    calls++
+    const text =
+      calls === 1
+        ? JSON.stringify({ keywords: ["whisper", "transcription"] })
+        : JSON.stringify({
+            answer: "Found it",
+            repos: [{ fullName: "example/repo1200", reason: "transcribes audio" }],
+          })
+    if (calls === 2) {
+      assert(
+        JSON.stringify(prompt).includes("example/repo1200"),
+        "translated query includes the matching repo",
+      )
+    }
+    return {
+      content: [{ type: "text", text }],
+      finishReason: { unified: "stop", raw: "stop" },
+      usage: {
+        inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 0, text: 0, reasoning: 0 },
+      },
+      warnings: [],
+    }
+  },
+})
+const answer = await askStars("u3", "语音转文字", model)
+assert(
+  answer.repos[0]?.fullName === "example/repo1200",
+  "Chinese search finds an older repo in a large library",
 )
 console.log("ask check ok")

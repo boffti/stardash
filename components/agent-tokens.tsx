@@ -1,5 +1,6 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
 import { useState } from "react"
 import useSWR from "swr"
 import { Bot, Copy, Loader2, Plus, Trash2 } from "lucide-react"
@@ -15,14 +16,14 @@ interface TokenRow {
   last_used_at: string | null
 }
 
-const copy = (value: string) =>
-  navigator.clipboard.writeText(value).then(
-    () => toast.success("Copied"),
-    () => toast.error("Could not copy"),
-  )
-
 /** Settings card: mint and revoke bearer tokens for MCP clients and the CLI. */
 export function AgentTokens() {
+  const { t, locale } = useI18n()
+  const copy = (value: string) =>
+    navigator.clipboard.writeText(value).then(
+      () => toast.success(t("Copied", "已复制")),
+      () => toast.error(t("Could not copy", "复制失败")),
+    )
   const { data, mutate } = useSWR<{ tokens: TokenRow[] }>("/api/tokens", (url: string) =>
     fetch(url).then((r) => r.json()),
   )
@@ -41,7 +42,7 @@ export function AgentTokens() {
       body: JSON.stringify({ name: name || "agent" }),
     })
     setBusy(false)
-    if (!r.ok) return void toast.error("Could not create token")
+    if (!r.ok) return void toast.error(t("Could not create token", "无法创建令牌"))
     const { token } = (await r.json()) as { token: string }
     setFresh(token)
     setName("")
@@ -74,42 +75,46 @@ export function AgentTokens() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Bot className="h-4 w-4 text-muted-foreground" />
-          Agents (MCP)
+          {t("Agents (MCP)", "智能体（MCP）")}
         </CardTitle>
         <CardDescription>
-          Let Claude Code, Cursor or any MCP client search, organize and triage your stars. Tokens
-          are shown once.
+          {t(
+            "Let Claude Code, Cursor or any MCP client search, organize and triage your stars. Tokens are shown once.",
+            "让 Claude Code、Cursor 或其他 MCP 客户端搜索、整理和处理你的星标。令牌仅显示一次。",
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={create} className="flex gap-2">
           <Input
-            placeholder="Token name, e.g. claude-code"
+            placeholder={t("Token name, e.g. claude-code", "令牌名称，例如 claude-code")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="max-w-xs"
           />
           <Button type="submit" disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            New token
+            {t("New token", "新建令牌")}
           </Button>
         </form>
 
         {config && (
           <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
             <p className="text-xs text-muted-foreground">
-              Copy this now. Paste into <code>.mcp.json</code> (Claude Code) or your client&apos;s
-              MCP settings.
+              {t(
+                "Copy this now. Paste it into .mcp.json (Claude Code) or your client’s MCP settings.",
+                "请立即复制，并粘贴到 .mcp.json（Claude Code）或客户端的 MCP 设置中。",
+              )}
             </p>
             <pre className="overflow-x-auto rounded-lg bg-background p-3 font-mono text-xs">
               {config}
             </pre>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => copy(config)}>
-                <Copy className="h-3.5 w-3.5" /> Copy config
+                <Copy className="h-3.5 w-3.5" /> {t("Copy config", "复制配置")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => fresh && copy(fresh)}>
-                <Copy className="h-3.5 w-3.5" /> Copy token only
+                <Copy className="h-3.5 w-3.5" /> {t("Copy token only", "仅复制令牌")}
               </Button>
             </div>
           </div>
@@ -117,22 +122,28 @@ export function AgentTokens() {
 
         {tokens && tokens.length > 0 && (
           <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
-            {tokens.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+            {tokens.map((token) => (
+              <li
+                key={token.id}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+              >
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{t.name}</p>
+                  <p className="truncate font-medium">{token.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Created {new Date(t.created_at).toLocaleDateString()}
-                    {t.last_used_at
-                      ? `, last used ${new Date(t.last_used_at).toLocaleDateString()}`
-                      : ", never used"}
+                    {t("Created", "创建于")} {new Date(token.created_at).toLocaleDateString(locale)}
+                    {token.last_used_at
+                      ? t(
+                          `, last used ${new Date(token.last_used_at).toLocaleDateString(locale)}`,
+                          `，上次使用 ${new Date(token.last_used_at).toLocaleDateString(locale)}`,
+                        )
+                      : t(", never used", "，从未使用")}
                   </p>
                 </div>
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={`Revoke ${t.name}`}
-                  onClick={() => revoke(t.id)}
+                  aria-label={t(`Revoke ${token.name}`, `撤销 ${token.name}`)}
+                  onClick={() => revoke(token.id)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

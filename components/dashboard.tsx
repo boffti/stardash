@@ -92,10 +92,13 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core"
 
+import { useI18n } from "@/components/i18n-provider"
+
 const VIEW_MODE_KEY = "stardash_view_mode"
 const MAX_HEALTH_REPOS_PER_VIEW = 50
 
 export function Dashboard() {
+  const { t } = useI18n()
   const { user, reauthenticate } = useUser()
   const router = useRouter()
   const pathname = usePathname()
@@ -110,7 +113,7 @@ export function Dashboard() {
   }
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("starred-desc")
-  const [viewMode, setViewModeState] = useState<"grid" | "list">("grid")
+  const [viewMode, setViewModeState] = useState<"grid" | "list">("list")
 
   // Load view mode from localStorage on mount
   useEffect(() => {
@@ -493,15 +496,16 @@ export function Dashboard() {
   const selectedRepoWithHealth = useMemo(() => {
     if (!selectedRepo) return null
 
+    const currentRepo = repos.find((repo) => repo.id === selectedRepo.id) ?? selectedRepo
     const health = healthData?.[selectedRepo.id]
-    if (!health) return selectedRepo
+    if (!health) return currentRepo
 
     return {
-      ...selectedRepo,
+      ...currentRepo,
       isTrending: health.isTrending,
       latestRelease: health.latestRelease,
     }
-  }, [selectedRepo, healthData])
+  }, [selectedRepo, repos, healthData])
 
   const getPageNumbers = (current: number, total: number): (number | "ellipsis")[] => {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
@@ -515,12 +519,13 @@ export function Dashboard() {
     if (user?.id) {
       trackRecentlyViewedRepo(user.id, repo, "dashboard")
     }
-    router.push(`/repo/${repo.owner}/${repo.name}`)
+    setSelectedRepo(repo)
+    setDetailPanelOpen(true)
   }
 
   const handleCloseDetail = () => {
     setDetailPanelOpen(false)
-    setTimeout(() => setSelectedRepo(null), 200)
+    setSelectedRepo(null)
   }
 
   const handleViewReadme = () => {
@@ -530,6 +535,7 @@ export function Dashboard() {
 
   const handleCloseReadme = () => {
     setReadmeViewerOpen(false)
+    setDetailPanelOpen(true)
   }
 
   const clearAllFilters = () => {
@@ -585,14 +591,16 @@ export function Dashboard() {
         categorizationResult.categorizedRepoCount ??
         Object.keys(categorizationResult.repoTags).length
       if (categorizedRepoCount === 0) {
-        toast.info("No new starred repos to categorize")
+        toast.info(t("No new starred repos to categorize", "没有新的星标仓库需要分类"))
       } else {
         toast.success(
           `Categorized ${categorizedRepoCount} ${categorizedRepoCount === 1 ? "repo" : "repos"}`,
         )
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to categorize repositories")
+      toast.error(
+        err instanceof Error ? err.message : t("Failed to categorize repositories", "仓库分类失败"),
+      )
     } finally {
       setIsCategorizing(false)
     }
@@ -651,7 +659,7 @@ export function Dashboard() {
       await updateRepoStatus(dbId, status)
     } catch {
       mutateMetadata()
-      toast.error("Failed to update status")
+      toast.error(t("Failed to update status", "更新状态失败"))
     }
   }
 
@@ -663,7 +671,7 @@ export function Dashboard() {
         revalidate: false,
       })
     } catch {
-      toast.error("Failed to save notes")
+      toast.error(t("Failed to save notes", "保存笔记失败"))
     }
   }
 
@@ -677,7 +685,7 @@ export function Dashboard() {
       await togglePin(dbId, isPinned)
     } catch {
       mutateMetadata()
-      toast.error("Failed to update pin")
+      toast.error(t("Failed to update pin", "更新置顶失败"))
     }
   }
 
@@ -695,7 +703,7 @@ export function Dashboard() {
       else await assignTag(dbId, tagId)
     } catch {
       mutateMetadata()
-      toast.error("Failed to update tag")
+      toast.error(t("Failed to update tag", "更新标签失败"))
     }
   }
 
@@ -708,7 +716,11 @@ export function Dashboard() {
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
-      toast.error(msg.includes("unique") ? "Tag already exists" : "Failed to create tag")
+      toast.error(
+        msg.includes("unique")
+          ? t("Tag already exists", "标签已存在")
+          : t("Failed to create tag", "创建标签失败"),
+      )
     }
   }
 
@@ -719,7 +731,11 @@ export function Dashboard() {
       mutateMetadata()
     } catch (err) {
       const msg = (err as Error).message
-      toast.error(msg.includes("unique") ? "Tag already exists" : "Failed to create tag")
+      toast.error(
+        msg.includes("unique")
+          ? t("Tag already exists", "标签已存在")
+          : t("Failed to create tag", "创建标签失败"),
+      )
       throw err
     }
   }
@@ -756,7 +772,7 @@ export function Dashboard() {
       else await assignCollection(dbId, collectionId)
     } catch {
       mutateMetadata()
-      toast.error("Failed to update collection")
+      toast.error(t("Failed to update collection", "更新收藏夹失败"))
     }
   }
 
@@ -998,292 +1014,317 @@ export function Dashboard() {
             onRepoOpen={handleRepoClick}
             onClearFilters={clearAllFilters}
           />
-          <main className="flex-1 p-6">
-            {/* Token expiry banner — always at top when expired and cached data exists */}
-            {isTokenExpired && hasRepoData && <TokenExpiredBanner onReconnect={handleReconnect} />}
+          <div className="flex min-w-0 flex-1 items-start">
+            <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-5 py-8 sm:px-8">
+              <h1 className="mb-7 text-2xl font-semibold tracking-tight">
+                {t("All Stars", "全部星标")}
+              </h1>
+              {/* Token expiry banner — always at top when expired and cached data exists */}
+              {isTokenExpired && hasRepoData && (
+                <TokenExpiredBanner onReconnect={handleReconnect} />
+              )}
 
-            {/* Skeleton loading state — shown immediately while fetching, no cached data */}
-            {isLoading && !hasRepoData && (
-              <>
-                {/* Skeleton toolbar row */}
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-0.5 rounded-md bg-secondary p-0.5">
-                      <div className="h-7 w-7 rounded-sm bg-muted/60 animate-pulse" />
-                      <div className="h-7 w-7 rounded-sm bg-muted/40 animate-pulse" />
-                    </div>
-                    <div className="h-4 w-48 rounded bg-muted animate-pulse" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-4 w-20 rounded bg-muted animate-pulse" />
-                    <div className="h-8 w-20 rounded-md bg-muted animate-pulse" />
-                  </div>
-                </div>
-                <RepoGridSkeleton count={12} />
-              </>
-            )}
-
-            {/* Full-page error only when no cached data — token error shows reconnect CTA, others show retry */}
-            {(error || data?.error) && !hasRepoData && (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <AlertCircle className="h-8 w-8 text-destructive" />
-                <p className="text-destructive">
-                  {isTokenExpired
-                    ? "Your GitHub session has expired."
-                    : "Failed to load starred repositories"}
-                </p>
-                {isTokenExpired ? (
-                  <Button variant="outline" onClick={handleReconnect}>
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Reconnect GitHub
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => handleRefresh("dashboard-inline-retry")}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Try Again
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* Content — shown even when token expired if cached data exists */}
-            {hasRepoData && askQuestion && user?.id && (
-              <AskResults
-                question={askQuestion}
-                userId={user.id}
-                repos={repos}
-                onRepoClick={handleRepoClick}
-                onRemoveStar={handleRemoveStarRequest}
-                onClear={clearAsk}
-              />
-            )}
-
-            {hasRepoData && !askQuestion && (
-              <>
-                {/* Active Filters */}
-                {hasActiveFilters && (
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Filters:</span>
-                    {searchQuery &&
-                      renderFilterBadge(`Search: ${searchQuery}`, () => setSearchQuery(""))}
-                    {languageFilter &&
-                      renderFilterBadge(languageFilter, () => setLanguageFilter(null))}
-                    {healthFilter &&
-                      renderFilterBadge(getHealthFilterLabel() ?? "Health", () =>
-                        setHealthFilter(null),
-                      )}
-                    {(selectedCollection || selectedTag) &&
-                      renderFilterBadge(getActiveFilterLabel() ?? "Category", () => {
-                        handleSelectCollection(null)
-                      })}
-                    {showUncategorized &&
-                      renderFilterBadge("Uncategorized", () => handleShowUncategorized(false))}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={clearAllFilters}
-                    >
-                      Clear All
-                    </Button>
-                  </div>
-                )}
-
-                {/* Results count + view toggle + per-page selector + top pagination */}
-                <div className="mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                    <ToggleGroup
-                      type="single"
-                      value={viewMode}
-                      onValueChange={(value) => value && setViewMode(value as "grid" | "list")}
-                      className="bg-secondary rounded-md p-0.5"
-                    >
-                      <ToggleGroupItem
-                        value="grid"
-                        aria-label="Grid view"
-                        className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
-                      >
-                        <LayoutGrid className="h-3.5 w-3.5" />
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value="list"
-                        aria-label="List view"
-                        className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
-                      >
-                        <List className="h-3.5 w-3.5" />
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                    <p className="text-sm text-muted-foreground">
-                      {pageSize === "all" || filteredRepos.length === 0
-                        ? `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`
-                        : `Showing ${startIndex + 1}–${endIndex} of ${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {/* Inline page nav */}
-                    {pageSize !== "all" && totalPages > 1 && (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                          aria-label="Previous page"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="text-sm text-muted-foreground tabular-nums">
-                          {currentPage} / {totalPages}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
-                          aria-label="Next page"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+              {/* Skeleton loading state — shown immediately while fetching, no cached data */}
+              {isLoading && !hasRepoData && (
+                <>
+                  {/* Skeleton toolbar row */}
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-0.5 rounded-md bg-secondary p-0.5">
+                        <div className="h-7 w-7 rounded-sm bg-muted/60 animate-pulse" />
+                        <div className="h-7 w-7 rounded-sm bg-muted/40 animate-pulse" />
                       </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Per page</span>
-                      <Select
-                        value={String(pageSize)}
-                        onValueChange={(val) => setPageSize(val === "all" ? "all" : Number(val))}
-                      >
-                        <SelectTrigger className="h-8 w-[80px] text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="24">24</SelectItem>
-                          <SelectItem value="48">48</SelectItem>
-                          <SelectItem value="96">96</SelectItem>
-                          <SelectItem value="all">All</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="h-4 w-48 rounded bg-muted animate-pulse" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+                      <div className="h-8 w-20 rounded-md bg-muted animate-pulse" />
                     </div>
                   </div>
-                </div>
+                  <RepoGridSkeleton count={12} />
+                </>
+              )}
 
-                {/* Proactive Alerts - Updates on starred repos */}
-                <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
-
-                {/* Empty State — no repos at all */}
-                {repos.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-32 gap-6">
-                    <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-muted">
-                      <Star className="h-9 w-9 text-muted-foreground/50" />
-                    </div>
-                    <div className="text-center space-y-1.5">
-                      <p className="font-medium text-foreground">No starred repositories yet</p>
-                      <p className="text-sm text-muted-foreground">
-                        Star repositories on GitHub, then sync to see them here.
-                      </p>
-                    </div>
+              {/* Full-page error only when no cached data — token error shows reconnect CTA, others show retry */}
+              {(error || data?.error) && !hasRepoData && (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <AlertCircle className="h-8 w-8 text-destructive" />
+                  <p className="text-destructive">
+                    {isTokenExpired
+                      ? "Your GitHub session has expired."
+                      : "Failed to load starred repositories"}
+                  </p>
+                  {isTokenExpired ? (
+                    <Button variant="outline" onClick={handleReconnect}>
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Reconnect GitHub
+                    </Button>
+                  ) : (
                     <Button
                       variant="outline"
-                      onClick={() => handleRefresh("empty-state-sync")}
-                      disabled={isTokenExpired}
+                      onClick={() => handleRefresh("dashboard-inline-retry")}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Sync now
+                      Try Again
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
-                {/* View */}
-                {repos.length > 0 &&
-                  (viewMode === "grid" ? (
-                    <RepoGrid
-                      repos={paginatedReposWithHealth}
-                      onRepoClick={handleRepoClick}
-                      onRemoveStar={handleRemoveStarRequest}
-                    />
-                  ) : (
-                    <RepoList repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} />
-                  ))}
+              {/* Content — shown even when token expired if cached data exists */}
+              {hasRepoData && askQuestion && user?.id && (
+                <AskResults
+                  question={askQuestion}
+                  userId={user.id}
+                  repos={repos}
+                  onRepoClick={handleRepoClick}
+                  onRemoveStar={handleRemoveStarRequest}
+                  onClear={clearAsk}
+                />
+              )}
 
-                {/* Pagination controls - desktop (hidden on mobile) */}
-                {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
-                  <div className="mt-6 hidden md:flex items-center justify-center">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
+              {hasRepoData && !askQuestion && (
+                <>
+                  {/* Active Filters */}
+                  {hasActiveFilters && (
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {t("Filters:", "筛选：")}
+                      </span>
+                      {searchQuery &&
+                        renderFilterBadge(`Search: ${searchQuery}`, () => setSearchQuery(""))}
+                      {languageFilter &&
+                        renderFilterBadge(languageFilter, () => setLanguageFilter(null))}
+                      {healthFilter &&
+                        renderFilterBadge(getHealthFilterLabel() ?? "Health", () =>
+                          setHealthFilter(null),
+                        )}
+                      {(selectedCollection || selectedTag) &&
+                        renderFilterBadge(getActiveFilterLabel() ?? "Category", () => {
+                          handleSelectCollection(null)
+                        })}
+                      {showUncategorized &&
+                        renderFilterBadge("Uncategorized", () => handleShowUncategorized(false))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={clearAllFilters}
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Results count + view toggle + per-page selector + top pagination */}
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                      <ToggleGroup
+                        type="single"
+                        value={viewMode}
+                        onValueChange={(value) => value && setViewMode(value as "grid" | "list")}
+                        className="bg-secondary rounded-md p-0.5"
+                      >
+                        <ToggleGroupItem
+                          value="grid"
+                          aria-label={t("Grid view", "网格视图")}
+                          className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                        >
+                          <LayoutGrid className="h-3.5 w-3.5" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="list"
+                          aria-label={t("List view", "列表视图")}
+                          className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                        >
+                          <List className="h-3.5 w-3.5" />
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                      <p className="text-sm text-muted-foreground">
+                        {pageSize === "all" || filteredRepos.length === 0
+                          ? t(
+                              `${filteredRepos.length} ${filteredRepos.length === 1 ? "repository" : "repositories"}`,
+                              `${filteredRepos.length} 个仓库`,
+                            )
+                          : t(
+                              `${startIndex + 1}–${endIndex} of ${filteredRepos.length}`,
+                              `第 ${startIndex + 1}–${endIndex} 项，共 ${filteredRepos.length} 项`,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Inline page nav */}
+                      {pageSize !== "all" && totalPages > 1 && (
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="gap-1 px-2.5"
+                            size="icon"
+                            className="h-8 w-8"
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            aria-label="Go to previous page"
+                            aria-label={t("Previous page", "上一页")}
                           >
                             <ChevronLeft className="h-4 w-4" />
-                            <span className="hidden sm:block">Previous</span>
                           </Button>
-                        </PaginationItem>
-
-                        {getPageNumbers(currentPage, totalPages).map((page, idx) =>
-                          page === "ellipsis" ? (
-                            <PaginationItem key={`ellipsis-${idx}`}>
-                              <PaginationEllipsis />
-                            </PaginationItem>
-                          ) : (
-                            <PaginationItem key={page}>
-                              <PaginationLink
-                                isActive={page === currentPage}
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  setCurrentPage(page as number)
-                                }}
-                                href="#"
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ),
-                        )}
-
-                        <PaginationItem>
+                          <span className="text-sm text-muted-foreground tabular-nums">
+                            {currentPage} / {totalPages}
+                          </span>
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="gap-1 px-2.5"
+                            size="icon"
+                            className="h-8 w-8"
                             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            aria-label="Go to next page"
+                            aria-label={t("Next page", "下一页")}
                           >
-                            <span className="hidden sm:block">Next</span>
                             <ChevronRight className="h-4 w-4" />
                           </Button>
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {t("Per page", "每页")}
+                        </span>
+                        <Select
+                          value={String(pageSize)}
+                          onValueChange={(val) => setPageSize(val === "all" ? "all" : Number(val))}
+                        >
+                          <SelectTrigger className="h-8 w-[80px] text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="24">24</SelectItem>
+                            <SelectItem value="48">48</SelectItem>
+                            <SelectItem value="96">96</SelectItem>
+                            <SelectItem value="all">{t("All", "全部")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </>
-            )}
-          </main>
-        </SidebarInset>
 
-        {/* Detail Panel */}
-        <RepoDetailPanel
-          repo={selectedRepoWithHealth}
-          open={detailPanelOpen}
-          onClose={handleCloseDetail}
-          onViewReadme={handleViewReadme}
-          collections={collections}
-          tags={allTags}
-          onStatusChange={handleStatusChange}
-          onTagToggle={handleTagToggle}
-          onTagCreate={handleTagCreate}
-          onCollectionToggle={handleCollectionToggle}
-          onCollectionCreate={handleCollectionCreate}
-          onNotesChange={handleNotesChange}
-          onPinToggle={handlePinToggle}
-        />
+                  {/* Proactive Alerts - Updates on starred repos */}
+                  <ProactiveAlerts repos={paginatedReposWithHealth} userId={user?.id} />
+
+                  {/* Empty State — no repos at all */}
+                  {repos.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-32 gap-6">
+                      <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-muted">
+                        <Star className="h-9 w-9 text-muted-foreground/50" />
+                      </div>
+                      <div className="text-center space-y-1.5">
+                        <p className="font-medium text-foreground">
+                          {t("No starred repositories yet", "暂无星标仓库")}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {t(
+                            "Star repositories on GitHub, then sync.",
+                            "在 GitHub 收藏仓库，然后同步。",
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleRefresh("empty-state-sync")}
+                        disabled={isTokenExpired}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        {t("Sync now", "立即同步")}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* View */}
+                  {repos.length > 0 &&
+                    (viewMode === "grid" ? (
+                      <RepoGrid
+                        repos={paginatedReposWithHealth}
+                        onRepoClick={handleRepoClick}
+                        onRemoveStar={handleRemoveStarRequest}
+                      />
+                    ) : (
+                      <RepoList repos={paginatedReposWithHealth} onRepoClick={handleRepoClick} />
+                    ))}
+
+                  {/* Pagination controls - desktop (hidden on mobile) */}
+                  {repos.length > 0 && pageSize !== "all" && totalPages > 1 && (
+                    <div className="mt-6 hidden md:flex items-center justify-center">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 px-2.5"
+                              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                              disabled={currentPage === 1}
+                              aria-label={t("Go to previous page", "前往上一页")}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                              <span className="hidden sm:block">{t("Previous", "上一页")}</span>
+                            </Button>
+                          </PaginationItem>
+
+                          {getPageNumbers(currentPage, totalPages).map((page, idx) =>
+                            page === "ellipsis" ? (
+                              <PaginationItem key={`ellipsis-${idx}`}>
+                                <PaginationEllipsis />
+                              </PaginationItem>
+                            ) : (
+                              <PaginationItem key={page}>
+                                <PaginationLink
+                                  isActive={page === currentPage}
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    setCurrentPage(page as number)
+                                  }}
+                                  href="#"
+                                >
+                                  {page}
+                                </PaginationLink>
+                              </PaginationItem>
+                            ),
+                          )}
+
+                          <PaginationItem>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 px-2.5"
+                              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={currentPage === totalPages}
+                              aria-label={t("Go to next page", "前往下一页")}
+                            >
+                              <span className="hidden sm:block">{t("Next", "下一页")}</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </>
+              )}
+            </main>
+            {/* Detail Panel */}
+            <RepoDetailPanel
+              inline
+              repo={selectedRepoWithHealth}
+              open={detailPanelOpen}
+              onClose={handleCloseDetail}
+              onViewReadme={handleViewReadme}
+              collections={collections}
+              tags={allTags}
+              onStatusChange={handleStatusChange}
+              onTagToggle={handleTagToggle}
+              onTagCreate={handleTagCreate}
+              onCollectionToggle={handleCollectionToggle}
+              onCollectionCreate={handleCollectionCreate}
+              onNotesChange={handleNotesChange}
+              onPinToggle={handlePinToggle}
+            />
+          </div>
+        </SidebarInset>
 
         {/* README Viewer */}
         <ReadmeViewer
@@ -1301,7 +1342,7 @@ export function Dashboard() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove star?</AlertDialogTitle>
+              <AlertDialogTitle>{t("Remove star?", "取消星标？")}</AlertDialogTitle>
               <AlertDialogDescription>
                 This will unstar{" "}
                 <span className="font-mono font-medium text-foreground">
@@ -1311,7 +1352,7 @@ export function Dashboard() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t("Cancel", "取消")}</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onClick={handleRemoveStarConfirm}

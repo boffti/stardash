@@ -45,6 +45,7 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { useUser } from "@/components/providers/user-provider"
 import { useTheme } from "@/components/theme-provider"
+import { useI18n } from "@/components/i18n-provider"
 import { useCommandPaletteShortcut } from "@/components/use-command-palette-shortcut"
 import { useStarredRepos } from "@/lib/use-starred-repos"
 import { RADAR_ENABLED } from "@/lib/flags"
@@ -162,6 +163,7 @@ const REPO_LIMIT = 24
 const ITEM = "rounded-md data-[selected=true]:bg-muted data-[selected=true]:text-foreground"
 
 export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n()
   const [page, setPage] = useState<PaletteRegistration | null | undefined>(undefined)
   const [askMode, setAskMode] = useState(false)
   const open = page !== undefined
@@ -186,9 +188,9 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
           showCloseButton={false}
         >
           <DialogHeader className="sr-only">
-            <DialogTitle>Search StarDash</DialogTitle>
+            <DialogTitle>{t("Search Stellan", "搜索 Stellan")}</DialogTitle>
             <DialogDescription>
-              Jump to a page or a starred repo, run an action, or use this page&apos;s commands.
+              {t("Search pages and repositories.", "搜索页面和仓库。")}
             </DialogDescription>
           </DialogHeader>
           {open && (
@@ -212,6 +214,7 @@ function PaletteBody({
   // Ask mode shows nothing but the question box and the Ask item.
   const page = askMode ? null : registered
   const router = useRouter()
+  const { t } = useI18n()
   const { user } = useUser()
   const { data: starData, refresh, isRefreshing } = useStarredRepos(user?.id)
   const { resolvedTheme, setTheme } = useTheme()
@@ -225,30 +228,46 @@ function PaletteBody({
 
   const universalDefs: PaletteGroup[] = [
     {
-      heading: "Navigate",
+      heading: t("Navigate", "导航"),
       items: NAV.map((n) => ({
         id: `nav-${n.href}`,
-        label: n.label,
-        keywords: n.keywords,
+        label: t(
+          n.label,
+          (
+            {
+              "/radar": "雷达",
+              "/dashboard": "全部星标",
+              "/search": "发现",
+              "/recently-viewed": "最近浏览",
+              "/intel": "情报",
+              "/contribute": "贡献",
+              "/settings": "设置",
+            } as Record<string, string>
+          )[n.href] ?? n.label,
+        ),
+        keywords: `${n.label} ${n.keywords ?? ""}`,
         icon: n.icon,
         onSelect: () => router.push(n.href),
       })),
     },
     {
-      heading: "Actions",
+      heading: t("Actions", "操作"),
       items: [
         {
           id: "action-sync",
-          label: "Sync starred repositories",
+          label: t("Sync starred repositories", "同步星标仓库"),
           keywords: "refresh github",
           icon: RefreshCw,
           iconClassName: isRefreshing ? "animate-spin" : undefined,
-          shortcut: "Sync",
+          shortcut: t("Sync", "同步"),
           onSelect: () => void refresh({ manual: true }),
         },
         {
           id: "action-theme",
-          label: resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+          label:
+            resolvedTheme === "dark"
+              ? t("Switch to light theme", "切换浅色模式")
+              : t("Switch to dark theme", "切换深色模式"),
           keywords: "theme dark light mode appearance",
           icon: resolvedTheme === "dark" ? Sun : Moon,
           onSelect: () => setTheme(resolvedTheme === "dark" ? "light" : "dark"),
@@ -285,14 +304,16 @@ function PaletteBody({
   // Ask is always offered while typing: first when it reads like a question, else last.
   const askFirst = askMode || looksLikeQuestion(trimmed)
   const askItem = trimmed ? (
-    <CommandGroup heading="Ask">
+    <CommandGroup heading={t("Ask", "提问")}>
       <CommandItem
         value="__ask"
         onSelect={() => run(() => router.push(askHref(trimmed)))}
         className={ITEM}
       >
         <Sparkles className="h-4 w-4" />
-        <span className="flex-1 truncate">Ask your stars: &quot;{trimmed}&quot;</span>
+        <span className="flex-1 truncate">
+          {t(`Ask your stars: “${trimmed}”`, `询问收藏：“${trimmed}”`)}
+        </span>
         <CommandShortcut>
           <ArrowRight className="h-3.5 w-3.5" />
         </CommandShortcut>
@@ -311,14 +332,14 @@ function PaletteBody({
         onValueChange={setQuery}
         placeholder={
           askMode
-            ? "Ask your stars, e.g. what could replace Redis?"
-            : (page?.placeholder ?? "Jump to a page, a starred repo, or an action...")
+            ? t("Ask your stars", "询问收藏")
+            : (page?.placeholder ?? t("Search pages and repositories", "搜索页面和仓库"))
         }
       />
       <CommandList className="max-h-[min(64vh,560px)] px-2 py-2">
         {askMode && !trimmed && (
           <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-            Ask in plain words. The answer opens on All Stars with the matching repos.
+            {t("Ask your stars", "询问收藏")}
           </p>
         )}
 
@@ -326,8 +347,36 @@ function PaletteBody({
 
         {!askMode && navFirst && universal}
 
+        {!askMode && trimmed && (
+          <CommandGroup heading={t("Repositories", "仓库")}>
+            <CommandItem
+              value="__unified_search"
+              onSelect={() =>
+                run(() => {
+                  const href = `/search?q=${encodeURIComponent(trimmed)}&scope=stars`
+                  if (window.location.pathname === "/search") {
+                    window.history.pushState(null, "", href)
+                    window.dispatchEvent(new PopStateEvent("popstate"))
+                  } else {
+                    router.push(href)
+                  }
+                })
+              }
+              className={ITEM}
+            >
+              <Search className="h-4 w-4" />
+              <span className="flex-1 truncate">
+                {t(`Search repositories for “${trimmed}”`, `搜索仓库：“${trimmed}”`)}
+              </span>
+              <CommandShortcut>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+        )}
+
         {page?.search && query.trim() && (
-          <CommandGroup heading="Search">
+          <CommandGroup heading={t("Search", "搜索")}>
             <CommandItem
               value="__search"
               onSelect={() => run(() => page.search!.run(query.trim()))}
@@ -351,7 +400,11 @@ function PaletteBody({
         {!askMode && !navFirst && universal}
 
         {!askMode && repos.length > 0 && (
-          <CommandGroup heading={q ? "Your stars" : "Pinned and recent stars"}>
+          <CommandGroup
+            heading={
+              q ? t("Your stars", "我的收藏") : t("Pinned and recent stars", "置顶和最近收藏")
+            }
+          >
             {repos.map((repo) => (
               <CommandItem
                 key={repo.id}
@@ -385,15 +438,15 @@ function PaletteBody({
             <Kbd>↑</Kbd>
             <Kbd>↓</Kbd>
           </KbdGroup>
-          Move
+          {t("Move", "移动")}
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>Enter</Kbd>
-          Select
+          {t("Select", "选择")}
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>Esc</Kbd>
-          Close
+          {t("Close", "关闭")}
         </span>
       </div>
     </Command>

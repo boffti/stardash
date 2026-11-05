@@ -1,3 +1,20 @@
+# Stellan
+
+Stellan is a fork of [StarDash](https://github.com/boffti/stardash) for browsing and searching GitHub stars. It adds a unified search, English and Simplified Chinese, and light and dark themes.
+
+Install Node.js 22.5 or later and pnpm, then run these commands.
+
+```sh
+pnpm install
+pnpm dev
+```
+
+Open `http://localhost:3000` and connect GitHub. The first account owns the local instance. AI features require a configured provider; ordinary search and Radar work without one. See [environment configuration](env.example).
+
+The upstream documentation follows. Its published Docker image contains StarDash; build this checkout's `Dockerfile` to run Stellan in a container.
+
+---
+
 <a href="https://github.com/boffti/stardash">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">

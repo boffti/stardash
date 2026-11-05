@@ -2,7 +2,7 @@
 
 import { type ReactNode, useMemo, useState } from "react"
 import useSWR from "swr"
-import { FolderOpen, Layers3, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
+import { FolderOpen, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import type { Collection, Tag as TagType, UserMetadata } from "@/lib/types"
@@ -15,7 +15,7 @@ import {
   updateTag,
 } from "@/lib/metadata-actions"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,6 +39,8 @@ import { Separator } from "@/components/ui/separator"
 import { AIKeySettings } from "@/components/ai-key-settings"
 import { AgentTokens } from "@/components/agent-tokens"
 import { cn } from "@/lib/utils"
+import { useI18n, type Language } from "@/components/i18n-provider"
+import { useTheme } from "@/components/theme-provider"
 import { useUser } from "@/components/providers/user-provider"
 
 const TAG_PALETTE = [
@@ -70,7 +72,7 @@ function EmptyState({
 }: {
   icon: ReactNode
   title: string
-  description: string
+  description?: string
   action?: ReactNode
 }) {
   return (
@@ -81,7 +83,7 @@ function EmptyState({
         </div>
         <div className="space-y-1">
           <p className="font-medium text-foreground">{title}</p>
-          <p className="max-w-md text-sm text-muted-foreground">{description}</p>
+          {description && <p className="max-w-md text-sm text-muted-foreground">{description}</p>}
         </div>
         {action}
       </CardContent>
@@ -104,6 +106,7 @@ function CollectionEditor({
   isSaving: boolean
   isDeleting: boolean
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(collection.name)
   const [emoji, setEmoji] = useState(collection.emoji)
@@ -126,16 +129,18 @@ function CollectionEditor({
               {editing ? (
                 <div className="grid gap-3 sm:grid-cols-[1fr_88px]">
                   <div className="space-y-2">
-                    <Label htmlFor={`collection-name-${collection.id}`}>Name</Label>
+                    <Label htmlFor={`collection-name-${collection.id}`}>{t("Name", "名称")}</Label>
                     <Input
                       id={`collection-name-${collection.id}`}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Collection name"
+                      placeholder={t("Collection name", "收藏夹名称")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`collection-emoji-${collection.id}`}>Emoji</Label>
+                    <Label htmlFor={`collection-emoji-${collection.id}`}>
+                      {t("Emoji", "表情")}
+                    </Label>
                     <Input
                       id={`collection-emoji-${collection.id}`}
                       value={emoji}
@@ -158,11 +163,11 @@ function CollectionEditor({
                         {collection.name}
                       </p>
                       <Badge variant="secondary" className="h-5 rounded-full px-2 text-[11px]">
-                        {repoCount} repos
+                        {repoCount} {t("repos", "个仓库")}
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Used to group related starred repositories.
+                      {t("Used to group related starred repositories.", "用于整理相关的星标仓库。")}
                     </p>
                   </div>
                 </div>
@@ -192,7 +197,7 @@ function CollectionEditor({
           {editing && (
             <div className="mt-4 space-y-4 border-t border-border/60 pt-4">
               <div className="space-y-2">
-                <Label>Color</Label>
+                <Label>{t("Color", "颜色")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {TAG_PALETTE.map((swatch) => (
                     <button
@@ -213,7 +218,7 @@ function CollectionEditor({
 
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="ghost" onClick={handleCancel} disabled={isSaving}>
-                  Cancel
+                  {t("Cancel", "取消")}
                 </Button>
                 <Button
                   onClick={async () => {
@@ -223,7 +228,7 @@ function CollectionEditor({
                   disabled={!name.trim() || isSaving}
                 >
                   {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
+                  {t("Save Changes", "保存更改")}
                 </Button>
               </div>
             </div>
@@ -234,14 +239,16 @@ function CollectionEditor({
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete collection?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Delete collection?", "删除收藏夹？")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the collection and its assignments from repos. Repositories themselves
-              will stay in StarDash.
+              {t(
+                "This removes the collection and its assignments. Repositories are kept.",
+                "删除收藏夹及其仓库关联，仓库本身会保留。",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancel", "取消")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 await onDelete()
@@ -251,7 +258,7 @@ function CollectionEditor({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
+              {t("Delete", "删除")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -275,6 +282,7 @@ function TagEditor({
   isSaving: boolean
   isDeleting: boolean
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [label, setLabel] = useState(tag.label)
   const [color, setColor] = useState(tag.color || TAG_PALETTE[0])
@@ -294,12 +302,12 @@ function TagEditor({
             <div className="min-w-0 flex-1">
               {editing ? (
                 <div className="space-y-2">
-                  <Label htmlFor={`tag-label-${tag.id}`}>Label</Label>
+                  <Label htmlFor={`tag-label-${tag.id}`}>{t("Label", "标签名称")}</Label>
                   <Input
                     id={`tag-label-${tag.id}`}
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
-                    placeholder="Tag label"
+                    placeholder={t("Tag label", "标签名称")}
                   />
                 </div>
               ) : (
@@ -312,11 +320,14 @@ function TagEditor({
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium text-foreground">{tag.label}</p>
                       <Badge variant="secondary" className="h-5 rounded-full px-2 text-[11px]">
-                        {repoCount} repos
+                        {repoCount} {t("repos", "个仓库")}
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Lightweight labels for technologies, workflows, and themes.
+                      {t(
+                        "Lightweight labels for technologies, workflows, and themes.",
+                        "用标签标记技术、工作流程和主题。",
+                      )}
                     </p>
                   </div>
                 </div>
@@ -338,7 +349,7 @@ function TagEditor({
           {editing && (
             <div className="mt-4 space-y-4 border-t border-border/60 pt-4">
               <div className="space-y-2">
-                <Label>Color</Label>
+                <Label>{t("Color", "颜色")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {TAG_PALETTE.map((swatch) => (
                     <button
@@ -359,7 +370,7 @@ function TagEditor({
 
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="ghost" onClick={handleCancel} disabled={isSaving}>
-                  Cancel
+                  {t("Cancel", "取消")}
                 </Button>
                 <Button
                   onClick={async () => {
@@ -369,7 +380,7 @@ function TagEditor({
                   disabled={!label.trim() || isSaving}
                 >
                   {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
+                  {t("Save Changes", "保存更改")}
                 </Button>
               </div>
             </div>
@@ -380,14 +391,16 @@ function TagEditor({
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete tag?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Delete tag?", "删除标签？")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the tag and clears its repo assignments. The repositories themselves will
-              not be deleted.
+              {t(
+                "This removes the tag and clears its repo assignments. The repositories themselves will not be deleted.",
+                "删除标签及其仓库关联，仓库本身不会被删除。",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancel", "取消")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 await onDelete()
@@ -397,7 +410,7 @@ function TagEditor({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
+              {t("Delete", "删除")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -408,6 +421,8 @@ function TagEditor({
 
 export function SettingsPage() {
   const { user } = useUser()
+  const { language, setLanguage, t } = useI18n()
+  const { theme, setTheme } = useTheme()
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false)
   const [createTagOpen, setCreateTagOpen] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
@@ -447,24 +462,18 @@ export function SettingsPage() {
       ).length,
     [metadata],
   )
-  const assignmentCount = useMemo(
-    () =>
-      Object.values(metadata?.repoMeta ?? {}).reduce(
-        (sum, repoMeta) => sum + repoMeta.collectionIds.length + repoMeta.tagIds.length,
-        0,
-      ),
-    [metadata],
-  )
 
   const handleCreateCollection = async (name: string, emoji: string, color: string) => {
     try {
       await createCollection(name, emoji, color)
       await mutate()
-      toast.success("Collection created")
+      toast.success(t("Collection created", "收藏夹已创建"))
     } catch (error) {
       const message = (error as Error).message
       toast.error(
-        message.includes("unique") ? "Collection already exists" : "Failed to create collection",
+        message.includes("unique")
+          ? t("Collection already exists", "收藏夹已存在")
+          : t("Failed to create collection", "创建收藏夹失败"),
       )
       throw error
     }
@@ -474,10 +483,14 @@ export function SettingsPage() {
     try {
       await createTag(label, TAG_PALETTE[0])
       await mutate()
-      toast.success("Tag created")
+      toast.success(t("Tag created", "标签已创建"))
     } catch (error) {
       const message = (error as Error).message
-      toast.error(message.includes("unique") ? "Tag already exists" : "Failed to create tag")
+      toast.error(
+        message.includes("unique")
+          ? t("Tag already exists", "标签已存在")
+          : t("Failed to create tag", "创建标签失败"),
+      )
       throw error
     }
   }
@@ -508,13 +521,13 @@ export function SettingsPage() {
                   variant="outline"
                   className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex"
                 >
-                  {collections.length} collections
+                  {collections.length} {t("collections", "个收藏夹")}
                 </Badge>
                 <Badge
                   variant="outline"
                   className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex"
                 >
-                  {tags.length} tags
+                  {tags.length} {t("tags", "个标签")}
                 </Badge>
               </>
             }
@@ -522,6 +535,73 @@ export function SettingsPage() {
 
           <main className="flex-1 p-6">
             <div className="flex w-full flex-col gap-6">
+              <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
+                <CardHeader className="border-b border-border/60 bg-muted/15 px-5 py-5 sm:px-6">
+                  <CardTitle className="text-base">
+                    {t("Appearance & language", "外观与语言")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-6 p-5 sm:p-6 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">{t("Theme", "主题")}</p>
+                    </div>
+                    <div
+                      role="group"
+                      aria-label={t("Theme", "主题")}
+                      className="flex flex-wrap gap-2"
+                    >
+                      {(
+                        [
+                          ["system", t("System", "跟随系统")],
+                          ["light", t("Light", "浅色")],
+                          ["dark", t("Dark", "深色")],
+                        ] as const
+                      ).map(([value, label]) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          size="sm"
+                          variant={theme === value ? "default" : "outline"}
+                          aria-pressed={theme === value}
+                          onClick={() => setTheme(value)}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">{t("Language", "语言")}</p>
+                    </div>
+                    <div
+                      role="group"
+                      aria-label={t("Language", "语言")}
+                      className="flex flex-wrap gap-2"
+                    >
+                      {(
+                        [
+                          ["system", t("Browser default", "跟随浏览器")],
+                          ["en", "English"],
+                          ["zh-CN", "简体中文"],
+                        ] satisfies [Language, string][]
+                      ).map(([value, label]) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          size="sm"
+                          variant={language === value ? "default" : "outline"}
+                          aria-pressed={language === value}
+                          onClick={() => setLanguage(value)}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               <section className="space-y-3">
                 <AIKeySettings />
               </section>
@@ -530,76 +610,6 @@ export function SettingsPage() {
                 <AgentTokens />
               </section>
               <Separator />
-              <section className="space-y-3">
-                <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/70">
-                    Workspace Settings
-                  </p>
-                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                    Collections & Tags
-                  </h1>
-                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Tune the labels and buckets that power organization and filtering across
-                    StarDash.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-3">
-                  <Card className="border-border/60 bg-card/80 shadow-sm">
-                    <CardContent className="flex items-center justify-between gap-3 p-4">
-                      <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
-                          Collections
-                        </p>
-                        <p className="text-xl font-semibold tracking-tight text-foreground">
-                          {collections.length}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Long-lived groups</p>
-                      </div>
-                      <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
-                        <FolderOpen className="h-4 w-4" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/60 bg-card/80 shadow-sm">
-                    <CardContent className="flex items-center justify-between gap-3 p-4">
-                      <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
-                          Tags
-                        </p>
-                        <p className="text-xl font-semibold tracking-tight text-foreground">
-                          {tags.length}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Cross-cutting labels</p>
-                      </div>
-                      <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
-                        <Tag className="h-4 w-4" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border/60 bg-card/80 shadow-sm">
-                    <CardContent className="flex items-center justify-between gap-3 p-4">
-                      <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
-                          Coverage
-                        </p>
-                        <p className="text-xl font-semibold tracking-tight text-foreground">
-                          {assignmentCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {uncategorizedCount} uncategorized repos
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-muted-foreground">
-                        <Layers3 className="h-4 w-4" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </section>
-
               <div className="grid gap-5">
                 <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
                   <CardHeader className="border-b border-border/60 bg-muted/15 px-5 py-5 sm:px-6">
@@ -607,11 +617,8 @@ export function SettingsPage() {
                       <div className="space-y-2">
                         <CardTitle className="flex items-center gap-2 text-base">
                           <Settings className="h-4 w-4 text-muted-foreground" />
-                          Collections and tags
+                          {t("Collections and tags", "收藏夹与标签")}
                         </CardTitle>
-                        <CardDescription>
-                          {assignmentCount} assignments across your stars.
-                        </CardDescription>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
@@ -621,11 +628,11 @@ export function SettingsPage() {
                           onClick={() => setCreateCollectionOpen(true)}
                         >
                           <Plus className="h-4 w-4" />
-                          New Collection
+                          {t("New collection", "新建收藏夹")}
                         </Button>
                         <Button className="rounded-xl" onClick={() => setCreateTagOpen(true)}>
                           <Plus className="h-4 w-4" />
-                          New Tag
+                          {t("New tag", "新建标签")}
                         </Button>
                       </div>
                     </div>
@@ -641,11 +648,11 @@ export function SettingsPage() {
                         <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/40 p-1 sm:w-[320px]">
                           <TabsTrigger value="collections">
                             <FolderOpen className="h-4 w-4" />
-                            Collections
+                            {t("Collections", "收藏夹")}
                           </TabsTrigger>
                           <TabsTrigger value="tags">
                             <Tag className="h-4 w-4" />
-                            Tags
+                            {t("Tags", "标签")}
                           </TabsTrigger>
                         </TabsList>
 
@@ -653,12 +660,11 @@ export function SettingsPage() {
                           {collections.length === 0 ? (
                             <EmptyState
                               icon={<FolderOpen className="h-5 w-5 text-muted-foreground" />}
-                              title="No collections yet"
-                              description="Collections create a strong top-level structure for your starred repos. Add a few durable buckets like AI, DevTools, or Reading List."
+                              title={t("No collections yet", "还没有收藏夹")}
                               action={
                                 <Button onClick={() => setCreateCollectionOpen(true)}>
                                   <Plus className="h-4 w-4" />
-                                  Create Collection
+                                  {t("Create collection", "创建收藏夹")}
                                 </Button>
                               }
                             />
@@ -678,13 +684,13 @@ export function SettingsPage() {
                                     try {
                                       await updateCollection(collection.id, name, emoji, color)
                                       await mutate()
-                                      toast.success("Collection updated")
+                                      toast.success(t("Collection updated", "收藏夹已更新"))
                                     } catch (error) {
                                       const message = (error as Error).message
                                       toast.error(
                                         message.includes("unique")
-                                          ? "Collection already exists"
-                                          : "Failed to update collection",
+                                          ? t("Collection already exists", "收藏夹已存在")
+                                          : t("Failed to update collection", "更新收藏夹失败"),
                                       )
                                       throw error
                                     } finally {
@@ -696,9 +702,11 @@ export function SettingsPage() {
                                     try {
                                       await deleteCollection(collection.id)
                                       await mutate()
-                                      toast.success("Collection deleted")
+                                      toast.success(t("Collection deleted", "收藏夹已删除"))
                                     } catch {
-                                      toast.error("Failed to delete collection")
+                                      toast.error(
+                                        t("Failed to delete collection", "删除收藏夹失败"),
+                                      )
                                       throw new Error("delete failed")
                                     } finally {
                                       setBusyKey(null)
@@ -714,12 +722,11 @@ export function SettingsPage() {
                           {tags.length === 0 ? (
                             <EmptyState
                               icon={<Tag className="h-5 w-5 text-muted-foreground" />}
-                              title="No tags yet"
-                              description="Tags work best for cross-cutting labels like frameworks, ecosystems, or job-to-be-done hints."
+                              title={t("No tags yet", "还没有标签")}
                               action={
                                 <Button onClick={() => setCreateTagOpen(true)}>
                                   <Plus className="h-4 w-4" />
-                                  Create Tag
+                                  {t("Create tag", "创建标签")}
                                 </Button>
                               }
                             />
@@ -739,13 +746,13 @@ export function SettingsPage() {
                                     try {
                                       await updateTag(tag.id, label, color)
                                       await mutate()
-                                      toast.success("Tag updated")
+                                      toast.success(t("Tag updated", "标签已更新"))
                                     } catch (error) {
                                       const message = (error as Error).message
                                       toast.error(
                                         message.includes("unique")
-                                          ? "Tag already exists"
-                                          : "Failed to update tag",
+                                          ? t("Tag already exists", "标签已存在")
+                                          : t("Failed to update tag", "更新标签失败"),
                                       )
                                       throw error
                                     } finally {
@@ -757,9 +764,9 @@ export function SettingsPage() {
                                     try {
                                       await deleteTag(tag.id)
                                       await mutate()
-                                      toast.success("Tag deleted")
+                                      toast.success(t("Tag deleted", "标签已删除"))
                                     } catch {
-                                      toast.error("Failed to delete tag")
+                                      toast.error(t("Failed to delete tag", "删除标签失败"))
                                       throw new Error("delete failed")
                                     } finally {
                                       setBusyKey(null)

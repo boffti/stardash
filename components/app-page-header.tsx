@@ -1,6 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { useI18n } from "@/components/i18n-provider"
 import React, { useState } from "react"
 import {
   Menu,
@@ -48,7 +49,7 @@ interface AppPageHeaderProps {
 }
 
 export function AppPageHeader({
-  searchLabel = "Search pages, stars and actions",
+  searchLabel = "Search",
   searchShortcutLabel = "⌘",
   desktopControls,
   mobileControls,
@@ -61,6 +62,7 @@ export function AppPageHeader({
   isRefreshing = false,
   hideNavActions = false,
 }: AppPageHeaderProps) {
+  const { t } = useI18n()
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false)
   const [localRefreshing, setLocalRefreshing] = useState(false)
 
@@ -91,7 +93,7 @@ export function AppPageHeader({
             <button
               type="button"
               onClick={onOpenCommandPalette}
-              className="hidden h-9 min-w-0 flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
+              className="hidden h-9 min-w-0 flex-1 items-center gap-3 rounded-md border border-transparent bg-muted/40 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[320px]"
               aria-label="Open command palette"
             >
               <Search className="h-4 w-4 shrink-0" />
@@ -114,7 +116,7 @@ export function AppPageHeader({
               title="Ask your stars a question"
             >
               <MessageCircleQuestion className="h-4 w-4" />
-              <span className="hidden lg:inline">Ask</span>
+              <span className="hidden lg:inline">{t("Ask", "提问")}</span>
             </Button>
           )}
 
@@ -172,7 +174,7 @@ export function AppPageHeader({
                             className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`}
                           />
                           <span suppressHydrationWarning className="hidden sm:inline">
-                            {isCategorizing ? "Analyzing…" : "Categorize"}
+                            {isCategorizing ? t("Analyzing…", "分析中…") : t("Categorize", "分类")}
                           </span>
                         </button>
                       </span>
@@ -189,7 +191,9 @@ export function AppPageHeader({
                 title={spinning ? "Syncing…" : (lastSynced ?? "Sync")}
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">{spinning ? "Syncing…" : "Sync"}</span>
+                <span className="hidden sm:inline">
+                  {spinning ? t("Syncing…", "同步中…") : t("Sync", "同步")}
+                </span>
               </button>
             </>
           )}

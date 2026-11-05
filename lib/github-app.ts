@@ -67,9 +67,9 @@ export function manifestFor(origin: string) {
   const host = new URL(origin).hostname.replace(/[^a-z0-9]+/gi, "-").slice(0, 20)
   return {
     // ponytail: GitHub App names are globally unique, hence the random suffix.
-    name: `stardash-${host}-${randomBytes(2).toString("hex")}`.toLowerCase(),
+    name: `stellan-${host}-${randomBytes(2).toString("hex")}`.toLowerCase(),
     url: origin,
-    description: "Your self-hosted StarDash instance. Created and owned by you.",
+    description: "Your self-hosted Stellan instance. Created and owned by you.",
     // No hook_attributes at all: GitHub rejects a localhost webhook URL even when inactive.
     redirect_url: `${origin}/api/auth/github/setup/callback`,
     callback_urls: [`${origin}/api/auth/github/callback`],

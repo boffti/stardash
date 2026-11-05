@@ -63,7 +63,15 @@ export function narrow(lines: StarLine[], question: string, max = MAX_REPOS) {
   const q = new Set(words(question).filter((w) => w.length > 2))
   const score = (l: StarLine) =>
     words(
-      [l.fullName, l.description, ...l.topics, ...l.tags, ...l.collections, l.notes].join(" "),
+      [
+        l.fullName,
+        l.description,
+        l.language,
+        ...l.topics,
+        ...l.tags,
+        ...l.collections,
+        l.notes,
+      ].join(" "),
     ).filter((w) => q.has(w)).length
   return lines
     .map((l, i) => ({ l, s: score(l), i }))
@@ -145,7 +153,22 @@ export async function askStars(
   model: LanguageModel,
   providerOptions: Record<string, Record<string, string>> = {},
 ): Promise<AskAnswer> {
-  const lines = narrow(loadStarLines(userId), question)
+  const allLines = loadStarLines(userId)
+  let searchQuestion = question
+  if (allLines.length > MAX_REPOS && /[^\x00-\x7F]/.test(question)) {
+    // Translate intent into searchable terms before limiting a large library.
+    const { object } = await generateObject({
+      model,
+      schema: z.object({
+        keywords: z.array(z.string()).describe("English repository search terms for the question"),
+      }),
+      prompt: `Give concise English repository search keywords for this question: ${question}`,
+      providerOptions,
+      experimental_telemetry: { isEnabled: true, functionId: "ask-stars-keywords" },
+    })
+    searchQuestion += ` ${object.keywords.join(" ")}`
+  }
+  const lines = narrow(allLines, searchQuestion)
   if (lines.length === 0) {
     return { question, answer: "You have no stars yet. Sync first.", repos: [], considered: 0 }
   }

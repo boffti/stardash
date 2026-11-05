@@ -15,7 +15,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Kbd } from "@/components/ui/kbd"
+import { useI18n } from "@/components/i18n-provider"
+import { zhCN } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAIKey } from "@/lib/use-ai-key"
 import type { ReleaseFeed, ReleaseItem } from "@/app/api/releases/route"
@@ -44,6 +45,7 @@ async function postSeen(repoId: string, restore?: { value: string | null }) {
 }
 
 export function ReleasesInbox() {
+  const { t, locale } = useI18n()
   const { data, error, isLoading, mutate } = useSWR<ReleaseFeed & { error?: string }>(
     KEY,
     fetcher,
@@ -90,9 +92,9 @@ export function ReleasesInbox() {
       setHiddenFor(g.repoId, true)
       try {
         const { previous } = await postSeen(g.repoId)
-        toast(`Marked ${g.fullName} read`, {
+        toast(t(`Marked ${g.fullName} read`, `已将 ${g.fullName} 标为已读`), {
           action: {
-            label: "Undo",
+            label: t("Undo", "撤销"),
             onClick: async () => {
               setHiddenFor(g.repoId, false)
               await postSeen(g.repoId, { value: previous }).catch(() =>
@@ -103,10 +105,10 @@ export function ReleasesInbox() {
         })
       } catch {
         setHiddenFor(g.repoId, false)
-        toast.error("Couldn't save that. Try again.")
+        toast.error(t("Could not save. Try again.", "保存失败，请重试。"))
       }
     },
-    [setHiddenFor],
+    [setHiddenFor, t],
   )
 
   const checkNow = useCallback(async () => {
@@ -115,19 +117,22 @@ export function ReleasesInbox() {
       const res = await fetch("/api/releases/scan", { method: "POST", headers: getHeaders() })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        toast.error(body.error ?? "Check failed")
+        toast.error(body.error ?? t("Check failed", "检查失败"))
         return
       }
       await mutate()
       toast.success(
         body.added
-          ? `${body.added} new ${body.added === 1 ? "release" : "releases"} across ${body.repos} repos`
-          : `No new releases across ${body.repos} repos`,
+          ? t(
+              `${body.added} new releases across ${body.repos} repos`,
+              `${body.repos} 个仓库中有 ${body.added} 个新版本`,
+            )
+          : t(`No new releases across ${body.repos} repos`, `${body.repos} 个仓库中没有新版本`),
       )
     } finally {
       setChecking(false)
     }
-  }, [getHeaders, mutate])
+  }, [getHeaders, mutate, t])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -176,33 +181,43 @@ export function ReleasesInbox() {
       ) : (
         <RefreshCw className="h-3.5 w-3.5" />
       )}
-      {checking ? "Checking…" : "Check now"}
+      {checking ? t("Checking…", "检查中…") : t("Check now", "立即检查")}
     </Button>
   )
 
   const checkedAgo = data?.checkedAt
-    ? formatDistanceToNow(new Date(data.checkedAt), { addSuffix: true })
+    ? formatDistanceToNow(new Date(data.checkedAt), {
+        addSuffix: true,
+        locale: locale === "zh-CN" ? zhCN : undefined,
+      })
     : null
   const breakingCount = groups.filter((g) => g.breaking).length
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
+    <div className="grid gap-6">
       <div className="min-w-0">
         {data && data.tracked > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               {groups.length > 0
-                ? `${groups.length} ${groups.length === 1 ? "repo" : "repos"} shipped since you last looked`
-                : "No unread releases"}
+                ? t(
+                    `${groups.length} repos have unread releases`,
+                    `${groups.length} 个仓库有未读版本`,
+                  )
+                : t("No unread releases", "没有未读版本")}
               {breakingCount > 0 && (
-                <span className="text-amber-500">, {breakingCount} with breaking changes</span>
+                <span className="text-amber-500">
+                  {t(
+                    `, ${breakingCount} with breaking changes`,
+                    `，其中 ${breakingCount} 个含破坏性变更`,
+                  )}
+                </span>
               )}
-              .
-              <span className="text-muted-foreground/60">
-                {" "}
-                Watching {data.tracked} currently-using {data.tracked === 1 ? "repo" : "repos"}
-                {checkedAgo ? `, checked ${checkedAgo}.` : "."}
-              </span>
+              {checkedAgo && (
+                <span className="text-muted-foreground/60">
+                  {t(` · Checked ${checkedAgo}`, ` · 检查于${checkedAgo}`)}
+                </span>
+              )}
             </p>
             {checkButton()}
           </div>
@@ -217,20 +232,26 @@ export function ReleasesInbox() {
         )}
 
         {(error || data?.error) && (
-          <ReleasesEmpty title="Releases couldn't load." body="Reload the page to try again." />
+          <ReleasesEmpty
+            title={t("Could not load releases", "无法加载版本发布")}
+            body={t("Reload the page to try again.", "重新加载页面以重试。")}
+          />
         )}
 
         {data && !data.error && data.tracked === 0 && (
           <ReleasesEmpty
-            title="No repos to watch yet."
-            body="Set a star's status to Currently Using and its new GitHub releases land here, with breaking changes flagged."
+            title={t("No repos to watch", "暂无关注的仓库")}
+            body={t(
+              "Set a repository status to Currently using to track its releases.",
+              "将仓库状态设为正在使用，以跟踪其版本发布。",
+            )}
           />
         )}
 
         {data && data.tracked > 0 && groups.length === 0 && (
           <ReleasesEmpty
-            title="You're caught up."
-            body="New releases from your currently-using repos show up here after the nightly check."
+            title={t("All caught up", "已查看全部版本")}
+            body={t("New releases appear after the next check.", "下次检查后会显示新版本。")}
           />
         )}
 
@@ -248,46 +269,6 @@ export function ReleasesInbox() {
           </ol>
         )}
       </div>
-
-      {groups.length > 0 && (
-        <aside className="hidden xl:block">
-          <div className="sticky top-20 flex flex-col gap-4">
-            <div className="rounded-lg border border-border/60 bg-card">
-              <div className="border-b border-border/40 px-4 py-3 text-sm font-medium">
-                Keyboard
-              </div>
-              <dl className="flex flex-col gap-2 px-4 py-3 text-xs text-muted-foreground">
-                {(
-                  [
-                    [["j", "k"], "Move"],
-                    [["x"], "Mark read"],
-                    [["o"], "Open release"],
-                  ] as const
-                ).map(([keys, label]) => (
-                  <div key={label} className="flex items-center justify-between gap-3">
-                    <dt>{label}</dt>
-                    <dd className="flex items-center gap-1">
-                      {keys.map((k) => (
-                        <Kbd key={k}>{k}</Kbd>
-                      ))}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-card">
-              <div className="border-b border-border/40 px-4 py-3 text-sm font-medium">
-                How it works
-              </div>
-              <p className="px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                Repos you mark Currently Using are checked nightly. A major version bump or notes
-                that mention breaking changes get flagged. With an AI key set, each release also
-                gets a short summary.
-              </p>
-            </div>
-          </div>
-        </aside>
-      )}
     </div>
   )
 }
@@ -326,6 +307,7 @@ function ReleaseRow({
   onFocus: () => void
   onRead: () => void
 }) {
+  const { t, locale } = useI18n()
   const [latest, ...earlier] = group.releases
   const text = latest.summary ?? latest.excerpt
   const [owner, name] = group.fullName.split("/")
@@ -368,14 +350,17 @@ function ReleaseRow({
                 className="text-xs text-muted-foreground"
                 title={format(new Date(latest.publishedAt), "PPpp")}
               >
-                {formatDistanceToNow(new Date(latest.publishedAt), { addSuffix: true })}
+                {formatDistanceToNow(new Date(latest.publishedAt), {
+                  addSuffix: true,
+                  locale: locale === "zh-CN" ? zhCN : undefined,
+                })}
               </span>
             </div>
 
             {group.breaking && (
               <span className="inline-flex min-h-6 items-center gap-1.5 self-start rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium leading-4 text-amber-600 dark:text-amber-400">
                 <TriangleAlert className="h-3 w-3" />
-                Breaking changes
+                {t("Breaking changes", "破坏性变更")}
               </span>
             )}
           </div>
@@ -390,14 +375,16 @@ function ReleaseRow({
               {text}
             </p>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground/70">No release notes.</p>
+            <p className="mt-2 text-sm text-muted-foreground/70">
+              {t("No release notes", "暂无版本说明")}
+            </p>
           )}
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               {earlier.length > 0 && (
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Also unread:
+                  {t("Also unread:", "其他未读版本：")}
                   {earlier.map((r) => (
                     <a
                       key={r.tag}
@@ -420,10 +407,13 @@ function ReleaseRow({
               size="sm"
               onClick={onRead}
               className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-              aria-label={`Mark ${group.fullName} releases read`}
+              aria-label={t(
+                `Mark ${group.fullName} releases read`,
+                `将 ${group.fullName} 的版本标为已读`,
+              )}
             >
               <Check className="h-3.5 w-3.5" />
-              Mark read
+              {t("Mark read", "标为已读")}
             </Button>
           </div>
         </div>

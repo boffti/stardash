@@ -1,8 +1,12 @@
 "use client"
 
+import { translateIntelLabel } from "@/lib/intel-labels"
+import { useI18n } from "@/components/i18n-provider"
+
 import { useMemo, useState } from "react"
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
 import {
   Brain,
   Clock,
@@ -243,22 +247,26 @@ function StatPill({
 }
 
 function EmptyState() {
+  const { t } = useI18n()
   return (
     <Empty className="min-h-80 border border-border/60 bg-card">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Brain />
         </EmptyMedia>
-        <EmptyTitle>No intel collected yet</EmptyTitle>
+        <EmptyTitle>{t("No intel collected yet", "还没有分析报告")}</EmptyTitle>
         <EmptyDescription>
-          Open a repository, run an Intel analysis, and your reports will appear here.
+          {t(
+            "Open a repository, run an Intel analysis, and your reports will appear here.",
+            "打开仓库并运行分析，报告会显示在这里。",
+          )}
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Button asChild variant="outline" size="sm">
           <Link href="/dashboard">
             <Zap className="h-3.5 w-3.5" />
-            Dashboard
+            {t("Dashboard", "仪表盘")}
           </Link>
         </Button>
       </EmptyContent>
@@ -267,18 +275,21 @@ function EmptyState() {
 }
 
 function NoFilteredResults({ onClear }: { onClear: () => void }) {
+  const { t } = useI18n()
   return (
     <Empty className="min-h-64 border border-border/60 bg-card">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Search />
         </EmptyMedia>
-        <EmptyTitle>No matching reports</EmptyTitle>
-        <EmptyDescription>No repositories match the current Intel filters.</EmptyDescription>
+        <EmptyTitle>{t("No matching reports", "没有匹配的报告")}</EmptyTitle>
+        <EmptyDescription>
+          {t("No repositories match the current Intel filters.", "没有仓库符合当前筛选条件。")}
+        </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Button variant="outline" size="sm" onClick={onClear}>
-          Clear filters
+          {t("Clear filters", "清除筛选")}
         </Button>
       </EmptyContent>
     </Empty>
@@ -311,8 +322,9 @@ function IntelSectionCard({
 }
 
 function IntelListSkeleton() {
+  const { t } = useI18n()
   return (
-    <IntelSectionCard title="Reports" icon={Brain}>
+    <IntelSectionCard title={t("Reports", "报告")} icon={Brain}>
       <div className="flex flex-col gap-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="rounded-lg border border-border/60 bg-background/40 p-4">
@@ -343,11 +355,12 @@ function IntelListSkeleton() {
 }
 
 function IntelErrorState() {
+  const { t } = useI18n()
   return (
     <Alert variant="destructive">
       <AlertCircle />
-      <AlertTitle>Failed to load intel</AlertTitle>
-      <AlertDescription>Please refresh and try again.</AlertDescription>
+      <AlertTitle>{t("Failed to load intel", "加载分析报告失败")}</AlertTitle>
+      <AlertDescription>{t("Please refresh and try again.", "请刷新后重试。")}</AlertDescription>
     </Alert>
   )
 }
@@ -359,6 +372,7 @@ function IntelCard({
   intel: RepoIntel
   onOpenRepo: (repoFullName: string) => void
 }) {
+  const { t, locale } = useI18n()
   const [owner, repo] = intel.repoFullName.split("/")
   const verdict = verdictConfig[intel.maintenanceVerdict] ?? {
     label: intel.maintenanceVerdict,
@@ -417,11 +431,13 @@ function IntelCard({
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/0 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary/70" />
                   </button>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground/70">
-                    <span className={cn("font-medium", p.labelClass)}>{p.label}</span>
+                    <span className={cn("font-medium", p.labelClass)}>
+                      {translateIntelLabel(p.label, t)}
+                    </span>
                     <span aria-hidden="true">/</span>
-                    <span>{readiness.label}</span>
+                    <span>{translateIntelLabel(readiness.label, t)}</span>
                     <span aria-hidden="true">/</span>
-                    <span>{sentiment.label}</span>
+                    <span>{translateIntelLabel(sentiment.label, t)}</span>
                   </div>
                 </div>
 
@@ -433,7 +449,7 @@ function IntelCard({
                   )}
                 >
                   <span className={cn("h-1.5 w-1.5 rounded-full", verdict.dotClass)} />
-                  {verdict.label}
+                  {translateIntelLabel(verdict.label, t)}
                 </Badge>
               </div>
 
@@ -516,7 +532,11 @@ function IntelCard({
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
               <Sparkles className="h-3 w-3" />
               <span>
-                Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
+                {t("Analyzed", "分析于")}{" "}
+                {formatDistanceToNow(new Date(intel.analyzedAt), {
+                  addSuffix: true,
+                  locale: locale === "zh-CN" ? zhCN : undefined,
+                })}
               </span>
             </div>
             <Link
@@ -613,17 +633,24 @@ function IntelCommandPalette(p: {
   onOpenRepo: (repoFullName: string) => void
   onClearFilters: () => void
 }) {
+  const { t } = useI18n()
   usePaletteGroups({
-    placeholder: "Search Intel, jump to a repo, or change filters...",
-    search: { label: "Filter Intel", run: p.onSearchChange },
+    placeholder: t(
+      "Search Intel, jump to a repo, or change filters...",
+      "搜索分析报告、跳转仓库或更改筛选...",
+    ),
+    search: { label: t("Filter Intel", "筛选分析报告"), run: p.onSearchChange },
     groups: [
       {
-        heading: "Intel reports",
+        heading: t("Intel reports", "分析报告"),
         limit: 20,
         items: p.intel.map((item) => ({
           id: `intel-${item.repoFullName}`,
           label: item.repoFullName,
-          hint: `${item.healthScore} health, ${verdictConfig[item.maintenanceVerdict]?.label ?? item.maintenanceVerdict}`,
+          hint: t(
+            `${item.healthScore} health, ${verdictConfig[item.maintenanceVerdict]?.label ?? item.maintenanceVerdict}`,
+            `健康评分 ${item.healthScore}，${translateIntelLabel(verdictConfig[item.maintenanceVerdict]?.label ?? item.maintenanceVerdict, t)}`,
+          ),
           keywords: [
             item.summary,
             item.recommendation,
@@ -635,17 +662,17 @@ function IntelCommandPalette(p: {
         })),
       },
       {
-        heading: "Intel filters",
+        heading: t("Intel filters", "分析筛选"),
         items: [
           ...p.verdictOptions.map((o) => ({
             id: `verdict-${o.value}`,
-            label: o.label,
+            label: translateIntelLabel(o.label, t),
             checked: p.verdictFilter === o.value,
             onSelect: () => p.onVerdictFilterChange(o.value),
           })),
           {
             id: "intel-clear",
-            label: "Clear Intel filters",
+            label: t("Clear Intel filters", "清除分析筛选"),
             keywords: "reset",
             icon: SlidersHorizontal,
             disabled: !(p.search || p.verdictFilter !== "all"),
@@ -654,10 +681,10 @@ function IntelCommandPalette(p: {
         ],
       },
       {
-        heading: "Sort",
+        heading: t("Sort", "排序"),
         items: (Object.entries(sortLabels) as [SortField, string][]).map(([field, label]) => ({
           id: `sort-${field}`,
-          label,
+          label: translateIntelLabel(label, t),
           checked: p.sortField === field,
           onSelect: () => p.onSortChange(field),
         })),
@@ -668,6 +695,7 @@ function IntelCommandPalette(p: {
 }
 
 export function IntelDashboard() {
+  const { t } = useI18n()
   const { user, reauthenticate } = useUser()
   const [sortField, setSortField] = useState<SortField>("health_score")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
@@ -819,7 +847,9 @@ export function IntelDashboard() {
     { value: "abandoned", label: "Abandoned", dotClass: "bg-rose-500" },
   ]
 
-  const searchLabel = search ? `Intel: ${search}` : "Search Intel reports and filters"
+  const searchLabel = search
+    ? `Intel: ${search}`
+    : t("Search Intel reports and filters", "搜索分析报告和筛选项")
   const desktopControlClassName =
     "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
   const mobileControlClassName =
@@ -833,12 +863,12 @@ export function IntelDashboard() {
           onValueChange={(value) => setVerdictFilter(value as VerdictFilter)}
         >
           <SelectTrigger className={`w-36 lg:w-44 ${desktopControlClassName}`}>
-            <SelectValue placeholder="Verdict" />
+            <SelectValue placeholder={t("Verdict", "维护状态")} />
           </SelectTrigger>
           <SelectContent>
             {verdictOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
-                {option.label}
+                {translateIntelLabel(option.label, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -853,15 +883,19 @@ export function IntelDashboard() {
           }}
         >
           <SelectTrigger className={`w-36 lg:w-44 ${desktopControlClassName}`}>
-            <SelectValue placeholder="Sort" />
+            <SelectValue placeholder={t("Sort", "排序")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="health_score:desc">Health score high</SelectItem>
-            <SelectItem value="health_score:asc">Health score low</SelectItem>
-            <SelectItem value="analyzed_at:desc">Recently analyzed</SelectItem>
-            <SelectItem value="analyzed_at:asc">Oldest analyzed</SelectItem>
-            <SelectItem value="name:asc">Name A-Z</SelectItem>
-            <SelectItem value="name:desc">Name Z-A</SelectItem>
+            <SelectItem value="health_score:desc">
+              {t("Health score high", "健康分从高到低")}
+            </SelectItem>
+            <SelectItem value="health_score:asc">
+              {t("Health score low", "健康分从低到高")}
+            </SelectItem>
+            <SelectItem value="analyzed_at:desc">{t("Recently analyzed", "最近分析")}</SelectItem>
+            <SelectItem value="analyzed_at:asc">{t("Oldest analyzed", "最早分析")}</SelectItem>
+            <SelectItem value="name:asc">{t("Name A-Z", "名称 A-Z")}</SelectItem>
+            <SelectItem value="name:desc">{t("Name Z-A", "名称 Z-A")}</SelectItem>
           </SelectContent>
         </Select>
       </>
@@ -875,12 +909,12 @@ export function IntelDashboard() {
           onValueChange={(value) => setVerdictFilter(value as VerdictFilter)}
         >
           <SelectTrigger className={mobileControlClassName}>
-            <SelectValue placeholder="Verdict" />
+            <SelectValue placeholder={t("Verdict", "维护状态")} />
           </SelectTrigger>
           <SelectContent>
             {verdictOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
-                {option.label}
+                {translateIntelLabel(option.label, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -895,15 +929,19 @@ export function IntelDashboard() {
           }}
         >
           <SelectTrigger className={mobileControlClassName}>
-            <SelectValue placeholder="Sort" />
+            <SelectValue placeholder={t("Sort", "排序")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="health_score:desc">Health score high</SelectItem>
-            <SelectItem value="health_score:asc">Health score low</SelectItem>
-            <SelectItem value="analyzed_at:desc">Recently analyzed</SelectItem>
-            <SelectItem value="analyzed_at:asc">Oldest analyzed</SelectItem>
-            <SelectItem value="name:asc">Name A-Z</SelectItem>
-            <SelectItem value="name:desc">Name Z-A</SelectItem>
+            <SelectItem value="health_score:desc">
+              {t("Health score high", "健康分从高到低")}
+            </SelectItem>
+            <SelectItem value="health_score:asc">
+              {t("Health score low", "健康分从低到高")}
+            </SelectItem>
+            <SelectItem value="analyzed_at:desc">{t("Recently analyzed", "最近分析")}</SelectItem>
+            <SelectItem value="analyzed_at:asc">{t("Oldest analyzed", "最早分析")}</SelectItem>
+            <SelectItem value="name:asc">{t("Name A-Z", "名称 A-Z")}</SelectItem>
+            <SelectItem value="name:desc">{t("Name Z-A", "名称 Z-A")}</SelectItem>
           </SelectContent>
         </Select>
       </>
@@ -940,9 +978,14 @@ export function IntelDashboard() {
         <main className="flex-1 p-6">
           <section className="mb-5 flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Repo Intel</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t("Repo Intel", "仓库分析")}
+              </h1>
               <p className="text-sm text-muted-foreground">
-                AI-powered health briefs for your starred repos
+                {t(
+                  "AI-powered health briefs for your starred repos",
+                  "为星标仓库生成的 AI 健康报告",
+                )}
               </p>
             </div>
 
@@ -952,13 +995,13 @@ export function IntelDashboard() {
                 <StatPill
                   icon={Brain}
                   value={allIntel.length}
-                  label="Repos analyzed"
+                  label={t("Repos analyzed", "已分析仓库")}
                   colorClass="bg-sky-500/10 text-sky-700 dark:text-sky-400"
                 />
                 <StatPill
                   icon={Activity}
                   value={avgScore}
-                  label="Avg health"
+                  label={t("Avg health", "平均健康分")}
                   colorClass={cn(
                     avgScore >= 70
                       ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
@@ -970,13 +1013,13 @@ export function IntelDashboard() {
                 <StatPill
                   icon={TrendingUp}
                   value={healthyCount}
-                  label="Healthy (≥70)"
+                  label={t("Healthy (≥70)", "健康（≥70）")}
                   colorClass="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 />
                 <StatPill
                   icon={TrendingDown}
                   value={atRiskCount}
-                  label="At risk (<40)"
+                  label={t("At risk (<40)", "有风险（<40）")}
                   colorClass="bg-rose-500/10 text-rose-700 dark:text-rose-400"
                 />
               </div>
@@ -998,7 +1041,7 @@ export function IntelDashboard() {
                     <NoFilteredResults onClear={clearIntelFilters} />
                   ) : (
                     <IntelSectionCard
-                      title="Reports"
+                      title={t("Reports", "报告")}
                       icon={Brain}
                       action={
                         <span className="text-[11px] text-muted-foreground">
@@ -1023,7 +1066,7 @@ export function IntelDashboard() {
               <NoFilteredResults onClear={clearIntelFilters} />
             ) : (
               <IntelSectionCard
-                title="Reports"
+                title={t("Reports", "报告")}
                 icon={Brain}
                 action={
                   <span className="text-[11px] text-muted-foreground">

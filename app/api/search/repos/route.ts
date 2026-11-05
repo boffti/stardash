@@ -4,7 +4,7 @@ import { z } from "zod"
 import * as Sentry from "@sentry/nextjs"
 import { after } from "next/server"
 import { getValidGitHubToken } from "@/lib/tokens"
-import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
+import { getAIModel, getProviderOptions, hasAIKey, type AIModelConfig } from "@/lib/ai-provider"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import { getUser, type User } from "@/lib/auth"
 import { db, fromJson, nowIso, toJson } from "@/lib/db"
@@ -769,7 +769,11 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await request.json()
-    const { query, starData: rawStarData } = body as { query: unknown; starData?: StarredRepo[] }
+    const {
+      query,
+      starData: rawStarData,
+      mode,
+    } = body as { query: unknown; starData?: StarredRepo[]; mode?: string }
     const normalizedQuery = typeof query === "string" ? normalizeDiscoverSearchQuery(query) : ""
     if (!normalizedQuery) {
       return NextResponse.json({ error: "Query required" }, { status: 400 })
@@ -785,6 +789,30 @@ export async function POST(request: Request) {
     // search just because no GitHub token is stored.
     const { token } = await getValidGitHubToken()
 
+    // The default remains AI for existing API clients and saved searches.
+    if (mode === "github") {
+      const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(normalizedQuery)}&per_page=30`
+      const headers: Record<string, string> = {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      }
+      if (token) headers.Authorization = `Bearer ${token}`
+      const response = await fetch(url, { headers })
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: `GitHub search failed (${response.status})` },
+          { status: response.status === 403 ? 429 : 502 },
+        )
+      }
+      const data = await response.json()
+      return NextResponse.json({
+        repos: (data.items ?? []).map((item: GitHubSearchItem) => repoToSearchRepo(item)),
+      })
+    }
+
+    if (!hasAIKey(request)) {
+      return NextResponse.json({ error: "AI service not configured" }, { status: 503 })
+    }
     const modelConfig = getAIModel(request)
     const wantsPipelineStream =
       request.headers.get("accept")?.includes("application/x-ndjson") ||

@@ -1,5 +1,6 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -59,13 +60,17 @@ const TAG_PALETTE = [
   "#6366f1",
 ]
 
-const formSchema = z.object({
-  name: z.string().min(1, "Name is required").max(50, "Name must be 50 characters or less"),
-  emoji: z.string().max(2, "Emoji should be a single character").optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
-})
+const formSchema = (t: (english: string, chinese: string) => string) =>
+  z.object({
+    name: z
+      .string()
+      .min(1, t("Name is required", "请输入名称"))
+      .max(50, t("Name must be 50 characters or less", "名称不能超过 50 个字符")),
+    emoji: z.string().max(2, t("Emoji should be a single character", "请选择单个表情")).optional(),
+    color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, t("Invalid color format", "颜色格式无效")),
+  })
 
-type FormData = z.infer<typeof formSchema>
+type FormData = z.infer<ReturnType<typeof formSchema>>
 
 interface CreateCollectionModalProps {
   open: boolean
@@ -78,10 +83,11 @@ export function CreateCollectionModal({
   onOpenChange,
   onCreate,
 }: CreateCollectionModalProps) {
+  const { t } = useI18n()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema(t)),
     defaultValues: {
       name: "",
       emoji: "",
@@ -117,10 +123,13 @@ export function CreateCollectionModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
-            Create Collection
+            {t("Create Collection", "创建收藏夹")}
           </DialogTitle>
           <DialogDescription>
-            Create a new collection to organize your starred repositories.
+            {t(
+              "Create a new collection to organize your starred repositories.",
+              "创建收藏夹来整理星标仓库。",
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +140,7 @@ export function CreateCollectionModal({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name *</FormLabel>
+                  <FormLabel>{t("Name *", "名称 *")}</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., AI Tools" {...field} disabled={isSubmitting} />
                   </FormControl>
@@ -145,7 +154,7 @@ export function CreateCollectionModal({
               name="emoji"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Emoji</FormLabel>
+                  <FormLabel>{t("Emoji", "表情")}</FormLabel>
                   <FormControl>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -165,9 +174,31 @@ export function CreateCollectionModal({
                       <PopoverContent className="w-72 p-3" align="start">
                         <div className="space-y-3">
                           {EMOJI_GROUPS.map((group) => (
-                            <div key={group.label}>
+                            <div
+                              key={t(
+                                group.label,
+                                (
+                                  {
+                                    Tech: "技术",
+                                    Organization: "整理",
+                                    Misc: "其他",
+                                    Smileys: "表情",
+                                  } as Record<string, string>
+                                )[group.label] ?? group.label,
+                              )}
+                            >
                               <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                                {group.label}
+                                {t(
+                                  group.label,
+                                  (
+                                    {
+                                      Tech: "技术",
+                                      Organization: "整理",
+                                      Misc: "其他",
+                                      Smileys: "表情",
+                                    } as Record<string, string>
+                                  )[group.label] ?? group.label,
+                                )}
                               </p>
                               <div className="grid grid-cols-6 gap-1">
                                 {group.items.map((emoji) => (
@@ -200,7 +231,7 @@ export function CreateCollectionModal({
               name="color"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Color</FormLabel>
+                  <FormLabel>{t("Color", "颜色")}</FormLabel>
                   <FormControl>
                     <div className="flex flex-wrap gap-2">
                       {TAG_PALETTE.map((color) => (
@@ -215,7 +246,7 @@ export function CreateCollectionModal({
                               : "hover:scale-105",
                           )}
                           style={{ backgroundColor: color }}
-                          aria-label={`Select color ${color}`}
+                          aria-label={t(`Select color ${color}`, `选择颜色 ${color}`)}
                           disabled={isSubmitting}
                         />
                       ))}
@@ -233,11 +264,11 @@ export function CreateCollectionModal({
                 onClick={() => handleOpenChange(false)}
                 disabled={isSubmitting}
               >
-                Cancel
+                {t("Cancel", "取消")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Collection
+                {t("Create Collection", "创建收藏夹")}
               </Button>
             </DialogFooter>
           </form>

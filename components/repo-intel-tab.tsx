@@ -1,5 +1,8 @@
 "use client"
 
+import { translateIntelLabel } from "@/lib/intel-labels"
+import { useI18n } from "@/components/i18n-provider"
+
 import { useState, useCallback, useEffect } from "react"
 import useSWR from "swr"
 import {
@@ -28,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import { useAIKey } from "@/lib/use-ai-key"
 import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
 import type {
   RepoIntel,
   MaintenanceVerdict,
@@ -172,6 +176,7 @@ const ADOPTION_CONFIG: Record<
 // ─── Health score ring (animated count-up + glow) ─────────────────────────────
 
 function HealthScoreRing({ score }: { score: number }) {
+  const { t } = useI18n()
   const [display, setDisplay] = useState(0)
 
   useEffect(() => {
@@ -251,11 +256,16 @@ function HealthScoreRing({ score }: { score: number }) {
       </div>
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Health Score
+          {t("Health Score", "健康评分")}
         </p>
-        <p className={cn("text-lg font-semibold leading-tight", textColor)}>{label}</p>
+        <p className={cn("text-lg font-semibold leading-tight", textColor)}>
+          {translateIntelLabel(label, t)}
+        </p>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          AI synthesis of maintenance, community, and release signals.
+          {t(
+            "AI synthesis of maintenance, community, and release signals.",
+            "AI 综合维护、社区和发布信号得出。",
+          )}
         </p>
       </div>
     </div>
@@ -407,6 +417,7 @@ function days(v: number | null, fallback = "N/A") {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
+  const { t, locale } = useI18n()
   const [refreshKey, setRefreshKey] = useState(0)
   const { getHeaders } = useAIKey()
   const [intelLimit, setIntelLimit] = useState<{
@@ -463,10 +474,16 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const isIntelLimited = intelLimit.remaining === 0
   const intelTooltip =
     isIntelLimited && intelLimit.nextAllowedAt
-      ? `Refresh limit reached (10/week). Resets ${new Date(intelLimit.nextAllowedAt).toLocaleDateString()}`
+      ? t(
+          `Refresh limit reached (10/week). Resets ${new Date(intelLimit.nextAllowedAt).toLocaleDateString(locale)}`,
+          `已达到刷新上限（每周 10 次），将于 ${new Date(intelLimit.nextAllowedAt).toLocaleDateString(locale)} 重置`,
+        )
       : intelLimit.remaining !== null
-        ? `Refresh intel (${intelLimit.remaining}/10 remaining this week)`
-        : "Refresh intel analysis"
+        ? t(
+            `Refresh intel (${intelLimit.remaining}/10 remaining this week)`,
+            `刷新分析（本周剩余 ${intelLimit.remaining}/10 次）`,
+          )
+        : t("Refresh intel analysis", "刷新分析")
 
   const intel = data?.intel
 
@@ -489,7 +506,10 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
         <div className="flex items-center gap-3 pt-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/50 shrink-0" />
           <p className="text-xs text-muted-foreground/50">
-            Fetching issues, PRs, and running AI synthesis…
+            {t(
+              "Fetching issues, PRs, and running AI synthesis…",
+              "正在获取议题和拉取请求并进行 AI 分析…",
+            )}
           </p>
         </div>
       </div>
@@ -504,9 +524,9 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           <AlertCircle className="h-5 w-5 text-destructive" />
         </div>
         <div>
-          <p className="text-sm font-medium">Analysis failed</p>
+          <p className="text-sm font-medium">{t("Analysis failed", "分析失败")}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-56">
-            {error?.message ?? "Something went wrong. Please try again."}
+            {error?.message ?? t("Something went wrong. Please try again.", "出了点问题，请重试。")}
           </p>
         </div>
         <Tooltip>
@@ -520,7 +540,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
                 className="min-h-10 gap-2"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                Try Again
+                {t("Try Again", "重试")}
               </Button>
             </span>
           </TooltipTrigger>
@@ -554,7 +574,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
             )}
           >
             <AdoptionIcon className="h-3.5 w-3.5" aria-hidden="true" />
-            {adoptionCfg.label}
+            {translateIntelLabel(adoptionCfg.label, t)}
           </div>
         </div>
         <div className="border-t border-border/60 bg-muted/20 px-4 py-3">
@@ -565,22 +585,22 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       {/* ── Classification strip ────────────────────────────────────────── */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
         <StatusCell
-          category="Maintenance"
-          value={verdictCfg.label}
+          category={t("Maintenance", "维护")}
+          value={translateIntelLabel(verdictCfg.label, t)}
           className={verdictCfg.className}
           dotColor={verdictCfg.dotColor}
           icon={verdictCfg.icon}
         />
         <StatusCell
-          category="Community"
-          value={sentimentCfg.label}
+          category={t("Community", "社区")}
+          value={translateIntelLabel(sentimentCfg.label, t)}
           className={sentimentCfg.className}
           dotColor={sentimentCfg.dotColor}
           icon={sentimentCfg.icon}
         />
         <StatusCell
-          category="Adoption"
-          value={adoptionCfg.label}
+          category={t("Adoption", "采用情况")}
+          value={translateIntelLabel(adoptionCfg.label, t)}
           className={adoptionCfg.className}
           dotColor={adoptionCfg.dotColor}
           icon={adoptionCfg.icon}
@@ -589,54 +609,69 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
 
       {/* ── Key signals ─────────────────────────────────────────────────── */}
       <div>
-        <SectionLabel>Key Signals</SectionLabel>
+        <SectionLabel>{t("Key Signals", "关键信号")}</SectionLabel>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
           <SignalBar
-            label="Issue Close Rate"
+            label={t("Issue Close Rate", "议题关闭率")}
             value={pct(metrics.issueCloseRate)}
             fill={metrics.issueCloseRate}
             fillColor={rateColor(metrics.issueCloseRate)}
           />
           <SignalBar
-            label="PR Merge Rate"
+            label={t("PR Merge Rate", "拉取请求合并率")}
             value={pct(metrics.prMergeRate)}
             fill={metrics.prMergeRate}
             fillColor={rateColor(metrics.prMergeRate)}
           />
           <SignalBar
-            label="Commit Authors (90d)"
+            label={t("Commit Authors (90d)", "提交作者（90 天）")}
             value={String(metrics.activeCommitAuthors90d ?? metrics.activeContributors90d)}
           />
           {metrics.commits90d !== undefined && (
-            <SignalBar label="Commits (90d)" value={String(metrics.commits90d)} />
+            <SignalBar
+              label={t("Commits (90d)", "提交次数（90 天）")}
+              value={String(metrics.commits90d)}
+            />
           )}
-          <SignalBar label="Last Commit" value={days(metrics.daysSinceLastCommit)} />
+          <SignalBar
+            label={t("Last Commit", "最近提交")}
+            value={days(metrics.daysSinceLastCommit)}
+          />
           {metrics.avgIssueResponseDays !== null && (
             <SignalBar
-              label="Issue Close Time"
+              label={t("Issue Close Time", "议题关闭时间")}
               value={`${Math.round(metrics.avgIssueResponseDays)}d`}
             />
           )}
           {metrics.avgPrMergeDays !== null && (
-            <SignalBar label="Avg PR Merge Time" value={`${Math.round(metrics.avgPrMergeDays)}d`} />
+            <SignalBar
+              label={t("Avg PR Merge Time", "平均合并时间")}
+              value={`${Math.round(metrics.avgPrMergeDays)}d`}
+            />
           )}
           {metrics.staleIssueCount > 0 && (
-            <SignalBar label="Stale Issues" value={String(metrics.staleIssueCount)} />
+            <SignalBar
+              label={t("Stale Issues", "长期未处理议题")}
+              value={String(metrics.staleIssueCount)}
+            />
           )}
           {metrics.daysSinceLastRelease !== null && (
-            <SignalBar label="Last Release" value={days(metrics.daysSinceLastRelease)} />
+            <SignalBar
+              label={t("Last Release", "最近发布")}
+              value={days(metrics.daysSinceLastRelease)}
+            />
           )}
         </div>
       </div>
 
       {assessment && (
         <div>
-          <SectionLabel>Maintenance Rationale</SectionLabel>
+          <SectionLabel>{t("Maintenance Rationale", "维护状况依据")}</SectionLabel>
           <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
             <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
               <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-                  Maintenance Score
+                  {t("Maintenance Score", "维护评分")}
                 </p>
                 <p className="mt-1 font-mono text-base font-semibold tabular-nums text-foreground">
                   {assessment.score}/100
@@ -644,7 +679,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
               </div>
               <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-                  Scoring Confidence
+                  {t("Scoring Confidence", "评分置信度")}
                 </p>
                 <p className="mt-1 font-mono text-base font-semibold tabular-nums text-foreground">
                   {Math.round(assessment.confidence * 100)}%
@@ -668,16 +703,20 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
 
       {/* ── Community health ────────────────────────────────────────────── */}
       <div>
-        <SectionLabel>Community Health</SectionLabel>
+        <SectionLabel>{t("Community Health", "社区健康状况")}</SectionLabel>
         <div className="flex gap-2 flex-wrap">
-          <HealthPill label="CI Setup" icon={FileCode2} present={metrics.hasCommunityFiles.ci} />
           <HealthPill
-            label="Contributing Guide"
+            label={t("CI Setup", "CI 配置")}
+            icon={FileCode2}
+            present={metrics.hasCommunityFiles.ci}
+          />
+          <HealthPill
+            label={t("Contributing Guide", "贡献指南")}
             icon={BookOpen}
             present={metrics.hasCommunityFiles.contributingGuide}
           />
           <HealthPill
-            label="Code of Conduct"
+            label={t("Code of Conduct", "行为准则")}
             icon={Shield}
             present={metrics.hasCommunityFiles.codeOfConduct}
           />
@@ -687,7 +726,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       {/* ── Pain points ─────────────────────────────────────────────────── */}
       {intel.topPainPoints.length > 0 && (
         <div>
-          <SectionLabel>Known Pain Points</SectionLabel>
+          <SectionLabel>{t("Known Pain Points", "已知问题")}</SectionLabel>
           <ul className="flex flex-col gap-2">
             {intel.topPainPoints.map((point, i) => (
               <li
@@ -712,7 +751,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
         />
         <div>
           <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-blue-700/80 dark:text-blue-400/80">
-            Recommendation
+            {t("Recommendation", "建议")}
           </p>
           <p className="text-sm leading-relaxed text-blue-900 dark:text-blue-100">
             {intel.recommendation}
@@ -723,8 +762,12 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs text-muted-foreground">
         <span>
-          {data?.cached === false ? "Fresh · " : "Cached · "}
-          Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
+          {data?.cached === false ? t("Fresh · ", "最新 · ") : t("Cached · ", "缓存 · ")}
+          {t("Analyzed", "分析于")}{" "}
+          {formatDistanceToNow(new Date(intel.analyzedAt), {
+            addSuffix: true,
+            locale: locale === "zh-CN" ? zhCN : undefined,
+          })}
         </span>
         <div className="flex items-center gap-1">
           <Button
@@ -735,7 +778,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           >
             <Link href={`/intel/${owner}/${name}`}>
               <ExternalLink className="h-3 w-3" />
-              Full report
+              {t("Full report", "完整报告")}
             </Link>
           </Button>
           <Tooltip>
@@ -749,7 +792,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <RefreshCw className="h-3 w-3" />
-                  Refresh
+                  {t("Refresh", "刷新")}
                 </Button>
               </span>
             </TooltipTrigger>

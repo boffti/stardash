@@ -1,3 +1,20 @@
+# Stellan
+
+Stellan 基于 [StarDash](https://github.com/boffti/stardash)，用于浏览和搜索 GitHub 星标。它提供统一搜索、简体中文和英文界面，以及浅色和深色主题。
+
+安装 Node.js 22.5 或更高版本和 pnpm，然后运行以下命令。
+
+```sh
+pnpm install
+pnpm dev
+```
+
+打开 `http://localhost:3000` 并连接 GitHub。首个登录账号拥有该本地实例。普通搜索和雷达无需模型，AI 功能需要配置模型服务。环境变量见 [配置示例](env.example)。
+
+下方保留上游说明。上游发布的 Docker 镜像是 StarDash，运行 Stellan 容器需要用本仓库的 `Dockerfile` 构建镜像。
+
+---
+
 <a href="https://github.com/boffti/stardash">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">

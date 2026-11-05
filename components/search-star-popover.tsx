@@ -6,6 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import { toast } from "sonner"
 import type { SearchRepo } from "@/app/api/search/repos/route"
 import type { Tag, Collection } from "@/lib/types"
 
@@ -17,32 +19,34 @@ interface SearchStarPopoverProps {
 }
 
 export function SearchStarPopover({ repo, tags, collections, onStarred }: SearchStarPopoverProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [starred, setStarred] = useState(false)
   const [loading, setLoading] = useState(false)
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set())
 
-  const handleStar = async () => {
+  const handleStar = async (skipOrganization = false) => {
     if (starred || loading) return
     setLoading(true)
     try {
-      await fetch("/api/github/star", {
+      const response = await fetch("/api/github/star", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           owner: repo.owner,
           repo: repo.name,
           githubRepoId: repo.id,
-          tagIds: Array.from(selectedTags),
-          collectionIds: Array.from(selectedCollections),
+          tagIds: skipOrganization ? [] : Array.from(selectedTags),
+          collectionIds: skipOrganization ? [] : Array.from(selectedCollections),
         }),
       })
+      if (!response.ok) throw new Error("Failed to star repository")
       setStarred(true)
       setOpen(false)
       onStarred?.(repo)
     } catch {
-      // Silently fail — user can retry
+      toast.error(t("Could not star repository. Try again.", "收藏失败，请重试。"))
     } finally {
       setLoading(false)
     }
@@ -76,7 +80,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
     return (
       <div className="flex items-center gap-1 text-xs text-emerald-500/80">
         <Check className="h-3.5 w-3.5" />
-        <span>Starred</span>
+        <span>{t("Starred", "已收藏")}</span>
       </div>
     )
   }
@@ -89,11 +93,11 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
         variant="outline"
         size="sm"
         className="h-7 text-xs gap-1.5"
-        onClick={handleStar}
+        onClick={() => void handleStar()}
         disabled={loading}
       >
         {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
-        Star
+        {t("Star", "收藏")}
       </Button>
     )
   }
@@ -103,7 +107,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
           <Star className="h-3 w-3" />
-          Star
+          {t("Star", "收藏")}
           <ChevronDown className="h-3 w-3 opacity-60" />
         </Button>
       </PopoverTrigger>
@@ -111,7 +115,9 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
         <div className="space-y-3">
           {collections.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Collections</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                {t("Collections", "收藏夹")}
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {collections.slice(0, 8).map((c) => (
                   <button
@@ -135,7 +141,9 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
 
           {tags.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Tags</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                {t("Tags", "标签")}
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {tags.slice(0, 12).map((tag) => (
                   <button key={tag.id} onClick={() => toggleTag(tag.id)}>
@@ -168,7 +176,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
             <Button
               size="sm"
               className="flex-1 h-7 text-xs"
-              onClick={handleStar}
+              onClick={() => void handleStar()}
               disabled={loading}
             >
               {loading ? (
@@ -176,7 +184,7 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
               ) : (
                 <Star className="h-3 w-3 mr-1" />
               )}
-              Star
+              {t("Star", "收藏")}
             </Button>
             <Button
               variant="ghost"
@@ -185,11 +193,11 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
               onClick={() => {
                 setSelectedTags(new Set())
                 setSelectedCollections(new Set())
-                handleStar()
+                void handleStar(true)
               }}
               disabled={loading}
             >
-              Skip
+              {t("Skip", "跳过")}
             </Button>
           </div>
         </div>
