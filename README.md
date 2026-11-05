@@ -139,14 +139,14 @@ In Settings, open **Agents (MCP)**, press **New token**, and paste the config it
 
 Then talk to your agent in plain words:
 
-| You say                                                            | What happens                                                                       |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| _"What did I star about vector databases?"_                        | `search_stars` looks across names, descriptions, your notes, tags and collections. |
-| _"Tell me about duckdb and what I wrote about it."_                | `get_repo` returns the repo with your status, notes, tags and collections.         |
+| You say                                                            | What happens                                                                                                                                                                                 |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _"What did I star about vector databases?"_                        | `search_stars` looks across names, descriptions, your notes, tags and collections.                                                                                                           |
+| _"Tell me about duckdb and what I wrote about it."_                | `get_repo` returns the repo with your status, notes, tags and collections.                                                                                                                   |
 | _"File every MCP server I starred under Agents and tag them mcp."_ | `list_taxonomy` and `organize_repo` create and assign tags and collections. Sync your GitHub stars in StarDash first; `organize_repo` only works on repos already synced into your instance. |
-| _"What's on my radar this week?"_                                  | `radar_feed` returns the ranked inbox with each row's reasons.                     |
-| _"Dismiss anything on my radar that is another Electron wrapper."_ | `radar_action` dismisses, snoozes or undoes.                                       |
-| _"Star the top two and put them in Want to try."_                  | `star_repo` stars them on GitHub. Sync your stars in StarDash, then use `organize_repo` to assign a status, tags or collections. |
+| _"What's on my radar this week?"_                                  | `radar_feed` returns the ranked inbox with each row's reasons.                                                                                                                               |
+| _"Dismiss anything on my radar that is another Electron wrapper."_ | `radar_action` dismisses, snoozes or undoes.                                                                                                                                                 |
+| _"Star the top two and put them in Want to try."_                  | `star_repo` stars them on GitHub. Sync your stars in StarDash, then use `organize_repo` to assign a status, tags or collections.                                                             |
 
 ## A look inside
 
