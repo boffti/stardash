@@ -158,7 +158,7 @@ export function RepoGraph({
         const highlighted = active !== null && (edge.source === active || edge.target === active)
         ctx.strokeStyle = ink
         ctx.globalAlpha = highlighted ? 0.65 : active === null ? 0.25 : 0.025
-        ctx.lineWidth = highlighted ? 1.5 : 0.7
+        ctx.lineWidth = (highlighted ? 1.5 : 1) / scale
         ctx.beginPath()
         ctx.moveTo(a.x, a.y)
         ctx.lineTo(b.x, b.y)
