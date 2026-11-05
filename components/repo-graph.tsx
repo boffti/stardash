@@ -32,7 +32,6 @@ function buildGraph(repos: StarredRepo[], collections: Collection[]) {
   })
   const pairs = new Map<string, Edge>()
   for (const [reason, members] of groups) {
-    // Very broad topics are useful for grouping, but do not imply a close connection.
     if (members.length > 40) continue
     for (let i = 0; i < members.length; i++) {
       for (let j = i + 1; j < members.length; j++) {
@@ -99,7 +98,6 @@ export function RepoGraph({
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
 
   useEffect(() => {
-    // Reset selection when filters change the graph.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected(null)
   }, [graph])
