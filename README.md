@@ -42,7 +42,7 @@ The upstream documentation follows. Its published Docker image contains StarDash
 </p>
 
 <p align="center">
-  <img src="assets/demo.webp" width="860" alt="StarDash at full window. Radar opens on an inbox of new repos ranked against the user's stars, each row saying why it surfaced. The user moves down with j, dismisses with x and undoes it, filters to people they follow and to Hacker News, opens the From your stars tab, then All Stars, a collection, a repo page, Intel health reports, Contribute issues and the MCP settings.">
+  <img src="assets/demo.webp" width="860" alt="StarDash at full window. Radar opens on an inbox of new repos ranked against the user's stars, each row saying why it surfaced. The user moves down with j, dismisses with x and undoes it, filters to people they follow and to Hacker News, opens the From your stars tab, then All Stars, a collection, a repo page, Health reports, Contribute issues and the MCP settings.">
 </p>
 
 ## Why StarDash
@@ -72,7 +72,7 @@ Radar reads the same pool of new repos for everyone. What reaches the top depend
 | Self-hosted apps you run at home | A home-lab dashboard three people you follow starred yesterday. _People you follow_ outranks every topic match. |
 
 > [!NOTE]
-> AI is optional. Search, status, notes, Radar and Contribute all work without a key. Categorize, Intel and Discover use an OpenRouter key (`OPENROUTER_API_KEY`) your own OpenAI or Anthropic key pasted in Settings, or a local model through any OpenAI-compatible server such as Ollama (`AI_BASE_URL`). A full categorize run over 500 repos costs about a cent on the default model.
+> AI is optional. Search, status, notes, Radar and Contribute all work without a key. Categorize, Health and Discover use an OpenRouter key (`OPENROUTER_API_KEY`) your own OpenAI or Anthropic key pasted in Settings, or a local model through any OpenAI-compatible server such as Ollama (`AI_BASE_URL`). A full categorize run over 500 repos costs about a cent on the default model.
 
 ## Quick start
 
@@ -177,8 +177,8 @@ From the inbox you check over coffee to the repo you end up using.
 <td width="50%" valign="top"><img src="assets/screenshots/collection.png" alt="A collection view: the repos the AI filed under AI Agents and Skills."><br><b>Collections.</b> Yours, or proposed by one AI pass over your stars and filed for you.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="assets/screenshots/repo.png" alt="The obra/superpowers repo page: header with stars and forks, topics, ready-to-work issues, the README and an Intel health score of 81."><br><b>One repo.</b> The README inline, its topics, a health card, and open issues ready for a first contribution.</td>
-<td width="50%" valign="top"><img src="assets/screenshots/intel.png" alt="Repo Intel: health score rings and briefs per repo."><br><b>Intel.</b> A health brief per repo: score, maintenance verdict, community signals and pain points.</td>
+<td width="50%" valign="top"><img src="assets/screenshots/repo.png" alt="The obra/superpowers repo page: header with stars and forks, topics, ready-to-work issues, the README and a health score of 81."><br><b>One repo.</b> The README inline, its topics, a health card, and open issues ready for a first contribution.</td>
+<td width="50%" valign="top"><img src="assets/screenshots/intel.png" alt="Health: health score rings and briefs per repo."><br><b>Health.</b> A health brief per repo: score, maintenance verdict, community signals and pain points.</td>
 </tr>
 </table>
 
@@ -198,7 +198,7 @@ From the inbox you check over coffee to the repo you end up using.
 <td width="50%" valign="top"><b>MCP server</b><br>Seven tools for any MCP client, on bearer tokens you mint and revoke in Settings or from the CLI.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><b>Repo Intel</b><br>A health brief per repo: score, maintenance verdict, community signals, pain points and a recommendation.</td>
+<td width="50%" valign="top"><b>Health</b><br>A health brief per repo: score, maintenance verdict, community signals, pain points and a recommendation.</td>
 <td width="50%" valign="top"><b>Contribute</b><br>Good first issues from repos you already use, with a brief and a ready-to-paste prompt for your coding agent.</td>
 </tr>
 <tr>
@@ -239,7 +239,7 @@ All optional.
 | `NEXT_PUBLIC_RADAR_ENABLED`                 | `false` hides Radar.                                                                                   |
 | `DATABASE_PATH`                             | The SQLite file. `/data/stardash.db` in the container.                                                 |
 
-**Local models:** run Ollama on the host, pull a model that handles JSON output well (`ollama pull qwen3:8b`), then set `AI_BASE_URL=http://host.docker.internal:11434/v1` and `AI_MODEL=qwen3:8b`. From `pnpm dev` use `http://localhost:11434/v1`. An 8B model needs roughly 8 GB of free RAM. Models under 2B run but group poorly (everything lands in one collection); if Categorize or Intel fails or looks wrong, try a larger one.
+**Local models:** run Ollama on the host, pull a model that handles JSON output well (`ollama pull qwen3:8b`), then set `AI_BASE_URL=http://host.docker.internal:11434/v1` and `AI_MODEL=qwen3:8b`. From `pnpm dev` use `http://localhost:11434/v1`. An 8B model needs roughly 8 GB of free RAM. Models under 2B run but group poorly (everything lands in one collection); if Categorize or Health fails or looks wrong, try a larger one.
 
 **No browser on the box:** choose _Paste a personal access token instead_ on the login page. StarDash talks to GitHub.com only; GitHub Enterprise Server is not supported yet.
 
@@ -289,7 +289,7 @@ Keep port 3000 private and let the proxy take public traffic. `APP_URL` wins whe
 - [x] One container on SQLite, with sign-in through a GitHub App you own
 - [x] Radar: nightly candidates from GitHub search, Hacker News and people you follow, ranked against your stars
 - [x] MCP server and CLI tokens
-- [x] AI categorize, Intel, Contribute and Discover on cheap models
+- [x] AI categorize, Health, Contribute and Discover on cheap models
 - [ ] `v1.0.0` release
 - [ ] Drive the AI features from your agent's subscription through the CLI, with the API key as a fallback
 - [ ] Weekly releases, each with one visible change

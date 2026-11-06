@@ -1,16 +1,27 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useSyncExternalStore } from "react"
 import { Codicon } from "@/components/icons/codicon"
 import { useDroppable } from "@dnd-kit/core"
 import useSWR from "swr"
 import { RADAR_ENABLED } from "@/lib/flags"
 import Link from "next/link"
 import { useI18n } from "@/components/i18n-provider"
+import { applyMoreColor, chipHue, readMoreColor, subscribeMoreColor } from "@/lib/more-color"
+import { useTheme } from "@/components/theme-provider"
+import { useUser } from "@/components/providers/user-provider"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { usePathname } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -19,6 +30,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuBadge,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,6 +65,91 @@ function createDashboardFilterHref(filters: {
 
   const query = params.toString()
   return query ? `/dashboard?${query}` : "/dashboard"
+}
+
+function SidebarAccountBar() {
+  const { t, locale, setLanguage } = useI18n()
+  const { resolvedTheme, setTheme } = useTheme()
+  const { user, signOut } = useUser()
+  const { state } = useSidebar()
+  const pathname = usePathname()
+  const collapsed = state === "collapsed"
+  const moreColor = useSyncExternalStore(subscribeMoreColor, readMoreColor, () => false)
+  const languageMark = locale === "zh-CN" ? "中" : "EN"
+  const iconButton =
+    "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+
+  return (
+    <SidebarFooter className="border-t border-sidebar-border p-2">
+      <div className={cn("flex items-center gap-0.5", collapsed && "flex-col")}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-sidebar-accent",
+                collapsed ? "justify-center" : "flex-1",
+              )}
+            >
+              <Avatar className="size-6">
+                <AvatarImage src={user.avatarUrl ?? undefined} alt={user.login} />
+                <AvatarFallback className="text-[10px]">
+                  {user.login.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate text-[13px] text-foreground group-data-[collapsible=icon]:hidden">
+                {user.login}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="w-44">
+            <DropdownMenuItem onSelect={() => void signOut()}>
+              {t("Sign out", "退出登录")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button
+          type="button"
+          className={cn(iconButton, "text-[11px] font-medium")}
+          aria-label={t("Language", "语言")}
+          title={t("Language", "语言")}
+          onClick={() => setLanguage(locale === "zh-CN" ? "en" : "zh-CN")}
+        >
+          {languageMark}
+        </button>
+        <button
+          type="button"
+          className={iconButton}
+          aria-label={t("Theme", "主题")}
+          title={t("Theme", "主题")}
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+        >
+          <Codicon name="color-mode" className="size-4" />
+        </button>
+        <button
+          type="button"
+          className={cn(iconButton, moreColor && "text-foreground")}
+          aria-label={t("More color", "更多颜色")}
+          aria-pressed={moreColor}
+          title={t("More color", "更多颜色")}
+          onClick={() => applyMoreColor(!moreColor)}
+        >
+          <Codicon name="symbol-color" className="size-4" />
+        </button>
+        <Link
+          href="/settings"
+          className={cn(
+            iconButton,
+            pathname === "/settings" && "bg-sidebar-accent text-sidebar-accent-foreground",
+          )}
+          aria-label={t("Settings", "设置")}
+          title={t("Settings", "设置")}
+        >
+          <Codicon name="settings-gear" className="size-4" />
+        </Link>
+      </div>
+    </SidebarFooter>
+  )
 }
 
 function DroppableItem({
@@ -126,9 +223,8 @@ export function AppSidebar({
     { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 },
   )
   const radarCount = radar?.total ?? 0
-  const isIntelRoute = pathname === "/intel"
+  const isHealthRoute = pathname === "/health" || pathname.startsWith("/health/")
   const isContributeRoute = pathname === "/contribute"
-  const isSettingsRoute = pathname === "/settings"
   const isSearchRoute = pathname === "/search"
   const recentEntries = useRecentlyViewed(userId)
   const resolvedRecentCount = useMemo(
@@ -216,10 +312,10 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isIntelRoute}>
-                  <Link href="/intel">
+                <SidebarMenuButton asChild isActive={isHealthRoute}>
+                  <Link href="/health">
                     <Codicon name="target" className="h-4 w-4" />
-                    <span>{t("Intel", "情报")}</span>
+                    <span>{t("Health", "健康")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -228,14 +324,6 @@ export function AppSidebar({
                   <Link href="/contribute">
                     <Codicon name="git-pull-request" className="h-4 w-4" />
                     <span>{t("Contribute", "贡献")}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isSettingsRoute}>
-                  <Link href="/settings">
-                    <Codicon name="settings-gear" className="h-4 w-4" />
-                    <span>{t("Settings", "设置")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -321,14 +409,19 @@ export function AppSidebar({
                             <SidebarMenuButton
                               isActive={selectedCollection === collection.id}
                               onClick={() => onSelectCollection(collection.id)}
-                              className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                              className={cn(
+                                isOver && "bg-sidebar-accent ring-1 ring-foreground/20",
+                              )}
                             >
                               <span className="shrink-0">{collection.emoji}</span>
                               <span className="flex-1 truncate min-w-0" title={collection.name}>
                                 {collection.name}
                               </span>
                               {isOver ? (
-                                <Codicon name="plus" className="h-3 w-3 shrink-0 text-violet-400" />
+                                <Codicon
+                                  name="plus"
+                                  className="h-3 w-3 shrink-0 text-muted-foreground"
+                                />
                               ) : (
                                 <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
                               )}
@@ -337,7 +430,9 @@ export function AppSidebar({
                             <SidebarMenuButton
                               asChild
                               isActive={false}
-                              className={cn(isOver && "ring-1 ring-violet-500 bg-violet-500/10")}
+                              className={cn(
+                                isOver && "bg-sidebar-accent ring-1 ring-foreground/20",
+                              )}
                             >
                               <Link
                                 href={createDashboardFilterHref({ collectionId: collection.id })}
@@ -349,7 +444,7 @@ export function AppSidebar({
                                 {isOver ? (
                                   <Codicon
                                     name="plus"
-                                    className="h-3 w-3 shrink-0 text-violet-400"
+                                    className="h-3 w-3 shrink-0 text-muted-foreground"
                                   />
                                 ) : (
                                   <SidebarMenuBadge>{collection.repoCount}</SidebarMenuBadge>
@@ -443,19 +538,19 @@ export function AppSidebar({
                                     isActive={selectedTag === tag.id}
                                     onClick={() => onSelectTag(tag.id)}
                                     className={cn(
-                                      isOver && "ring-1 ring-violet-500 bg-violet-500/10",
+                                      isOver && "bg-sidebar-accent ring-1 ring-foreground/20",
                                     )}
                                   >
                                     <Codicon
                                       name="tag"
-                                      className="h-3 w-3 shrink-0"
-                                      style={{ color: isOver ? "#8b5cf6" : tag.color }}
+                                      data-hue={chipHue(tag.label)}
+                                      className="h-3 w-3 shrink-0 text-muted-foreground"
                                     />
                                     <span className="flex-1 truncate min-w-0">{tag.label}</span>
                                     {isOver && (
                                       <Codicon
                                         name="plus"
-                                        className="h-3 w-3 shrink-0 ml-auto text-violet-400"
+                                        className="ml-auto h-3 w-3 shrink-0 text-muted-foreground"
                                       />
                                     )}
                                   </SidebarMenuButton>
@@ -464,20 +559,20 @@ export function AppSidebar({
                                     asChild
                                     isActive={false}
                                     className={cn(
-                                      isOver && "ring-1 ring-violet-500 bg-violet-500/10",
+                                      isOver && "bg-sidebar-accent ring-1 ring-foreground/20",
                                     )}
                                   >
                                     <Link href={createDashboardFilterHref({ tagId: tag.id })}>
                                       <Codicon
                                         name="tag"
-                                        className="h-3 w-3 shrink-0"
-                                        style={{ color: isOver ? "#8b5cf6" : tag.color }}
+                                        data-hue={chipHue(tag.label)}
+                                        className="h-3 w-3 shrink-0 text-muted-foreground"
                                       />
                                       <span className="flex-1 truncate min-w-0">{tag.label}</span>
                                       {isOver && (
                                         <Codicon
                                           name="plus"
-                                          className="h-3 w-3 shrink-0 ml-auto text-violet-400"
+                                          className="ml-auto h-3 w-3 shrink-0 text-muted-foreground"
                                         />
                                       )}
                                     </Link>
@@ -518,6 +613,8 @@ export function AppSidebar({
           </Collapsible>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarAccountBar />
 
       {onCreateCollection && (
         <CreateCollectionModal

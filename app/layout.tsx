@@ -1,21 +1,10 @@
 import type { Metadata, Viewport } from "next"
 import { APP_NAME } from "@/lib/brand"
-import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { I18nProvider } from "@/components/i18n-provider"
 import { MotionProvider } from "@/components/motion-provider"
 import { Toaster } from "sonner"
 import "./globals.css"
-
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-})
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-})
 
 export const metadata: Metadata = {
   title: APP_NAME,
@@ -43,8 +32,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
-      <body className="font-sans antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("stardash-more-color")==="1")document.documentElement.dataset.moreColor="1"}catch(e){}`,
+          }}
+        />
+      </head>
+      <body className="font-sans">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

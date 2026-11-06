@@ -26,6 +26,7 @@ import type { SearchPipelineEvent, SearchRepo } from "@/app/api/search/repos/rou
 import type { PersonalizedTheme } from "@/app/api/search/personalized/route"
 import { useI18n } from "@/components/i18n-provider"
 import { useUser } from "@/components/providers/user-provider"
+import { toast } from "sonner"
 
 export function SearchPage() {
   const { user } = useUser()
@@ -41,6 +42,7 @@ export function SearchPage() {
   const [personalizedLoaded, setPersonalizedLoaded] = useState(false)
   const [isPersonalizing, setIsPersonalizing] = useState(false)
   const [personalizedNextAt, setPersonalizedNextAt] = useState<string | null>(null)
+  const [personalizedError, setPersonalizedError] = useState<string | null>(null)
   const personalizingRef = useRef(false)
   const searchRunRef = useRef(0)
 
@@ -151,9 +153,16 @@ export function SearchPage() {
           return
         }
         if (!r.ok) {
-          console.error("[personalized] API error:", data)
+          const message =
+            typeof data?.error === "string" && data.error.trim()
+              ? data.error
+              : t("Personalized search failed", "个性化搜索失败")
+          console.error("[personalized] API error:", r.status, message)
+          setPersonalizedError(message)
+          toast.error(message)
           return
         }
+        setPersonalizedError(null)
         if (Array.isArray(data.themes) && data.themes.length > 0) {
           setCachedPersonalizedSearch(user.id, repoSignature, data.themes)
           setPersonalizedThemes(data.themes)
@@ -164,7 +173,7 @@ export function SearchPage() {
         setPersonalizedLoaded(true)
         setIsPersonalizing(false)
       })
-  }, [getHeaders, personalizedLoaded, starData?.repos, user?.id, scope])
+  }, [getHeaders, personalizedLoaded, starData?.repos, t, user?.id, scope])
 
   const handleSearch = useCallback(
     async (query: string, selectedScope: SearchScope = scope, updateUrl = true) => {
@@ -555,6 +564,7 @@ export function SearchPage() {
                   <SearchPersonalizedSection
                     themes={personalizedThemes}
                     nextAllowedAt={personalizedNextAt}
+                    error={personalizedError}
                     isLoading={
                       isPersonalizing ||
                       isLoadingStars ||

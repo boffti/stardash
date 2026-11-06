@@ -441,7 +441,7 @@ function RepoHero({
                 href={repo.homepage}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-accent hover:underline"
+                className="flex items-center gap-1.5 text-foreground hover:underline"
               >
                 <Globe className="h-3 w-3" />
                 {repo.homepage.replace(/^https?:\/\//, "").replace(/\/$/, "")}
@@ -960,8 +960,8 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 size="sm"
                 className="h-7 gap-1.5 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
               >
-                <Link href="/intel" className="hover:text-foreground">
-                  Intel
+                <Link href="/health" className="hover:text-foreground">
+                  {t("Health", "健康")}
                 </Link>
               </Button>
               <span className="text-border">/</span>
@@ -972,9 +972,9 @@ export function RepoIntelPage({ owner, repo }: Props) {
 
             <div className="flex flex-wrap gap-2 md:hidden">
               <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href="/intel">
+                <Link href="/health">
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  Intel
+                  {t("Health", "健康")}
                 </Link>
               </Button>
               <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
@@ -1040,7 +1040,6 @@ export function RepoIntelPage({ owner, repo }: Props) {
               </div>
             )}
 
-            {/* Intel content */}
             {!isLoading && intel && subScores && (
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
                 <section className="min-w-0 space-y-5">

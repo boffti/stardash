@@ -83,7 +83,7 @@ function RepoRow({
             <span className="text-muted-foreground">{repo.owner} / </span>
             {repo.name}
           </span>
-          {repo.isPinned && <Pin className="h-3 w-3 shrink-0 text-accent" />}
+          {repo.isPinned && <Pin className="h-3 w-3 shrink-0 text-foreground" />}
         </span>
         {repo.description && (
           <span className="mt-1 block line-clamp-1 text-sm text-muted-foreground">

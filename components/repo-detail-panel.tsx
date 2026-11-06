@@ -31,6 +31,8 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Link from "next/link"
 import { useI18n } from "@/components/i18n-provider"
+import { chipHue } from "@/lib/more-color"
+import { paletteInk } from "@/lib/palette"
 import { RepoIntelTab } from "@/components/repo-intel-tab"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { StarredRepo, STATUS_LABELS, RepoStatus, Collection, Tag } from "@/lib/types"
@@ -300,7 +302,7 @@ export function RepoDetailPanel({
             title={repo.isPinned ? t("Unpin", "取消置顶") : t("Pin", "置顶")}
             aria-label={repo.isPinned ? t("Unpin", "取消置顶") : t("Pin", "置顶")}
           >
-            <Pin className={cn("h-4 w-4", repo.isPinned && "fill-accent text-accent")} />
+            <Pin className={cn("h-4 w-4", repo.isPinned && "fill-foreground text-foreground")} />
           </Button>
         </div>
 
@@ -329,7 +331,7 @@ export function RepoDetailPanel({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {t("Intel", "情报")}
+              {t("Health", "健康")}
             </button>
           </div>
           <Button
@@ -337,10 +339,10 @@ export function RepoDetailPanel({
             variant="ghost"
             size="sm"
             className="h-8 w-8 shrink-0 rounded-lg p-0 text-muted-foreground hover:text-foreground"
-            title={t("Open full intel report", "打开完整情报报告")}
-            aria-label={t("Open full intel report", "打开完整情报报告")}
+            title={t("Open full health report", "打开完整健康报告")}
+            aria-label={t("Open full health report", "打开完整健康报告")}
           >
-            <Link href={`/intel/${repo.owner}/${repo.name}`}>
+            <Link href={`/health/${repo.owner}/${repo.name}`}>
               <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </Button>
@@ -586,8 +588,8 @@ export function RepoDetailPanel({
                     <Badge
                       key={tag.id}
                       variant="outline"
-                      className="text-xs border-0 gap-1 cursor-pointer pr-1"
-                      style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                      data-hue={chipHue(tag.label)}
+                      className="cursor-pointer gap-1 border-0 pr-1 text-xs"
                       onClick={() => onTagToggle?.(repo, tag.id)}
                     >
                       {tag.label}
@@ -622,7 +624,7 @@ export function RepoDetailPanel({
                           >
                             <span
                               className="h-2 w-2 rounded-full shrink-0"
-                              style={{ backgroundColor: tag.color }}
+                              style={{ backgroundColor: paletteInk(tag.label) }}
                             />
                             {tag.label}
                           </button>

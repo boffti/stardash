@@ -78,7 +78,7 @@ export function AppPageHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border/50 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header className="sticky top-0 z-50 flex h-12 items-center justify-between bg-background px-3">
         <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
           <SidebarTrigger className="-ml-1 shrink-0" />
 
@@ -86,7 +86,7 @@ export function AppPageHeader({
             <button
               type="button"
               onClick={onOpenCommandPalette}
-              className="hidden h-9 min-w-0 flex-1 items-center gap-3 rounded-xl bg-muted/50 px-3 shadow-sm text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[320px]"
+              className="hidden h-8 min-w-0 flex-1 items-center gap-2 rounded-md bg-muted/70 px-2.5 text-left text-[13px] text-muted-foreground hover:bg-muted md:inline-flex lg:max-w-[320px]"
               aria-label={t("Open command palette", "打开命令面板")}
             >
               <Codicon name="search" className="h-4 w-4 shrink-0" />
@@ -104,7 +104,7 @@ export function AppPageHeader({
               variant="ghost"
               size="sm"
               onClick={() => palette?.openAsk()}
-              className="h-9 shrink-0 gap-1.5 rounded-xl px-2.5 text-muted-foreground hover:text-foreground"
+              className="h-8 shrink-0 gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label={t("Ask your stars", "询问收藏")}
               title={t("Ask your stars a question", "向收藏提问")}
             >
@@ -114,7 +114,9 @@ export function AppPageHeader({
           )}
 
           {desktopControls && (
-            <div className="hidden xl:flex items-center gap-3">{desktopControls}</div>
+            <div className="hidden h-8 items-center gap-0.5 rounded-md bg-muted px-1 xl:flex">
+              {desktopControls}
+            </div>
           )}
 
           {hasMobileControls && (
@@ -161,12 +163,9 @@ export function AppPageHeader({
                           type="button"
                           onClick={onCategorize}
                           disabled={Boolean(isCategorizing) || !onCategorize || isCategorizeLimited}
-                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] text-foreground/80 hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <Codicon
-                            name="sparkle"
-                            className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`}
-                          />
+                          <Codicon name="sparkle" className="h-3.5 w-3.5" />
                           <span suppressHydrationWarning className="hidden sm:inline">
                             {isCategorizing ? t("Analyzing…", "分析中…") : t("Categorize", "分类")}
                           </span>
@@ -181,7 +180,7 @@ export function AppPageHeader({
                 type="button"
                 onClick={handleRefreshClick}
                 aria-disabled={spinning || !onRefresh}
-                className={`flex items-center gap-1.5 text-xs transition-colors ${spinning ? "text-blue-400 cursor-default" : !onRefresh ? "text-muted-foreground opacity-50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] ${spinning ? "cursor-default text-foreground/80" : !onRefresh ? "cursor-not-allowed text-muted-foreground opacity-50" : "text-foreground/80 hover:bg-muted hover:text-foreground"}`}
                 title={spinning ? "Syncing…" : (lastSynced ?? "Sync")}
               >
                 <Codicon

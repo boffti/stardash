@@ -42,7 +42,7 @@ pnpm dev
 </p>
 
 <p align="center">
-  <img src="assets/demo.webp" width="860" alt="StarDash 全窗口演示。Radar 打开一个新仓库收件箱，按用户的星标排序，每一行都写明上榜原因。用户用 j 向下移动，用 x 忽略再撤销，筛选关注的人和 Hacker News，打开“来自你的星标”，然后依次是全部星标、一个合集、一个仓库页面、Intel 健康报告、Contribute 议题和 MCP 设置。">
+  <img src="assets/demo.webp" width="860" alt="StarDash 全窗口演示。Radar 打开一个新仓库收件箱，按用户的星标排序，每一行都写明上榜原因。用户用 j 向下移动，用 x 忽略再撤销，筛选关注的人和 Hacker News，打开“来自你的星标”，然后依次是全部星标、一个合集、一个仓库页面、健康报告、Contribute 议题和 MCP 设置。">
 </p>
 
 ## 为什么用 StarDash
@@ -72,7 +72,7 @@ Radar 给每个人读的是同一批新仓库。哪个排在最前，取决于�
 | 在家里自托管的应用      | 一个你关注的三个人昨天点过星的家庭实验室面板。_People you follow_ 高于任何主题匹配。                 |
 
 > [!NOTE]
-> AI 是可选的。搜索、状态、笔记、Radar 和 Contribute 都不需要密钥。Categorize、Intel 和 Discover 使用 OpenRouter 密钥（`OPENROUTER_API_KEY`），或你在设置里粘贴的自己的 OpenAI 或 Anthropic 密钥。用默认模型给 500 个仓库完整分类一次，大约一美分。
+> AI 是可选的。搜索、状态、笔记、Radar 和 Contribute 都不需要密钥。Categorize、健康和 Discover 使用 OpenRouter 密钥（`OPENROUTER_API_KEY`），或你在设置里粘贴的自己的 OpenAI 或 Anthropic 密钥。用默认模型给 500 个仓库完整分类一次，大约一美分。
 
 ## 快速开始
 
@@ -177,8 +177,8 @@ Next.js 16 单进程，通过 `node:sqlite` 使用 SQLite，没有外部服务�
 <td width="50%" valign="top"><img src="assets/screenshots/collection.png" alt="合集视图：AI 归入 AI Agents & Skills 的仓库。"><br><b>合集。</b> 你自己建的，或者由一次 AI 处理提出并替你归好类。</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="assets/screenshots/repo.png" alt="obra/superpowers 仓库页面：星数和 fork 数、主题、可以直接上手的议题、README，以及 Intel 健康分 81。"><br><b>单个仓库。</b> 内嵌 README、主题、健康卡片，以及适合第一次贡献的开放议题。</td>
-<td width="50%" valign="top"><img src="assets/screenshots/intel.png" alt="Repo Intel：每个仓库的健康分环和简报。"><br><b>Intel。</b> 每个仓库一份健康简报：分数、维护判断、社区信号和痛点。</td>
+<td width="50%" valign="top"><img src="assets/screenshots/repo.png" alt="obra/superpowers 仓库页面：星数和 fork 数、主题、可以直接上手的议题、README，以及健康分 81。"><br><b>单个仓库。</b> 内嵌 README、主题、健康卡片，以及适合第一次贡献的开放议题。</td>
+<td width="50%" valign="top"><img src="assets/screenshots/intel.png" alt="健康：每个仓库的健康分环和简报。"><br><b>健康。</b> 每个仓库一份健康简报：分数、维护判断、社区信号和痛点。</td>
 </tr>
 </table>
 
@@ -198,7 +198,7 @@ Next.js 16 单进程，通过 `node:sqlite` 使用 SQLite，没有外部服务�
 <td width="50%" valign="top"><b>MCP 服务器</b><br>七个工具，适用于任何 MCP 客户端，使用你在设置里或命令行生成和撤销的 bearer 令牌。</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><b>Repo Intel</b><br>每个仓库一份健康简报：分数、维护判断、社区信号、痛点和建议。</td>
+<td width="50%" valign="top"><b>健康</b><br>每个仓库一份健康简报：分数、维护判断、社区信号、痛点和建议。</td>
 <td width="50%" valign="top"><b>Contribute</b><br>来自你已在用的仓库的 good first issue，附简报和可以直接粘贴给编程智能体的提示词。</td>
 </tr>
 <tr>
@@ -285,7 +285,7 @@ server {
 - [x] 基于 SQLite 的单容器，通过归你所有的 GitHub App 登录
 - [x] Radar：每晚从 GitHub 搜索、Hacker News 和你关注的人获取候选，按你的星标排序
 - [x] MCP 服务器和命令行令牌
-- [x] 用便宜模型实现 AI 分类、Intel、Contribute 和 Discover
+- [x] 用便宜模型实现 AI 分类、健康、Contribute 和 Discover
 - [ ] 发布 `v1.0.0`
 - [ ] 通过命令行用智能体的订阅驱动 AI 功能，API 密钥作为后备
 - [ ] 每周发布，每次一个看得见的改动

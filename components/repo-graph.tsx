@@ -4,6 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ExternalLink, GitFork, RotateCcw } from "lucide-react"
 import type { Collection, StarredRepo } from "@/lib/types"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useI18n } from "@/components/i18n-provider"
 
 type Node = {
@@ -245,7 +252,7 @@ export function RepoGraph({
       ? []
       : graph.edges.filter((edge) => edge.source === selected || edge.target === selected)
   return (
-    <div className="min-w-0 overflow-hidden rounded-xl bg-card shadow-sm dark:shadow-black/20">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-background">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <p className="text-sm font-medium">{t("Graph", "关系图")}</p>
         <div className="flex items-center gap-1">
@@ -332,23 +339,26 @@ export function RepoGraph({
             }}
           />
         </div>
-        <div className="w-full min-w-0 shrink-0 bg-muted/30 p-4 lg:w-72">
+        <div className="w-full min-w-0 shrink-0 border-t border-border bg-background p-4 lg:w-72 lg:border-t-0 lg:border-l">
           <label htmlFor="graph-repo" className="sr-only">
             {t("Explore a repository", "探索仓库")}
           </label>
-          <select
-            id="graph-repo"
-            className="w-full rounded-md bg-background px-2 py-2 text-sm shadow-sm focus-visible:outline-2 focus-visible:outline-ring"
-            value={selected ?? ""}
-            onChange={(e) => setSelected(e.target.value === "" ? null : Number(e.target.value))}
+          <Select
+            value={selected === null ? "none" : String(selected)}
+            onValueChange={(value) => setSelected(value === "none" ? null : Number(value))}
           >
-            <option value="">{t("Select a repository", "选择仓库")}</option>
-            {graph.nodes.map((node, i) => (
-              <option key={node.repo.id} value={i}>
-                {node.repo.fullName}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="graph-repo" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t("Select a repository", "选择仓库")}</SelectItem>
+              {graph.nodes.map((node, i) => (
+                <SelectItem key={node.repo.id} value={String(i)}>
+                  {node.repo.fullName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {selectedNode ? (
             <div className="mt-5 space-y-3">
               <div>
@@ -377,7 +387,7 @@ export function RepoGraph({
                     return (
                       <button
                         key={index}
-                        className="block w-full rounded-md p-2 text-left text-xs hover:bg-accent"
+                        className="block w-full rounded-md p-2 text-left text-xs hover:bg-muted"
                         onClick={() => setSelected(index)}
                       >
                         <span className="block font-medium">

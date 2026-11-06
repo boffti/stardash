@@ -151,7 +151,7 @@ export async function askStars(
   userId: string,
   question: string,
   model: LanguageModel,
-  providerOptions: Record<string, Record<string, string>> = {},
+  providerOptions: Record<string, Record<string, string | boolean>> = {},
 ): Promise<AskAnswer> {
   const allLines = loadStarLines(userId)
   let searchQuestion = question

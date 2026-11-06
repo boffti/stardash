@@ -11,6 +11,12 @@ const nextConfig = {
     unoptimized: true,
   },
   allowedDevOrigins: ["http://localhost"],
+  async redirects() {
+    return [
+      { source: "/intel", destination: "/health", permanent: false },
+      { source: "/intel/:path*", destination: "/health/:path*", permanent: false },
+    ]
+  },
 }
 
 export default withSentryConfig(nextConfig, {

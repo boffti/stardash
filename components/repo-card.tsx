@@ -4,6 +4,7 @@ import { Star, GitFork, Clock, Pin, StickyNote, FolderPlus, MoreHorizontal } fro
 import { RepoHealthBadges } from "./repo-health-badges"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -71,7 +72,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
               <div className="group-hover:hidden flex items-center gap-1">
                 <RepoHealthBadges repo={repo} size="sm" />
               </div>
-              {repo.isPinned && <Pin className="h-3 w-3 text-accent fill-accent" />}
+              {repo.isPinned && <Pin className="h-3 w-3 fill-foreground text-foreground" />}
               {/* Drag handle and menu - hidden by default, show on hover */}
               <button
                 {...listeners}
@@ -138,12 +139,9 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
                 {repo.tags.slice(0, 3).map((tag) => (
                   <Badge
                     key={tag.id}
-                    variant="outline"
-                    className="text-xs px-1.5 py-0 h-5 border-0"
-                    style={{
-                      backgroundColor: `${tag.color}20`,
-                      color: tag.color,
-                    }}
+                    variant="secondary"
+                    data-hue={chipHue(tag.label)}
+                    className="h-5 border-0 px-1.5 py-0 text-xs font-normal"
                   >
                     {tag.label}
                   </Badge>
@@ -152,6 +150,7 @@ export function RepoCard({ repo, onClick, onRemoveStar }: RepoCardProps) {
                   <Badge
                     key={topic}
                     variant="secondary"
+                    data-hue={chipHue(topic)}
                     className="text-xs px-1.5 py-0 h-5 font-normal"
                   >
                     {topic}

@@ -32,6 +32,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -56,7 +57,6 @@ import type {
   ContributionType,
 } from "@/lib/contribution-opportunities"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
-import { cn } from "@/lib/utils"
 import { ContributionCommandPalette } from "@/components/contribution-command-palette"
 import { IssueViewer } from "@/components/issue-viewer"
 import ReactMarkdown from "react-markdown"
@@ -145,12 +145,6 @@ const typeIcons: Record<ContributionType, React.ElementType> = {
   infra: ShieldAlert,
   feature: Sparkles,
   maintenance: GitPullRequestArrow,
-}
-
-function scoreTone(score: number) {
-  if (score >= 80) return "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-  if (score >= 60) return "border-sky-500/30 bg-sky-500/10 text-sky-400"
-  return "border-amber-500/30 bg-amber-500/10 text-amber-400"
 }
 
 const languageColors: Record<string, string> = {
@@ -330,7 +324,7 @@ function OpportunityCard({
   const langColor = languageColors[opportunity.repoLanguage ?? ""] ?? "#6b7280"
 
   return (
-    <Card className="flex flex-col overflow-hidden border-0 bg-card shadow-sm transition-colors hover:bg-muted/50">
+    <Card className="flex flex-col overflow-hidden border border-border bg-card hover:bg-muted">
       <CardHeader className="gap-2.5 pb-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -355,9 +349,13 @@ function OpportunityCard({
           </div>
           <Badge
             variant="outline"
-            className={cn("shrink-0 tabular-nums", scoreTone(opportunity.score))}
+            title={t(
+              "How closely this issue matches the repositories you star",
+              "这个议题和你星标的仓库有多接近",
+            )}
+            className="shrink-0 tabular-nums"
           >
-            {opportunity.score}%
+            {t(`${opportunity.score}% fit`, `匹配 ${opportunity.score}%`)}
           </Badge>
         </div>
 
@@ -392,20 +390,34 @@ function OpportunityCard({
 
         <div className="mt-auto flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary" className="text-xs">
+            <Badge
+              variant="secondary"
+              data-hue={chipHue(opportunity.difficulty)}
+              className="text-xs"
+            >
               {opportunity.difficulty}
             </Badge>
             {opportunity.contributionTypes.map((type) => {
               const Icon = typeIcons[type]
               return (
-                <Badge key={type} variant="outline" className="gap-1 text-xs">
+                <Badge
+                  key={type}
+                  variant="outline"
+                  data-hue={chipHue(typeLabels[type])}
+                  className="gap-1 text-xs"
+                >
                   <Icon className="h-3 w-3" />
                   {typeLabels[type]}
                 </Badge>
               )
             })}
             {opportunity.labels.slice(0, 3).map((label) => (
-              <Badge key={label} variant="secondary" className="max-w-32 truncate text-xs">
+              <Badge
+                key={label}
+                variant="secondary"
+                data-hue={chipHue(label)}
+                className="max-w-32 truncate text-xs"
+              >
                 {label}
               </Badge>
             ))}
@@ -783,7 +795,7 @@ export function ContributionDashboard() {
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger
                   aria-label={t("Language filter", "语言筛选")}
-                  className="w-32 lg:w-36 h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  className="h-8 w-auto gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-muted lg:w-auto [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Language", "语言")} />
                 </SelectTrigger>
@@ -802,7 +814,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Difficulty filter", "难度筛选")}
-                  className="w-32 lg:w-36 h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  className="h-8 w-auto gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-muted lg:w-auto [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Difficulty", "难度")} />
                 </SelectTrigger>
@@ -819,7 +831,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Contribution type filter", "贡献类型筛选")}
-                  className="w-36 lg:w-40 h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  className="h-8 w-auto gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-muted [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Contribution type", "贡献类型")} />
                 </SelectTrigger>
@@ -839,7 +851,7 @@ export function ContributionDashboard() {
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger
                   aria-label={t("Language filter", "语言筛选")}
-                  className="w-full h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  className="h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Language", "语言")} />
                 </SelectTrigger>
@@ -858,7 +870,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Difficulty filter", "难度筛选")}
-                  className="w-full h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  className="h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Difficulty", "难度")} />
                 </SelectTrigger>
@@ -875,7 +887,7 @@ export function ContributionDashboard() {
               >
                 <SelectTrigger
                   aria-label={t("Contribution type filter", "贡献类型筛选")}
-                  className="w-full h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  className="h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
                 >
                   <SelectValue placeholder={t("Contribution type", "贡献类型")} />
                 </SelectTrigger>

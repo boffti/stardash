@@ -50,9 +50,9 @@ export function DashboardHeader({
     ? t(`Search: ${searchQuery}`, `搜索：${searchQuery}`)
     : t("Search", "搜索")
   const desktopControlClassName =
-    "h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+    "h-7 w-auto justify-start gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-background/80 hover:text-foreground [&_svg]:size-3.5 [&_svg]:text-muted-foreground"
   const mobileControlClassName =
-    "h-10 rounded-xl bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+    "h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
 
   const filterControls = (
     <>
@@ -60,7 +60,7 @@ export function DashboardHeader({
         value={languageFilter ?? "all"}
         onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
       >
-        <SelectTrigger className={`w-32 lg:w-40 ${desktopControlClassName}`}>
+        <SelectTrigger className={desktopControlClassName}>
           <SelectValue placeholder={t("Language", "语言")} />
         </SelectTrigger>
         <SelectContent>
@@ -79,7 +79,7 @@ export function DashboardHeader({
           onHealthFilterChange(value === "all" ? null : (value as RepoHealthFilter))
         }
       >
-        <SelectTrigger className={`w-32 lg:w-36 ${desktopControlClassName}`}>
+        <SelectTrigger className={desktopControlClassName}>
           <SelectValue placeholder={t("Health", "状态")} />
         </SelectTrigger>
         <SelectContent>
@@ -90,7 +90,7 @@ export function DashboardHeader({
       </Select>
 
       <Select value={sortBy} onValueChange={onSortChange}>
-        <SelectTrigger className={`w-40 lg:w-52 ${desktopControlClassName}`}>
+        <SelectTrigger className={desktopControlClassName}>
           <SelectValue placeholder={t("Sort by", "排序")} />
         </SelectTrigger>
         <SelectContent>

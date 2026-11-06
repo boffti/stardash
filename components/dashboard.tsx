@@ -1139,26 +1139,26 @@ export function Dashboard() {
                         onValueChange={(value) =>
                           value && setViewMode(value as "grid" | "list" | "graph")
                         }
-                        className="bg-secondary rounded-md p-0.5"
+                        className="gap-0.5 rounded-lg bg-muted p-0.5"
                       >
                         <ToggleGroupItem
                           value="grid"
                           aria-label={t("Grid view", "网格视图")}
-                          className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                          className="size-7 rounded-md p-0 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground"
                         >
                           <LayoutGrid className="h-3.5 w-3.5" />
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="list"
                           aria-label={t("List view", "列表视图")}
-                          className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                          className="size-7 rounded-md p-0 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground"
                         >
                           <List className="h-3.5 w-3.5" />
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="graph"
                           aria-label={t("Graph view", "关系图视图")}
-                          className="h-7 w-7 p-0 data-[state=on]:bg-card data-[state=on]:text-foreground"
+                          className="size-7 rounded-md p-0 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground"
                         >
                           <Network className="h-3.5 w-3.5" />
                         </ToggleGroupItem>

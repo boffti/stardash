@@ -5,6 +5,7 @@ import { getUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { categorizeRepos } from "@/lib/ai-categorize"
 import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
+import { aiErrorMessage } from "@/lib/ai-error"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import {
   assignCollection,
@@ -301,6 +302,9 @@ export async function POST(request: Request) {
 
     Sentry.captureException(err)
     console.error("Categorization error:", err)
-    return NextResponse.json({ error: "Failed to categorize repositories" }, { status: 500 })
+    if (err && typeof err === "object" && "text" in err) {
+      console.error("model text:", String((err as { text?: unknown }).text).slice(0, 500))
+    }
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 })
   }
 }

@@ -1,15 +1,10 @@
-import { RepoIntelPage } from "@/components/repo-intel-page"
+import { redirect } from "next/navigation"
 
-interface Props {
+export default async function IntelDetailRedirect({
+  params,
+}: {
   params: Promise<{ owner: string; repo: string }>
-}
-
-export async function generateMetadata({ params }: Props) {
+}) {
   const { owner, repo } = await params
-  return { title: `${owner}/${repo} Intel · Stellan` }
-}
-
-export default async function RepoIntelDetailPage({ params }: Props) {
-  const { owner, repo } = await params
-  return <RepoIntelPage owner={owner} repo={repo} />
+  redirect(`/health/${owner}/${repo}`)
 }

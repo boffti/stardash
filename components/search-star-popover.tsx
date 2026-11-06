@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { chipHue } from "@/lib/more-color"
 import { useI18n } from "@/components/i18n-provider"
 import { toast } from "sonner"
 import type { SearchRepo } from "@/app/api/search/repos/route"
@@ -148,21 +149,12 @@ export function SearchStarPopover({ repo, tags, collections, onStarred }: Search
                 {tags.slice(0, 12).map((tag) => (
                   <button key={tag.id} onClick={() => toggleTag(tag.id)}>
                     <Badge
-                      variant="outline"
+                      variant="secondary"
+                      data-hue={chipHue(tag.label)}
                       className={cn(
-                        "text-xs px-1.5 py-0 h-5 cursor-pointer border transition-all",
-                        selectedTags.has(tag.id)
-                          ? "opacity-100 ring-1"
-                          : "opacity-60 hover:opacity-90",
+                        "h-5 cursor-pointer border-0 px-1.5 py-0 text-xs",
+                        selectedTags.has(tag.id) ? "ring-1 ring-foreground/25" : "opacity-70",
                       )}
-                      style={{
-                        backgroundColor: `${tag.color}20`,
-                        color: tag.color,
-                        borderColor: selectedTags.has(tag.id) ? tag.color : `${tag.color}40`,
-                        boxShadow: selectedTags.has(tag.id)
-                          ? `0 0 0 1px ${tag.color}60`
-                          : undefined,
-                      }}
                     >
                       {tag.label}
                     </Badge>

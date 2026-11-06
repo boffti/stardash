@@ -21,6 +21,7 @@ import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { readmeRehypePlugins, resolveRepoUrl } from "@/lib/readme-html"
 
 interface ReadmeViewerProps {
   repo: StarredRepo | null
@@ -51,13 +52,6 @@ const fetcher = async (url: string): Promise<ReadmeResponse> => {
     throw new Error(data.error || "Failed to fetch README")
   }
   return data
-}
-
-function resolveImageUrl(src: string | undefined, owner: string, repoName: string): string {
-  if (!src) return ""
-  if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src
-  const path = src.startsWith("/") ? src.slice(1) : src.startsWith("./") ? src.slice(2) : src
-  return `https://raw.githubusercontent.com/${owner}/${repoName}/HEAD/${path}`
 }
 
 function getCodeBlockProps(children: React.ReactNode) {
@@ -162,7 +156,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                 prose-h2:text-lg sm:prose-h2:text-xl prose-h2:mt-6 sm:prose-h2:mt-8
                 prose-h3:text-base sm:prose-h3:text-lg
                 prose-p:text-muted-foreground prose-p:leading-relaxed
-                prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+                prose-a:text-foreground prose-a:no-underline hover:prose-a:underline
                 prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
                 prose-code:rounded prose-code:text-sm prose-code:font-mono
                 prose-code:before:content-none prose-code:after:content-none
@@ -181,6 +175,7 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={readmeRehypePlugins}
                   components={{
                     pre: ({ children }) => {
                       const codeBlock = getCodeBlockProps(children)
@@ -220,14 +215,23 @@ export function ReadmeViewer({ repo, open, onClose }: ReadmeViewerProps) {
                     img: ({ src, alt }) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={resolveImageUrl(src as string | undefined, repo.owner, repo.name)}
+                        src={resolveRepoUrl(
+                          src as string | undefined,
+                          repo.owner,
+                          repo.name,
+                          "img",
+                        )}
                         alt={alt ?? ""}
                         className="max-w-full h-auto rounded-lg"
                         loading="lazy"
                       />
                     ),
                     a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer">
+                      <a
+                        href={resolveRepoUrl(href, repo.owner, repo.name, "link")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         {children}
                       </a>
                     ),

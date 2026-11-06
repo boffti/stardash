@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs"
 import { after } from "next/server"
 import { getValidGitHubToken } from "@/lib/tokens"
 import { getAIModel, getProviderOptions } from "@/lib/ai-provider"
+import { aiErrorMessage } from "@/lib/ai-error"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import { getUser } from "@/lib/auth"
 import { checkAndUpdatePersonalizedSearchLimit } from "@/lib/ai-weekly-limit"
@@ -106,7 +107,9 @@ For each gap/theme:
 - Write one sentence explaining why this is relevant to their existing stars
 - Write a targeted GitHub search query (use stars:>200 for quality)
 
-Focus on genuinely useful adjacent tools, not obvious overlaps with what they already have.`,
+Focus on genuinely useful adjacent tools, not obvious overlaps with what they already have.
+
+Return one json object with a themes array. Each item has theme, description, and searchQuery.`,
       experimental_telemetry: { isEnabled: true, functionId: "personalized-theme-search" },
       providerOptions: getProviderOptions(modelConfig.provider),
     })
@@ -165,6 +168,6 @@ Focus on genuinely useful adjacent tools, not obvious overlaps with what they al
   } catch (err) {
     Sentry.captureException(err)
     console.error("Personalized search error:", err)
-    return NextResponse.json({ error: "Personalized search failed" }, { status: 500 })
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 })
   }
 }

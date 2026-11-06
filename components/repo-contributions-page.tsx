@@ -26,6 +26,7 @@ import { IssueViewer } from "@/components/issue-viewer"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -155,13 +156,6 @@ function writeCachedBrief(opportunityId: string, brief: ContributionBrief) {
   }
 }
 
-function scoreTone(score: number) {
-  if (score >= 80)
-    return "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-  if (score >= 60) return "border-sky-500/35 bg-sky-500/10 text-sky-600 dark:text-sky-400"
-  return "border-amber-500/35 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-}
-
 function formatNumber(num: number): string {
   if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k"
   return num.toString()
@@ -195,8 +189,15 @@ function OpportunityIssueRow({
     >
       <div className="min-w-0">
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className={cn("h-5 tabular-nums", scoreTone(opportunity.score))}>
-            {t(`${opportunity.score}% fit`, `匹配度 ${opportunity.score}%`)}
+          <Badge
+            variant="outline"
+            title={t(
+              "How closely this issue matches the repositories you star",
+              "这个议题和你星标的仓库有多接近",
+            )}
+            className="h-5 tabular-nums"
+          >
+            {t(`${opportunity.score}% fit`, `匹配 ${opportunity.score}%`)}
           </Badge>
           <span>#{opportunity.issueNumber}</span>
           <span>
@@ -224,14 +225,14 @@ function OpportunityIssueRow({
         </button>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" data-hue={chipHue(opportunity.difficulty)} className="text-xs">
             {t(
               opportunity.difficulty,
               { beginner: "入门", intermediate: "中级", advanced: "高级" }[opportunity.difficulty],
             )}
           </Badge>
           {opportunity.contributionTypes.map((type) => (
-            <Badge key={type} variant="outline" className="text-xs">
+            <Badge key={type} variant="outline" data-hue={chipHue(type)} className="text-xs">
               {t(
                 typeLabels[type],
                 {
@@ -248,7 +249,12 @@ function OpportunityIssueRow({
             </Badge>
           ))}
           {opportunity.labels.slice(0, 5).map((label) => (
-            <Badge key={label} variant="secondary" className="max-w-40 truncate text-xs">
+            <Badge
+              key={label}
+              variant="secondary"
+              data-hue={chipHue(label)}
+              className="max-w-40 truncate text-xs"
+            >
               {label}
             </Badge>
           ))}

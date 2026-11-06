@@ -69,7 +69,7 @@ app/
 │   ├── radar/                # Inbound feed: new/rising repos ranked by taste (lib/radar.ts)
 │   ├── trending/             # Recommendations drawn from your own stars
 │   ├── search/               # Discover: AI query expansion over GitHub search
-│   ├── intel/                # AI repo health reports
+│   ├── health/               # AI repo health reports. /intel redirects here
 │   ├── contribute/           # Good-first-issue discovery
 │   └── recently-viewed/
 ├── auth/

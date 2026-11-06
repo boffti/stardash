@@ -2,46 +2,7 @@ import { generateObject } from "ai"
 import type { LanguageModel } from "ai"
 import { z } from "zod"
 import type { StarredRepo, Tag, Collection, CategorizationResult } from "./types"
-
-const COLLECTION_COLORS = [
-  "#8b5cf6",
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ec4899",
-  "#06b6d4",
-  "#ef4444",
-  "#84cc16",
-  "#f97316",
-  "#6366f1",
-  "#14b8a6",
-  "#a855f7",
-  "#0ea5e9",
-  "#d946ef",
-  "#64748b",
-]
-
-const TAG_COLORS = [
-  "#8b5cf6",
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ec4899",
-  "#06b6d4",
-  "#ef4444",
-  "#84cc16",
-  "#f97316",
-  "#6366f1",
-]
-
-function hashColor(str: string, palette: string[]): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i)
-    hash |= 0
-  }
-  return palette[Math.abs(hash) % palette.length]
-}
+import { PALETTE, paletteInk } from "./palette"
 
 // Phase 1: generate collection taxonomy + shared tag vocabulary
 const TaxonomySchema = z.object({
@@ -80,7 +41,7 @@ const LOCAL_BATCH_SIZE = 10
 const LOCAL_TAXONOMY_SAMPLE = 40
 
 interface CategorizeReposOptions {
-  providerOptions?: Record<string, Record<string, string>>
+  providerOptions?: Record<string, Record<string, string | boolean>>
   /** Small prompts for local models with a short context window. */
   compact?: boolean
   existingTaxonomy?: {
@@ -142,7 +103,10 @@ Tag rules:
 - Target 20 tags total — quality over quantity
 
 Collection name rules: short and scannable, max 22 characters (e.g. "AI & ML", "Frontend", "CLI Tools", "Databases", "DevOps", "Data Science")
-Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
+Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")
+
+Return one json object and no other text. The example shows the shape. Still return 5 to 12 collections and 15 to 25 tags.
+{"collections":[{"id":"ai-ml","name":"AI & ML","emoji":"🤖"}],"tags":["typescript","machine-learning","cli"]}`,
       prompt: `Define a taxonomy for these ${taxonomyInput.length} starred repos:\n\n${JSON.stringify(taxonomyInput)}`,
     })
 
@@ -150,7 +114,7 @@ Collection ID rules: URL-safe slugs (e.g. "ai-ml", "frontend", "cli-tools")`,
       id: c.id,
       name: c.name,
       emoji: c.emoji,
-      color: COLLECTION_COLORS[i % COLLECTION_COLORS.length],
+      color: PALETTE[i % PALETTE.length].ink,
       repoCount: 0,
     }))
     tagVocabulary = taxonomyObj.tags
@@ -188,7 +152,10 @@ ${tagVocabulary.join(", ")}
 Rules:
 - Assign each repo to 1-3 collections
 - Assign 1-3 tags per repo, chosen ONLY from the tag vocabulary above
-- Use the EXACT repo IDs from the input — do not modify them`,
+- Use the EXACT repo IDs from the input — do not modify them
+
+Return one json object and no other text.
+{"repos":[{"id":"exact-repo-id","tags":["typescript"],"collectionIds":["frontend"]}]}`,
       prompt: `Classify these repos:\n\n${JSON.stringify(batch)}`,
     })
 
@@ -200,7 +167,7 @@ Rules:
         new Set(repoResult.tags.filter((label) => tagVocabularySet.has(label))),
       )
       const tags: Tag[] = uniqueLabels.map((label) => {
-        const tag: Tag = { id: `tag-${label}`, label, color: hashColor(label, TAG_COLORS) }
+        const tag: Tag = { id: `tag-${label}`, label, color: paletteInk(label) }
         allTagsMap.set(label, tag)
         return tag
       })

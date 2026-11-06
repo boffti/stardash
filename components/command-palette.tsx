@@ -145,7 +145,7 @@ const NAV: { href: string; label: string; icon: LucideIcon; keywords?: string }[
   { href: "/dashboard", label: "All Stars", icon: Star, keywords: "dashboard library" },
   { href: "/search", label: "Discover", icon: Search, keywords: "search github" },
   { href: "/recently-viewed", label: "Recently Viewed", icon: Clock, keywords: "history" },
-  { href: "/intel", label: "Intel", icon: Radar, keywords: "health reports" },
+  { href: "/health", label: "Health", icon: Radar, keywords: "health reports intel" },
   {
     href: "/contribute",
     label: "Contribute",
@@ -239,7 +239,7 @@ function PaletteBody({
               "/dashboard": "全部星标",
               "/search": "发现",
               "/recently-viewed": "最近浏览",
-              "/intel": "情报",
+              "/health": "健康",
               "/contribute": "贡献",
               "/settings": "设置",
             } as Record<string, string>
@@ -294,7 +294,7 @@ function PaletteBody({
   // A page-name match moves Navigate and Actions to the top.
   const pageGroups = (page?.groups ?? []).map(filterGroup).filter((g) => g.items.length)
   const universalGroups = universalDefs.map(filterGroup).filter((g) => g.items.length)
-  // "intel" should go to Intel, not "Search this page for intel".
+  // A page-name prefix such as "health" opens Health ahead of in-page search.
   const navFirst = Boolean(q) && NAV.some((n) => n.label.toLowerCase().startsWith(q))
   const universal = universalGroups.map((g) => (
     <PaletteGroupView key={g.heading} group={g} run={run} />

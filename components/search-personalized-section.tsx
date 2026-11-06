@@ -13,6 +13,7 @@ interface SearchPersonalizedSectionProps {
   hasRepoSource?: boolean
   /** Set when the daily suggestion run is on cooldown. */
   nextAllowedAt?: string | null
+  error?: string | null
   tags: Tag[]
   collections: Collection[]
   className?: string
@@ -23,6 +24,7 @@ export function SearchPersonalizedSection({
   isLoading = false,
   hasRepoSource = false,
   nextAllowedAt = null,
+  error = null,
   tags,
   collections,
   className,
@@ -31,7 +33,7 @@ export function SearchPersonalizedSection({
     return (
       <div className={cn("space-y-5", className)}>
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-violet-400" />
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium">Based on your stars</h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -44,7 +46,7 @@ export function SearchPersonalizedSection({
   }
 
   if (themes.length === 0) {
-    if (!hasRepoSource && !nextAllowedAt) return null
+    if (!hasRepoSource && !nextAllowedAt && !error) return null
 
     return (
       <div className={cn("rounded-lg bg-muted/20 p-5", className)}>
@@ -53,9 +55,11 @@ export function SearchPersonalizedSection({
           <h3 className="text-sm font-medium">Based on your stars</h3>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          {nextAllowedAt
-            ? `Suggestions refresh once a day. Next run ${formatWhen(nextAllowedAt)}.`
-            : "No suggestions yet. Sync your stars, then reopen Discover."}
+          {error
+            ? error
+            : nextAllowedAt
+              ? `Suggestions refresh once a day. Next run ${formatWhen(nextAllowedAt)}.`
+              : "No suggestions yet. Sync your stars, then reopen Discover."}
         </p>
       </div>
     )
@@ -64,7 +68,7 @@ export function SearchPersonalizedSection({
   return (
     <div className={cn("space-y-8", className)}>
       <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-violet-400" />
+        <Sparkles className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-medium">Based on your stars</h3>
       </div>
 

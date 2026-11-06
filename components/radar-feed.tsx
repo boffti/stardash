@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import useSWR, { mutate as globalMutate } from "swr"
 import { formatDistanceToNow } from "date-fns"
@@ -24,6 +24,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -51,28 +52,22 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 type Tab = "inbox" | "releases" | "stars"
 type Filter = "all" | "following" | "hn" | "velocity" | "new"
 
-// Same tile vocabulary as Intel's stats row: icon chip, big number, small label.
-const FILTERS: { id: Filter; label: string; icon: React.ElementType; chip: string }[] = [
-  { id: "all", label: "On the radar", icon: Telescope, chip: "bg-muted text-foreground" },
-  {
-    id: "following",
-    label: "People you follow",
-    icon: Users,
-    chip: "bg-accent/15 text-accent",
-  },
-  { id: "hn", label: "Hacker News", icon: Flame, chip: "bg-orange-500/10 text-orange-400" },
-  { id: "velocity", label: "Rising", icon: TrendingUp, chip: "bg-violet-500/10 text-violet-400" },
-  { id: "new", label: "New this week", icon: Sparkles, chip: "bg-sky-500/10 text-sky-400" },
+const FILTERS: { id: Filter; label: string; icon: React.ElementType }[] = [
+  { id: "all", label: "On the radar", icon: Telescope },
+  { id: "following", label: "People you follow", icon: Users },
+  { id: "hn", label: "Hacker News", icon: Flame },
+  { id: "velocity", label: "Rising", icon: TrendingUp },
+  { id: "new", label: "New this week", icon: Sparkles },
 ]
 
 // One hue per signal kind, used for the reason dots and the signal badge.
 const KIND_DOT: Record<RadarReasonKind, string> = {
-  following: "bg-accent",
-  hn: "bg-orange-400",
-  velocity: "bg-violet-400",
-  new: "bg-sky-400",
-  topic: "bg-muted-foreground/60",
-  language: "bg-muted-foreground/60",
+  following: "bg-muted-foreground/70",
+  hn: "bg-muted-foreground/70",
+  velocity: "bg-muted-foreground/70",
+  new: "bg-muted-foreground/70",
+  topic: "bg-muted-foreground/70",
+  language: "bg-muted-foreground/70",
 }
 
 const KIND_LABEL: Partial<Record<RadarReasonKind, string>> = {
@@ -230,7 +225,12 @@ export function RadarFeed() {
     return () => window.removeEventListener("keydown", handler)
   }, [tab, items, activeIndex, triage])
 
+  const pointerMoved = useRef(false)
   useEffect(() => {
+    if (pointerMoved.current) {
+      pointerMoved.current = false
+      return
+    }
     document
       .getElementById(`radar-row-${items[activeIndex]?.id}`)
       ?.scrollIntoView({ block: "nearest" })
@@ -330,7 +330,7 @@ export function RadarFeed() {
                   aria-selected={tab === id}
                   onClick={() => setTab(id)}
                   className={cn(
-                    "-mb-px cursor-pointer border-b-2 px-3 py-2 text-sm transition-colors duration-200",
+                    "-mb-px cursor-pointer border-b-2 px-3 py-2 text-sm",
                     tab === id
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
@@ -350,7 +350,7 @@ export function RadarFeed() {
             <>
               {hasInbox && (
                 <div
-                  className="mb-5 flex flex-wrap gap-2"
+                  className="mb-5 flex flex-wrap items-center gap-1"
                   role="tablist"
                   aria-label={t("Filter signals", "筛选动态")}
                 >
@@ -364,35 +364,26 @@ export function RadarFeed() {
                         aria-selected={active}
                         onClick={() => setFilter(f.id)}
                         className={cn(
-                          "flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left transition-colors duration-200",
+                          "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[13px]",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          active ? "bg-muted" : "bg-muted/20 hover:bg-muted/50",
+                          active
+                            ? "bg-muted text-foreground"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                         )}
                       >
-                        <span
-                          className={cn(
-                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-                            f.chip,
+                        <Icon className="size-3.5 text-muted-foreground" />
+                        <span className="tabular-nums">{counts[f.id]}</span>
+                        <span>
+                          {t(
+                            f.label,
+                            {
+                              all: "全部",
+                              following: "关注的人",
+                              hn: "Hacker News",
+                              velocity: "上升中",
+                              new: "本周新增",
+                            }[f.id],
                           )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium leading-none tabular-nums">
-                            {counts[f.id]}
-                          </span>
-                          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-                            {t(
-                              f.label,
-                              {
-                                all: "全部",
-                                following: "关注的人",
-                                hn: "Hacker News",
-                                velocity: "上升中",
-                                new: "本周新增",
-                              }[f.id],
-                            )}
-                          </span>
                         </span>
                       </button>
                     )
@@ -453,7 +444,10 @@ export function RadarFeed() {
                           active={index === activeIndex}
                           tags={tags}
                           collections={collections}
-                          onFocus={() => setCursor(index)}
+                          onFocus={() => {
+                            pointerMoved.current = true
+                            setCursor(index)
+                          }}
                           onStarred={() => onStarred(item)}
                           onDismiss={() => triage(item, "dismissed")}
                           onSnooze={() => triage(item, "snoozed")}
@@ -540,8 +534,8 @@ function RadarRow({
       data-active={active || undefined}
       onMouseEnter={onFocus}
       className={cn(
-        "group rounded-lg bg-card shadow-sm transition-colors duration-150",
-        active ? "bg-muted/50" : "hover:bg-muted/30",
+        "group rounded-lg border border-border bg-card",
+        active ? "bg-muted" : "hover:bg-muted",
       )}
     >
       <div className="p-4">
@@ -628,6 +622,7 @@ function RadarRow({
               <Badge
                 key={t}
                 variant="secondary"
+                data-hue={chipHue(t)}
                 className="hidden h-5 px-1.5 py-0 text-xs font-normal sm:inline-flex"
               >
                 {t}
@@ -636,7 +631,7 @@ function RadarRow({
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
-            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 group-data-[active]:opacity-100 max-sm:opacity-100">
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"

@@ -22,13 +22,46 @@ export interface AIModelConfig {
   isUserKey: boolean
 }
 
-export function getProviderOptions(provider: AIProvider): Record<string, Record<string, string>> {
+export type ProviderOptions = Record<string, Record<string, string | boolean>>
+
+export function getProviderOptions(provider: AIProvider): ProviderOptions {
   if (provider === "anthropic") {
     // Anthropic's native outputFormat rejects minItems>1 and maxItems.
     // jsonTool mode uses tool-calling instead, which has no such restrictions.
     return { anthropic: { structuredOutputMode: "jsonTool" } }
   }
   return {}
+}
+
+function messageText(content: unknown): string {
+  if (typeof content === "string") return content
+  if (!Array.isArray(content)) return ""
+  return content
+    .map((part) => {
+      if (typeof part === "string") return part
+      if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+        return part.text
+      }
+      return ""
+    })
+    .join("\n")
+}
+
+// Runs after the SDK converts messages into the chat-completions body.
+// DeepSeek rejects json_object unless one of those messages contains "json".
+function ensureDeepSeekJsonWord(body: Record<string, unknown>) {
+  const messages = Array.isArray(body.messages) ? body.messages : []
+  const hasJson = messages.some((message) => {
+    if (!message || typeof message !== "object") return false
+    return messageText((message as { content?: unknown }).content)
+      .toLowerCase()
+      .includes("json")
+  })
+  if (hasJson) return body
+  return {
+    ...body,
+    messages: [{ role: "system", content: "Respond with a json object." }, ...messages],
+  }
 }
 
 export function getAIModel(request: Request): AIModelConfig {
@@ -97,6 +130,9 @@ export function getAIModel(request: Request): AIModelConfig {
           name: "deepseek",
           apiKey,
           baseURL: "https://api.deepseek.com/v1",
+          // json_schema is rejected. Leave this off so the body uses json_object.
+          supportsStructuredOutputs: false,
+          transformRequestBody: ensureDeepSeekJsonWord,
         })(modelId || DEFAULT_MODELS.deepseek),
         provider,
         isUserKey,
