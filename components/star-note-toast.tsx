@@ -68,7 +68,7 @@ function StarNoteToastContent({ repoName, onSaveNote }: StarNoteToastProps) {
 export function showStarNoteToast(repoName: string, onSaveNote: (note: string) => Promise<void>) {
   const toastId = toast.custom(
     (t) => (
-      <div className="bg-background border rounded-lg shadow-lg p-4 relative">
+      <div className="bg-popover rounded-lg shadow-lg p-4 relative">
         <button
           onClick={() => toast.dismiss(t)}
           className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"

@@ -35,6 +35,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/openai": "^3.0.53",
+    "@ai-sdk/openai-compatible": "^2.0.88",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.9.1",
@@ -74,6 +75,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vercel/analytics": "1.6.1",
+    "@vscode/codicons": "0.0.46-24",
     "ai": "^6.0.141",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

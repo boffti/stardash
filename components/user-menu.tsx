@@ -126,21 +126,21 @@ export function UserMenu({ lastSynced }: UserMenuProps) {
                 <Sun className="mr-2 h-4 w-4" />
                 Light
                 {mounted && theme === "light" && (
-                  <span className="ml-auto text-accent">&#10003;</span>
+                  <span className="ml-auto text-foreground">&#10003;</span>
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setTheme("dark")}>
                 <Moon className="mr-2 h-4 w-4" />
                 Dark
                 {mounted && theme === "dark" && (
-                  <span className="ml-auto text-accent">&#10003;</span>
+                  <span className="ml-auto text-foreground">&#10003;</span>
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setTheme("system")}>
                 <Monitor className="mr-2 h-4 w-4" />
                 System
                 {mounted && theme === "system" && (
-                  <span className="ml-auto text-accent">&#10003;</span>
+                  <span className="ml-auto text-foreground">&#10003;</span>
                 )}
               </DropdownMenuItem>
             </DropdownMenuSubContent>

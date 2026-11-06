@@ -26,6 +26,7 @@ import { IssueViewer } from "@/components/issue-viewer"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -50,6 +51,8 @@ import { LANGUAGE_COLORS } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { useUser } from "@/components/providers/user-provider"
+import { useI18n } from "@/components/i18n-provider"
+import { zhCN } from "date-fns/locale"
 
 interface RepoContributionsPageProps {
   owner: string
@@ -153,13 +156,6 @@ function writeCachedBrief(opportunityId: string, brief: ContributionBrief) {
   }
 }
 
-function scoreTone(score: number) {
-  if (score >= 80)
-    return "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-  if (score >= 60) return "border-sky-500/35 bg-sky-500/10 text-sky-600 dark:text-sky-400"
-  return "border-amber-500/35 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-}
-
 function formatNumber(num: number): string {
   if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k"
   return num.toString()
@@ -182,6 +178,7 @@ function OpportunityIssueRow({
   isSelected: boolean
   rowRef?: (el: HTMLDivElement | null) => void
 }) {
+  const { t, locale } = useI18n()
   return (
     <div
       ref={rowRef}
@@ -192,14 +189,25 @@ function OpportunityIssueRow({
     >
       <div className="min-w-0">
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className={cn("h-5 tabular-nums", scoreTone(opportunity.score))}>
-            {opportunity.score}% fit
+          <Badge
+            variant="outline"
+            title={t(
+              "How closely this issue matches the repositories you star",
+              "这个议题和你星标的仓库有多接近",
+            )}
+            className="h-5 tabular-nums"
+          >
+            {t(`${opportunity.score}% fit`, `匹配 ${opportunity.score}%`)}
           </Badge>
           <span>#{opportunity.issueNumber}</span>
           <span>
-            Updated {formatDistanceToNow(new Date(opportunity.updatedAt), { addSuffix: true })}
+            {t("Updated", "更新于")}{" "}
+            {formatDistanceToNow(new Date(opportunity.updatedAt), {
+              addSuffix: true,
+              locale: locale === "zh-CN" ? zhCN : undefined,
+            })}
           </span>
-          <span>{opportunity.comments} comments</span>
+          <span>{t(`${opportunity.comments} comments`, `${opportunity.comments} 条评论`)}</span>
         </div>
         <button
           onClick={() => onViewIssue(opportunity)}
@@ -212,28 +220,48 @@ function OpportunityIssueRow({
             {opportunity.bodyPreview}
           </p>
           <span className="mt-1 block text-xs text-muted-foreground/60 group-hover:text-muted-foreground">
-            Read full issue
+            {t("Read full issue", "查看完整议题")}
           </span>
         </button>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <Badge variant="secondary" className="text-xs">
-            {opportunity.difficulty}
+          <Badge variant="secondary" data-hue={chipHue(opportunity.difficulty)} className="text-xs">
+            {t(
+              opportunity.difficulty,
+              { beginner: "入门", intermediate: "中级", advanced: "高级" }[opportunity.difficulty],
+            )}
           </Badge>
           {opportunity.contributionTypes.map((type) => (
-            <Badge key={type} variant="outline" className="text-xs">
-              {typeLabels[type]}
+            <Badge key={type} variant="outline" data-hue={chipHue(type)} className="text-xs">
+              {t(
+                typeLabels[type],
+                {
+                  bugfix: "修复",
+                  docs: "文档",
+                  tests: "测试",
+                  frontend: "前端",
+                  backend: "后端",
+                  infra: "基础设施",
+                  feature: "功能",
+                  maintenance: "维护",
+                }[type],
+              )}
             </Badge>
           ))}
           {opportunity.labels.slice(0, 5).map((label) => (
-            <Badge key={label} variant="secondary" className="max-w-40 truncate text-xs">
+            <Badge
+              key={label}
+              variant="secondary"
+              data-hue={chipHue(label)}
+              className="max-w-40 truncate text-xs"
+            >
               {label}
             </Badge>
           ))}
         </div>
 
         {opportunity.risks.length > 0 && (
-          <div className="mt-3 flex gap-2 rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <div className="mt-3 flex gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>{opportunity.risks.slice(0, 2).join(" · ")}</span>
           </div>
@@ -261,11 +289,11 @@ function OpportunityIssueRow({
             ) : (
               <Bot data-icon="inline-start" />
             )}
-            {isSelected ? "Selected" : "Brief"}
+            {isSelected ? t("Selected", "已选择") : t("Brief", "简报")}
           </Button>
           <Button asChild size="sm">
             <a href={opportunity.htmlUrl} target="_blank" rel="noreferrer">
-              Open
+              {t("Open", "打开")}
               <ExternalLink data-icon="inline-end" />
             </a>
           </Button>
@@ -292,19 +320,26 @@ function BriefPanel({
   onCopyPrompt: () => void
   onClose: () => void
 }) {
+  const { t } = useI18n()
   return (
-    <aside className="overflow-hidden rounded-xl border border-border/60 bg-card xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
+    <aside className="overflow-hidden rounded-xl bg-card shadow-sm xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)]">
       <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium">AI contribution brief</p>
+          <p className="text-sm font-medium">{t("AI contribution brief", "AI 贡献简报")}</p>
           <p className="truncate text-xs text-muted-foreground">
             {opportunity
               ? `${opportunity.repoFullName} #${opportunity.issueNumber}`
-              : "Select an issue to generate a plan"}
+              : t("Select an issue to generate a plan", "选择议题以生成计划")}
           </p>
         </div>
         {opportunity && (
-          <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
+            onClick={onClose}
+            aria-label={t("Close brief", "关闭简报")}
+          >
             <X className="size-4" />
           </Button>
         )}
@@ -317,23 +352,23 @@ function BriefPanel({
               <Bot className="size-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm font-medium">No brief selected</p>
+              <p className="text-sm font-medium">{t("No brief selected", "未选择简报")}</p>
               <p className="mt-1 max-w-64 text-xs leading-relaxed text-muted-foreground">
-                Choose Brief on any issue to keep the plan open while you scan the queue.
+                {t("Choose Brief on an issue to generate a plan.", "选择议题的简报以生成计划。")}
               </p>
             </div>
           </div>
         )}
 
         {opportunity && isLoading && (
-          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/20 p-4 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Building a practical first-pass plan...
+            {t("Generating plan…", "正在生成计划…")}
           </div>
         )}
 
         {opportunity && briefError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {briefError}
           </div>
         )}
@@ -343,7 +378,7 @@ function BriefPanel({
             <p className="leading-6 text-muted-foreground">{brief.summary}</p>
 
             <section>
-              <h3 className="font-medium">Why it fits</h3>
+              <h3 className="font-medium">{t("Why it fits", "匹配原因")}</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-muted-foreground">
                 {brief.whyItFits.map((item) => (
                   <li key={item}>- {item}</li>
@@ -352,7 +387,7 @@ function BriefPanel({
             </section>
 
             <section>
-              <h3 className="font-medium">Likely files</h3>
+              <h3 className="font-medium">{t("Likely files", "可能涉及的文件")}</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-muted-foreground">
                 {brief.likelyFiles.map((item) => (
                   <li key={item}>- {item}</li>
@@ -361,7 +396,7 @@ function BriefPanel({
             </section>
 
             <section>
-              <h3 className="font-medium">First steps</h3>
+              <h3 className="font-medium">{t("First steps", "第一步")}</h3>
               <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
                 {brief.firstSteps.map((item) => (
                   <li key={item}>{item}</li>
@@ -370,7 +405,7 @@ function BriefPanel({
             </section>
 
             <section>
-              <h3 className="font-medium">Questions to ask</h3>
+              <h3 className="font-medium">{t("Questions to ask", "待确认的问题")}</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-muted-foreground">
                 {brief.questionsToAsk.map((item) => (
                   <li key={item}>- {item}</li>
@@ -380,10 +415,15 @@ function BriefPanel({
 
             <section>
               <div className="flex items-center justify-between">
-                <h3 className="font-medium">Coding assistant prompt</h3>
+                <h3 className="font-medium">{t("Coding assistant prompt", "编程助手提示词")}</h3>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={onCopyPrompt}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onCopyPrompt}
+                      aria-label={t("Copy prompt", "复制提示词")}
+                    >
                       {copiedPrompt ? (
                         <Check className="size-4 text-emerald-500" />
                       ) : (
@@ -391,17 +431,19 @@ function BriefPanel({
                       )}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{copiedPrompt ? "Copied" : "Copy prompt"}</TooltipContent>
+                  <TooltipContent>
+                    {copiedPrompt ? t("Copied", "已复制") : t("Copy prompt", "复制提示词")}
+                  </TooltipContent>
                 </Tooltip>
               </div>
-              <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+              <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
                 {brief.codingAssistantPrompt}
               </pre>
             </section>
 
             <Button asChild>
               <a href={opportunity.htmlUrl} target="_blank" rel="noreferrer">
-                Open GitHub issue
+                {t("Open GitHub issue", "打开 GitHub 议题")}
                 <ExternalLink data-icon="inline-end" />
               </a>
             </Button>
@@ -434,6 +476,7 @@ async function scanRepo(repo: StarredRepo): Promise<OpportunitiesResponse> {
 }
 
 export function RepoContributionsPage({ owner, repo: repoName }: RepoContributionsPageProps) {
+  const { t, locale } = useI18n()
   const { user } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -553,12 +596,15 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
       if (response.status === 429) {
         const result = await response.json()
         setBriefLimit({ remaining: 0, nextAllowedAt: result.nextAllowedAt ?? null })
-        setBriefError(result.error ?? "Brief limit reached")
+        setBriefError(result.error ?? t("Brief limit reached", "已达到简报使用上限"))
         return
       }
 
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Failed to generate contribution brief")
+      if (!response.ok)
+        throw new Error(
+          result.error || t("Failed to generate contribution brief", "生成贡献简报失败"),
+        )
       if (typeof result.remaining === "number")
         setBriefLimit({ remaining: result.remaining, nextAllowedAt: null })
       const nextBrief = result.brief as ContributionBrief
@@ -568,7 +614,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
       setBriefError(
         briefLoadError instanceof Error
           ? briefLoadError.message
-          : "Failed to generate contribution brief",
+          : t("Failed to generate contribution brief", "生成贡献简报失败"),
       )
     } finally {
       setBriefLoadingId(null)
@@ -637,7 +683,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                 className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <ArrowLeft className="size-4" />
-                Dashboard
+                {t("Dashboard", "工作台")}
               </button>
               <span className="text-border">/</span>
               <span className="text-sm text-muted-foreground">{owner}</span>
@@ -649,7 +695,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                 {repoName}
               </button>
               <span className="text-border">/</span>
-              <span className="text-sm font-medium">contributions</span>
+              <span className="text-sm font-medium">{t("contributions", "贡献")}</span>
             </div>
             <Button
               variant="outline"
@@ -662,11 +708,11 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
               ) : (
                 <RefreshCw data-icon="inline-start" />
               )}
-              Scan issues
+              {t("Scan issues", "扫描议题")}
             </Button>
           </div>
 
-          <section className="overflow-hidden rounded-xl border border-border/60 bg-card">
+          <section className="overflow-hidden rounded-xl bg-card shadow-sm">
             <div className="px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex min-w-0 gap-3">
@@ -677,7 +723,7 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Contribution workspace</p>
+                    <p className="text-xs text-muted-foreground">{t("Contributions", "贡献")}</p>
                     <h1 className="mt-1 truncate font-mono text-2xl font-semibold">{fullName}</h1>
                     {repo?.description && (
                       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -698,15 +744,24 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Star className="size-3.5" />
-                  {formatNumber(repo?.stargazersCount ?? 0)} stars
+                  {t(
+                    `${formatNumber(repo?.stargazersCount ?? 0)} stars`,
+                    `${formatNumber(repo?.stargazersCount ?? 0)} 星标`,
+                  )}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <GitFork className="size-3.5" />
-                  {formatNumber(repo?.forksCount ?? 0)} forks
+                  {t(
+                    `${formatNumber(repo?.forksCount ?? 0)} forks`,
+                    `${formatNumber(repo?.forksCount ?? 0)} 分叉`,
+                  )}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <AlertCircle className="size-3.5" />
-                  {formatNumber(repo?.openIssuesCount ?? 0)} open issues
+                  {t(
+                    `${formatNumber(repo?.openIssuesCount ?? 0)} open issues`,
+                    `${formatNumber(repo?.openIssuesCount ?? 0)} 个未关闭议题`,
+                  )}
                 </span>
                 {repo?.language && (
                   <span className="flex items-center gap-1.5">
@@ -720,7 +775,11 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
                 {repo?.pushedAt && (
                   <span className="flex items-center gap-1.5">
                     <Clock className="size-3.5" />
-                    Updated {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}
+                    {t("Updated", "更新于")}{" "}
+                    {formatDistanceToNow(new Date(repo.pushedAt), {
+                      addSuffix: true,
+                      locale: locale === "zh-CN" ? zhCN : undefined,
+                    })}
                   </span>
                 )}
               </div>
@@ -729,16 +788,16 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
 
           <section className="grid gap-3 md:grid-cols-4">
             {[
-              ["Ranked issues", stats.total],
-              ["Beginner-friendly", stats.beginner],
+              [t("Ranked issues", "已排序议题"), stats.total],
+              [t("Beginner-friendly", "适合新手"), stats.beginner],
               [
-                "Docs/tests",
+                t("Docs/tests", "文档/测试"),
                 stats.docs +
                   opportunities.filter((item) => item.contributionTypes.includes("tests")).length,
               ],
-              ["Bugfixes", stats.bugfix],
+              [t("Bugfixes", "问题修复"), stats.bugfix],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-border/60 bg-card px-4 py-3">
+              <div key={label} className="rounded-lg bg-card shadow-sm px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                   {label}
                 </p>
@@ -747,13 +806,13 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
             ))}
           </section>
 
-          <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 md:flex-row md:items-center">
+          <div className="flex flex-col gap-3 rounded-lg bg-card shadow-sm p-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search issues, labels, and context..."
+                placeholder={t("Search issues, labels, and context...", "搜索议题和标签…")}
                 className="pl-9"
               />
             </div>
@@ -762,24 +821,38 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
               onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}
             >
               <SelectTrigger className="w-full md:w-44">
-                <SelectValue placeholder="Difficulty" />
+                <SelectValue placeholder={t("Difficulty", "难度")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All difficulty</SelectItem>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
+                <SelectItem value="all">{t("All difficulty", "全部难度")}</SelectItem>
+                <SelectItem value="beginner">{t("Beginner", "入门")}</SelectItem>
+                <SelectItem value="intermediate">{t("Intermediate", "中级")}</SelectItem>
+                <SelectItem value="advanced">{t("Advanced", "高级")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={type} onValueChange={(value) => setType(value as SelectableType)}>
               <SelectTrigger className="w-full md:w-44">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t("Type", "类型")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="all">{t("All types", "全部类型")}</SelectItem>
                 {Object.entries(typeLabels).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
-                    {label}
+                    {t(
+                      label,
+                      (
+                        {
+                          bugfix: "修复",
+                          docs: "文档",
+                          tests: "测试",
+                          frontend: "前端",
+                          backend: "后端",
+                          infra: "基础设施",
+                          feature: "功能",
+                          maintenance: "维护",
+                        } as Record<string, string>
+                      )[value] ?? label,
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -795,26 +868,28 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           )}
 
           {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error.message}
             </div>
           )}
 
           {!reposLoading && !repo && (
-            <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center">
-              <p className="font-medium">Repository not found</p>
+            <div className="rounded-lg bg-card shadow-sm px-4 py-10 text-center">
+              <p className="font-medium">{t("Repository not found", "未找到仓库")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                This repository is not in your starred repo cache.
+                {t("This repository is not in your starred repos.", "此仓库不在你的星标列表中。")}
               </p>
             </div>
           )}
 
           {repo && !isLoading && filtered.length === 0 && (
-            <div className="rounded-lg border border-border/60 bg-card px-4 py-10 text-center">
+            <div className="rounded-lg bg-card shadow-sm px-4 py-10 text-center">
               <GitPullRequestArrow className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-3 font-medium">No matching opportunities</p>
+              <p className="mt-3 font-medium">
+                {t("No matching opportunities", "没有匹配的贡献机会")}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Try clearing filters or scanning again.
+                {t("Clear filters or scan again.", "清除筛选条件或重新扫描。")}
               </p>
             </div>
           )}
@@ -822,16 +897,16 @@ export function RepoContributionsPage({ owner, repo: repoName }: RepoContributio
           <div className="grid min-h-0 gap-5 xl:h-[calc(100vh-2.5rem)] xl:grid-cols-[minmax(0,1fr)_560px] 2xl:grid-cols-[minmax(0,1fr)_640px]">
             <div className="min-w-0 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
               {filtered.length > 0 && (
-                <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+                <div className="overflow-hidden rounded-xl bg-card shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium">Issue queue</p>
+                      <p className="text-sm font-medium">{t("Issue queue", "议题列表")}</p>
                       <p className="text-xs text-muted-foreground">
-                        Sorted by fit score, then recent activity.
+                        {t("Sorted by fit and recent activity.", "按匹配度和近期活动排序。")}
                       </p>
                     </div>
                     <Badge variant="outline" className="font-mono">
-                      {filtered.length} shown
+                      {t(`${filtered.length} shown`, `显示 ${filtered.length} 项`)}
                     </Badge>
                   </div>
                   {filtered.map((opportunity) => (

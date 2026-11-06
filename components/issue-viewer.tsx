@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
@@ -132,11 +133,20 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 </span>
               )}
               <div className="flex flex-wrap gap-1">
-                <Badge variant="secondary" className="text-xs">
+                <Badge
+                  variant="secondary"
+                  data-hue={chipHue(opportunity.difficulty)}
+                  className="text-xs"
+                >
                   {opportunity.difficulty}
                 </Badge>
                 {opportunity.labels.slice(0, 4).map((label) => (
-                  <Badge key={label} variant="outline" className="max-w-40 truncate text-xs">
+                  <Badge
+                    key={label}
+                    variant="outline"
+                    data-hue={chipHue(label)}
+                    className="max-w-40 truncate text-xs"
+                  >
                     {label}
                   </Badge>
                 ))}
@@ -179,7 +189,7 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
                 prose-code:rounded prose-code:text-sm prose-code:font-mono
                 prose-code:before:content-none prose-code:after:content-none
-                prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg
+                prose-pre:bg-muted prose-pre:rounded-lg
                 prose-li:text-muted-foreground
                 prose-strong:text-foreground
                 prose-ul:my-2 prose-li:my-0.5

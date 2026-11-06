@@ -1,5 +1,6 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AlertCircle, Loader2 } from "lucide-react"
@@ -7,9 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 const PAT_URL =
-  "https://github.com/settings/tokens/new?description=StarDash&scopes=public_repo,read:user,read:org"
+  "https://github.com/settings/tokens/new?description=Stellan&scopes=public_repo,read:user,read:org"
 
 export function PatLoginForm({ next }: { next: string }) {
+  const { t } = useI18n()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [token, setToken] = useState("")
@@ -23,7 +25,7 @@ export function PatLoginForm({ next }: { next: string }) {
         onClick={() => setOpen(true)}
         className="w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
       >
-        Paste a personal access token instead
+        {t("Paste a personal access token instead", "或粘贴个人访问令牌")}
       </button>
     )
   }
@@ -39,7 +41,7 @@ export function PatLoginForm({ next }: { next: string }) {
     })
     const body = (await res.json().catch(() => ({}))) as { error?: string }
     if (!res.ok) {
-      setError(body.error ?? "Login failed.")
+      setError(body.error ?? t("Login failed.", "登录失败。"))
       setBusy(false)
       return
     }
@@ -64,13 +66,15 @@ export function PatLoginForm({ next }: { next: string }) {
       )}
       <Button type="submit" variant="secondary" className="w-full" disabled={busy || !token}>
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        Sign in with token
+        {t("Sign in with token", "使用令牌登录")}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         <a href={PAT_URL} target="_blank" rel="noreferrer" className="underline">
-          Create a token
+          {t("Create a token", "创建令牌")}
         </a>{" "}
-        with <code>public_repo</code>, <code>read:user</code>, <code>read:org</code>.
+        {t("with", "并授予")} <code>public_repo</code>, <code>read:user</code>,{" "}
+        <code>read:org</code>
+        {t(".", "权限。")}
       </p>
     </form>
   )

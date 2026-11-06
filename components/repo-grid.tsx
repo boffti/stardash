@@ -15,7 +15,7 @@ interface RepoGridProps {
 
 function RepoCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 h-48">
+    <div className="rounded-xl bg-card shadow-sm p-4 flex flex-col gap-3 h-48">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Skeleton className="h-6 w-6 rounded-full shrink-0" />

@@ -21,13 +21,7 @@ import {
   Plus,
   Loader2,
 } from "lucide-react"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -36,6 +30,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Link from "next/link"
+import { useI18n } from "@/components/i18n-provider"
+import { chipHue } from "@/lib/more-color"
+import { paletteInk } from "@/lib/palette"
 import { RepoIntelTab } from "@/components/repo-intel-tab"
 import { GitHubIcon } from "@/components/icons/github-icon"
 import { StarredRepo, STATUS_LABELS, RepoStatus, Collection, Tag } from "@/lib/types"
@@ -44,6 +41,7 @@ import { cn } from "@/lib/utils"
 
 interface RepoDetailPanelProps {
   repo: StarredRepo | null
+  inline?: boolean
   open: boolean
   onClose: () => void
   onViewReadme: () => void
@@ -65,6 +63,7 @@ function formatNumber(num: number): string {
 
 export function RepoDetailPanel({
   repo,
+  inline = false,
   open,
   onClose,
   onViewReadme,
@@ -78,6 +77,23 @@ export function RepoDetailPanel({
   onNotesChange,
   onPinToggle,
 }: RepoDetailPanelProps) {
+  const { t } = useI18n()
+  const [desktop, setDesktop] = useState(false)
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)")
+    const update = () => setDesktop(media.matches)
+    update()
+    media.addEventListener("change", update)
+    return () => media.removeEventListener("change", update)
+  }, [])
+  useEffect(() => {
+    if (!inline || !desktop || !open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) onClose()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [inline, desktop, open, onClose])
   const [notes, setNotes] = useState(repo?.notes || "")
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<"overview" | "intel">("overview")
@@ -227,522 +243,566 @@ export function RepoDetailPanel({
   )
   const unassignedTags = filteredTags.filter((t) => !repo.tags.some((rt) => rt.id === t.id))
 
-  return (
-    <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent
-        className="w-full sm:max-w-lg p-0 border-l border-border overflow-hidden"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <div className="h-full overflow-y-auto overflow-x-hidden">
-          <div className="p-6">
-            <SheetHeader className="space-y-0 pb-0">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0 pr-8">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
-                    <AvatarFallback>{repo.owner[0].toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground truncate">{repo.owner}</p>
-                    <SheetTitle className="font-mono text-lg truncate">{repo.name}</SheetTitle>
-                    <SheetDescription className="sr-only">Repository details</SheetDescription>
-                  </div>
-                </div>
+  const content = (
+    <div className="h-full overflow-y-auto overflow-x-hidden">
+      <div className="p-6">
+        <div>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0 pr-8">
+              <Avatar className="h-10 w-10 shrink-0">
+                <AvatarImage src={repo.avatarUrl} alt={repo.owner} />
+                <AvatarFallback>{repo.owner[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">{repo.owner}</p>
+                <h2 className="font-mono text-lg font-semibold truncate">{repo.name}</h2>
               </div>
-            </SheetHeader>
-
-            <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-              {repo.description || "No description available"}
-            </p>
-
-            {/* Quick Actions */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                <a
-                  href={`https://github.com/${repo.fullName}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <GitHubIcon className="h-3.5 w-3.5" />
-                  View on GitHub
-                </a>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={onViewReadme}>
-                <BookOpen className="h-3.5 w-3.5" />
-                View README
-              </Button>
-              {repo.homepage && (
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                  <a href={repo.homepage} target="_blank" rel="noopener noreferrer">
-                    <Globe className="h-3.5 w-3.5" />
-                    Homepage
-                  </a>
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => onPinToggle?.(repo)}
-                title={repo.isPinned ? "Unpin" : "Pin"}
-              >
-                <Pin className={cn("h-4 w-4", repo.isPinned && "fill-accent text-accent")} />
-              </Button>
             </div>
-
-            {/* Tab bar */}
-            <div className="mt-5 flex items-center gap-2">
-              <div className="flex flex-1 gap-1 p-1 rounded-lg bg-muted/40 border border-border/50">
-                <button
-                  onClick={() => setActiveTab("overview")}
-                  className={cn(
-                    "flex-1 text-xs font-medium py-1.5 rounded-md transition-all",
-                    activeTab === "overview"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setActiveTab("intel")}
-                  className={cn(
-                    "flex-1 text-xs font-medium py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5",
-                    activeTab === "intel"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>⚡</span>
-                  Intel
-                </button>
-              </div>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 shrink-0 rounded-lg border border-border/50 bg-muted/40 p-0 text-muted-foreground hover:text-foreground"
-                title="Open full intel report"
-              >
-                <Link href={`/intel/${repo.owner}/${repo.name}`}>
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-
-            {activeTab === "intel" ? (
-              <div className="mt-5">
-                <RepoIntelTab owner={repo.owner} name={repo.name} />
-              </div>
-            ) : (
-              <>
-                {/* Stats */}
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-muted-foreground">
-                      <Star className="h-4 w-4" />
-                    </div>
-                    <p className="mt-1 text-lg font-semibold">
-                      {formatNumber(repo.stargazersCount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Stars</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-muted-foreground">
-                      <GitFork className="h-4 w-4" />
-                    </div>
-                    <p className="mt-1 text-lg font-semibold">{formatNumber(repo.forksCount)}</p>
-                    <p className="text-xs text-muted-foreground">Forks</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center text-muted-foreground">
-                      <AlertCircle className="h-4 w-4" />
-                    </div>
-                    <p className="mt-1 text-lg font-semibold">
-                      {formatNumber(repo.openIssuesCount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Issues</p>
-                  </div>
-                </div>
-
-                <Separator className="my-6" />
-
-                {/* Meta Info */}
-                <div className="space-y-3">
-                  {repo.language && (
-                    <div className="flex items-center justify-between gap-4 text-sm">
-                      <span className="text-muted-foreground shrink-0">Language</span>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: repo.languageColor || "#64748b" }}
-                        />
-                        <span className="truncate">{repo.language}</span>
-                      </div>
-                    </div>
-                  )}
-                  {repo.license && (
-                    <div className="flex items-center justify-between gap-4 text-sm">
-                      <span className="text-muted-foreground shrink-0">License</span>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Scale className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{repo.license}</span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <span className="text-muted-foreground shrink-0">Last Updated</span>
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="truncate">
-                        {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <span className="text-muted-foreground shrink-0">Starred</span>
-                    <span className="truncate text-right">
-                      {format(new Date(repo.starredAt), "MMM d, yyyy")}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Clone */}
-                <div className="mt-6 min-w-0">
-                  <p className="text-sm font-medium mb-2">Clone</p>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono break-all min-w-0 block">
-                      git clone https://github.com/{repo.fullName}.git
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={handleCopyClone}
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* GitHub Topics */}
-                {repo.topics.length > 0 && (
-                  <div className="mt-6">
-                    <p className="text-sm font-medium mb-2">Topics</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {repo.topics.map((topic) => (
-                        <Badge key={topic} variant="secondary" className="text-xs">
-                          {topic}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <Separator className="my-6" />
-
-                {/* Personal Organization */}
-                <div className="space-y-5">
-                  <h3 className="text-sm font-medium">Your Organization</h3>
-
-                  {/* Status */}
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-2 block">Status</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(STATUS_LABELS).map(([key, { label, color }]) => (
-                        <button
-                          key={key}
-                          onClick={() =>
-                            onStatusChange?.(repo, repo.status === key ? null : (key as RepoStatus))
-                          }
-                          className={cn(
-                            "text-xs px-2.5 py-1 rounded-full border transition-all",
-                            repo.status === key
-                              ? color
-                              : "border-border text-muted-foreground hover:border-muted-foreground",
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Collections */}
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-2 block">Collections</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {repo.collections.map((colId) => {
-                        const col = collections.find((c) => c.id === colId)
-                        if (!col) return null
-                        return (
-                          <Badge
-                            key={colId}
-                            variant="secondary"
-                            className="gap-1 cursor-pointer pr-1"
-                            onClick={() => onCollectionToggle?.(repo, colId)}
-                          >
-                            {col.emoji} {col.name}
-                            <X className="h-3 w-3 opacity-50 hover:opacity-100" />
-                          </Badge>
-                        )
-                      })}
-                      <Popover open={collectionPopoverOpen} onOpenChange={setCollectionPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <Badge
-                            variant="outline"
-                            className="cursor-pointer text-xs gap-1 hover:bg-muted"
-                          >
-                            <FolderPlus className="h-3 w-3" />
-                            Add
-                          </Badge>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-2" align="start">
-                          <div className="space-y-1 max-h-48 overflow-y-auto">
-                            {collections
-                              .filter((c) => !repo.collections.includes(c.id))
-                              .map((col) => (
-                                <button
-                                  key={col.id}
-                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
-                                  onClick={() => handleCollectionToggleWithPrompt(col.id)}
-                                >
-                                  <span>{col.emoji}</span>
-                                  <span>{col.name}</span>
-                                </button>
-                              ))}
-                            {collections.filter((c) => !repo.collections.includes(c.id)).length ===
-                              0 && (
-                              <p className="text-xs text-muted-foreground px-2 py-1">
-                                All collections assigned
-                              </p>
-                            )}
-                          </div>
-                          <Separator className="my-2" />
-                          <div className="flex gap-1.5">
-                            <Input
-                              placeholder="Emoji"
-                              value={newCollectionEmoji}
-                              onChange={(e) => setNewCollectionEmoji(e.target.value)}
-                              className="w-14 text-center px-1"
-                            />
-                            <Input
-                              placeholder="New collection"
-                              value={newCollectionName}
-                              onChange={(e) => setNewCollectionName(e.target.value)}
-                              onKeyDown={(e) => e.key === "Enter" && handleCollectionCreate()}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-9 w-9 shrink-0"
-                              onClick={handleCollectionCreate}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-2 block">Tags</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {repo.tags.map((tag) => (
-                        <Badge
-                          key={tag.id}
-                          variant="outline"
-                          className="text-xs border-0 gap-1 cursor-pointer pr-1"
-                          style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-                          onClick={() => onTagToggle?.(repo, tag.id)}
-                        >
-                          {tag.label}
-                          <X className="h-3 w-3 opacity-50 hover:opacity-100" />
-                        </Badge>
-                      ))}
-                      <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <Badge
-                            variant="outline"
-                            className="cursor-pointer text-xs gap-1 hover:bg-muted"
-                          >
-                            <TagIcon className="h-3 w-3" />
-                            Add
-                          </Badge>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-56 p-2" align="start">
-                          <Input
-                            autoFocus
-                            placeholder="Search or create tag…"
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            onKeyDown={handleTagInputKeyDown}
-                            className="mb-2"
-                          />
-                          <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                            {unassignedTags.map((tag) => (
-                              <button
-                                key={tag.id}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
-                                onClick={() => handleTagToggleWithPrompt(tag.id)}
-                              >
-                                <span
-                                  className="h-2 w-2 rounded-full shrink-0"
-                                  style={{ backgroundColor: tag.color }}
-                                />
-                                {tag.label}
-                              </button>
-                            ))}
-                            {tagInput.trim() &&
-                              !tags.find((t) => t.label === tagInput.trim().toLowerCase()) && (
-                                <button
-                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left text-muted-foreground"
-                                  onClick={() => {
-                                    onTagCreate?.(repo, tagInput.trim())
-                                    setTagInput("")
-                                    setTagPopoverOpen(false)
-                                  }}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                  Create &quot;{tagInput.trim()}&quot;
-                                </button>
-                              )}
-                            {filteredTags.length === 0 && !tagInput.trim() && (
-                              <p className="text-xs text-muted-foreground px-2 py-1">
-                                No tags yet. Type to create one.
-                              </p>
-                            )}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-
-                  {/* Note Prompt - appears after collection/tag assignment */}
-                  {showNotePrompt && (
-                    <div className="bg-muted/50 rounded-lg p-3 border border-border/50">
-                      <label className="text-xs text-muted-foreground mb-2 block">
-                        Why are you adding this here?
-                      </label>
-                      <Input
-                        ref={promptInputRef}
-                        placeholder="Add a quick note..."
-                        value={promptNote}
-                        onChange={(e) => setPromptNote(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleNotePromptSubmit()
-                          } else if (e.key === "Escape") {
-                            handleNotePromptDismiss()
-                          }
-                        }}
-                        className="text-sm"
-                      />
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-[10px] text-muted-foreground">
-                          Press Enter to save, Escape to dismiss
-                        </p>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs px-2"
-                            onClick={handleNotePromptDismiss}
-                          >
-                            Skip
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-6 text-xs px-2"
-                            onClick={handleNotePromptSubmit}
-                            disabled={!promptNote.trim()}
-                          >
-                            Add Note
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs text-muted-foreground">Notes</label>
-                      {savingNotes && (
-                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
-                    <Textarea
-                      placeholder="Add your personal notes about this repo..."
-                      value={notes}
-                      onChange={(e) => handleNotesChange(e.target.value)}
-                      onBlur={() => flushNotesSave(notes)}
-                      className="min-h-[100px] resize-none"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1.5">Saves automatically</p>
-                  </div>
-                </div>
-
-                <Separator className="my-6" />
-
-                {/* Quick Links */}
-                <div>
-                  <h3 className="text-sm font-medium mb-3">Quick Links</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
-                      <a
-                        href={`https://github.com/${repo.fullName}/issues`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Issues
-                      </a>
-                    </Button>
-                    <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
-                      <a
-                        href={`https://github.com/${repo.fullName}/pulls`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <GitCommit className="h-3.5 w-3.5" />
-                        Pull Requests
-                      </a>
-                    </Button>
-                    <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
-                      <a
-                        href={`https://github.com/${repo.fullName}/releases`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                        Releases
-                      </a>
-                    </Button>
-                    <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
-                      <a
-                        href={`https://github.com/${repo.fullName}#readme`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        README
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </div>
+
+        <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+          {repo.description || t("No description", "暂无描述")}
+        </p>
+
+        {/* Quick Actions */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" asChild>
+            <Link href={`/repo/${repo.owner}/${repo.name}`}>
+              {t("Open full page", "打开完整页面")}
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" className="gap-1.5" asChild>
+            <a
+              href={`https://github.com/${repo.fullName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <GitHubIcon className="h-3.5 w-3.5" />
+              {t("View on GitHub", "在 GitHub 查看")}
+            </a>
+          </Button>
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={onViewReadme}>
+            <BookOpen className="h-3.5 w-3.5" />
+            {t("View README", "查看 README")}
+          </Button>
+          {repo.homepage && (
+            <Button variant="ghost" size="sm" className="gap-1.5" asChild>
+              <a href={repo.homepage} target="_blank" rel="noopener noreferrer">
+                <Globe className="h-3.5 w-3.5" />
+                {t("Homepage", "主页")}
+              </a>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => onPinToggle?.(repo)}
+            title={repo.isPinned ? t("Unpin", "取消置顶") : t("Pin", "置顶")}
+            aria-label={repo.isPinned ? t("Unpin", "取消置顶") : t("Pin", "置顶")}
+          >
+            <Pin className={cn("h-4 w-4", repo.isPinned && "fill-foreground text-foreground")} />
+          </Button>
+        </div>
+
+        {/* Tab bar */}
+        <div className="mt-5 flex items-center gap-2">
+          <div className="flex flex-1 gap-1">
+            <button
+              onClick={() => setActiveTab("overview")}
+              aria-pressed={activeTab === "overview"}
+              className={cn(
+                "text-xs font-medium px-3 py-1.5 rounded-md transition-colors",
+                activeTab === "overview"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("Overview", "概览")}
+            </button>
+            <button
+              onClick={() => setActiveTab("intel")}
+              aria-pressed={activeTab === "intel"}
+              className={cn(
+                "text-xs font-medium px-3 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5",
+                activeTab === "intel"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("Health", "健康")}
+            </button>
+          </div>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 shrink-0 rounded-lg p-0 text-muted-foreground hover:text-foreground"
+            title={t("Open full health report", "打开完整健康报告")}
+            aria-label={t("Open full health report", "打开完整健康报告")}
+          >
+            <Link href={`/health/${repo.owner}/${repo.name}`}>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </div>
+
+        {activeTab === "intel" ? (
+          <div className="mt-5">
+            <RepoIntelTab owner={repo.owner} name={repo.name} />
+          </div>
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5" title={t("Stars", "星标")}>
+                <Star className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("Stars", "星标")}: </span>
+                {formatNumber(repo.stargazersCount)}
+              </span>
+              <span className="flex items-center gap-1.5" title={t("Forks", "分叉")}>
+                <GitFork className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("Forks", "分叉")}: </span>
+                {formatNumber(repo.forksCount)}
+              </span>
+              <span className="flex items-center gap-1.5" title={t("Issues", "议题")}>
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{t("Issues", "议题")}: </span>
+                {formatNumber(repo.openIssuesCount)}
+              </span>
+            </div>
+
+            {/* Meta Info */}
+            <div className="mt-6 space-y-3">
+              {repo.language && (
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground shrink-0">{t("Language", "语言")}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: repo.languageColor || "#64748b" }}
+                    />
+                    <span className="truncate">{repo.language}</span>
+                  </div>
+                </div>
+              )}
+              {repo.license && (
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground shrink-0">{t("License", "许可证")}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Scale className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{repo.license}</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground shrink-0">
+                  {t("Last Updated", "最近更新")}
+                </span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">
+                    {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground shrink-0">{t("Starred", "收藏时间")}</span>
+                <span className="truncate text-right">
+                  {format(new Date(repo.starredAt), "MMM d, yyyy")}
+                </span>
+              </div>
+            </div>
+
+            {/* Clone */}
+            <div className="mt-6 min-w-0">
+              <p className="text-sm font-medium mb-2">{t("Clone", "克隆")}</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono break-all min-w-0 block">
+                  git clone https://github.com/{repo.fullName}.git
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={handleCopyClone}
+                  aria-label={
+                    copied ? t("Copied", "已复制") : t("Copy clone command", "复制克隆命令")
+                  }
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* GitHub Topics */}
+            {repo.topics.length > 0 && (
+              <div className="mt-6">
+                <p className="text-sm font-medium mb-2">{t("Topics", "主题")}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {repo.topics.map((topic) => (
+                    <Badge key={topic} variant="secondary" className="text-xs">
+                      {topic}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Separator className="my-6" />
+
+            {/* Personal Organization */}
+            <div className="space-y-5">
+              <h3 className="text-sm font-medium">{t("Organize", "整理")}</h3>
+
+              {/* Status */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">
+                  {t("Status", "状态")}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(STATUS_LABELS).map(([key, { label, color }]) => (
+                    <button
+                      key={key}
+                      onClick={() =>
+                        onStatusChange?.(repo, repo.status === key ? null : (key as RepoStatus))
+                      }
+                      className={cn(
+                        "text-xs px-2.5 py-1 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        repo.status === key
+                          ? color
+                          : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      {t(
+                        label,
+                        (
+                          {
+                            "want-to-try": "想尝试",
+                            "currently-using": "正在使用",
+                            "tried-liked": "尝试过，喜欢",
+                            "tried-dropped": "尝试过，已放弃",
+                            "just-interesting": "感兴趣",
+                            reference: "参考",
+                          } as Record<string, string>
+                        )[key] ?? label,
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Collections */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">
+                  {t("Collections", "收藏夹")}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {repo.collections.map((colId) => {
+                    const col = collections.find((c) => c.id === colId)
+                    if (!col) return null
+                    return (
+                      <Badge
+                        key={colId}
+                        variant="secondary"
+                        className="gap-1 cursor-pointer pr-1"
+                        onClick={() => onCollectionToggle?.(repo, colId)}
+                      >
+                        {col.emoji} {col.name}
+                        <X className="h-3 w-3 opacity-50 hover:opacity-100" />
+                      </Badge>
+                    )
+                  })}
+                  <Popover open={collectionPopoverOpen} onOpenChange={setCollectionPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className="cursor-pointer text-xs gap-1 hover:bg-muted"
+                      >
+                        <FolderPlus className="h-3 w-3" />
+                        {t("Add", "添加")}
+                      </Badge>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="start">
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {collections
+                          .filter((c) => !repo.collections.includes(c.id))
+                          .map((col) => (
+                            <button
+                              key={col.id}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
+                              onClick={() => handleCollectionToggleWithPrompt(col.id)}
+                            >
+                              <span>{col.emoji}</span>
+                              <span>{col.name}</span>
+                            </button>
+                          ))}
+                        {collections.filter((c) => !repo.collections.includes(c.id)).length ===
+                          0 && (
+                          <p className="text-xs text-muted-foreground px-2 py-1">
+                            {t("All collections assigned", "已添加全部收藏夹")}
+                          </p>
+                        )}
+                      </div>
+                      <Separator className="my-2" />
+                      <div className="flex gap-1.5">
+                        <Input
+                          placeholder={t("Emoji", "表情")}
+                          value={newCollectionEmoji}
+                          onChange={(e) => setNewCollectionEmoji(e.target.value)}
+                          className="w-14 text-center px-1"
+                        />
+                        <Input
+                          placeholder={t("New collection", "新收藏夹")}
+                          value={newCollectionName}
+                          onChange={(e) => setNewCollectionName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleCollectionCreate()}
+                          className="flex-1"
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-9 w-9 shrink-0"
+                          onClick={handleCollectionCreate}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">
+                  {t("Tags", "标签")}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {repo.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      data-hue={chipHue(tag.label)}
+                      className="cursor-pointer gap-1 border-0 pr-1 text-xs"
+                      onClick={() => onTagToggle?.(repo, tag.id)}
+                    >
+                      {tag.label}
+                      <X className="h-3 w-3 opacity-50 hover:opacity-100" />
+                    </Badge>
+                  ))}
+                  <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className="cursor-pointer text-xs gap-1 hover:bg-muted"
+                      >
+                        <TagIcon className="h-3 w-3" />
+                        {t("Add", "添加")}
+                      </Badge>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2" align="start">
+                      <Input
+                        autoFocus
+                        placeholder={t("Search or create tag…", "搜索或创建标签…")}
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={handleTagInputKeyDown}
+                        className="mb-2"
+                      />
+                      <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                        {unassignedTags.map((tag) => (
+                          <button
+                            key={tag.id}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left"
+                            onClick={() => handleTagToggleWithPrompt(tag.id)}
+                          >
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: paletteInk(tag.label) }}
+                            />
+                            {tag.label}
+                          </button>
+                        ))}
+                        {tagInput.trim() &&
+                          !tags.find((t) => t.label === tagInput.trim().toLowerCase()) && (
+                            <button
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted text-left text-muted-foreground"
+                              onClick={() => {
+                                onTagCreate?.(repo, tagInput.trim())
+                                setTagInput("")
+                                setTagPopoverOpen(false)
+                              }}
+                            >
+                              <Plus className="h-3 w-3" />
+                              {t("Create", "创建")} &quot;{tagInput.trim()}&quot;
+                            </button>
+                          )}
+                        {filteredTags.length === 0 && !tagInput.trim() && (
+                          <p className="text-xs text-muted-foreground px-2 py-1">
+                            {t("No tags yet. Type to create one.", "输入以创建标签。")}
+                          </p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Note Prompt - appears after collection/tag assignment */}
+              {showNotePrompt && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <label className="text-xs text-muted-foreground mb-2 block">
+                    {t("Why are you adding this here?", "添加备注")}
+                  </label>
+                  <Input
+                    ref={promptInputRef}
+                    placeholder={t("Add a quick note...", "添加备注…")}
+                    value={promptNote}
+                    onChange={(e) => setPromptNote(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleNotePromptSubmit()
+                      } else if (e.key === "Escape") {
+                        e.stopPropagation()
+                        handleNotePromptDismiss()
+                      }
+                    }}
+                    className="text-sm"
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Press Enter to save, Escape to dismiss
+                    </p>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={handleNotePromptDismiss}
+                      >
+                        {t("Skip", "跳过")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={handleNotePromptSubmit}
+                        disabled={!promptNote.trim()}
+                      >
+                        {t("Add Note", "添加笔记")}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground">{t("Notes", "笔记")}</label>
+                  {savingNotes && (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                <Textarea
+                  placeholder={t("Add your personal notes about this repo...", "添加仓库笔记…")}
+                  value={notes}
+                  onChange={(e) => handleNotesChange(e.target.value)}
+                  onBlur={() => flushNotesSave(notes)}
+                  className="min-h-[100px] resize-none"
+                />
+              </div>
+            </div>
+
+            <Separator className="my-6" />
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="text-sm font-medium mb-3">{t("Quick Links", "快捷链接")}</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
+                  <a
+                    href={`https://github.com/${repo.fullName}/issues`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {t("Issues", "议题")}
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
+                  <a
+                    href={`https://github.com/${repo.fullName}/pulls`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <GitCommit className="h-3.5 w-3.5" />
+                    {t("Pull Requests", "拉取请求")}
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
+                  <a
+                    href={`https://github.com/${repo.fullName}/releases`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {t("Releases", "版本发布")}
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start gap-2" asChild>
+                  <a
+                    href={`https://github.com/${repo.fullName}#readme`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {t("README", "README")}
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+
+  if (inline && desktop) {
+    if (!open) return null
+    return (
+      <aside
+        aria-label={t("Repository details", "仓库详情")}
+        className="sticky top-14 h-[calc(100vh-3.5rem)] w-[min(34rem,40%)] shrink-0 overflow-hidden bg-card"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("Close details", "关闭详情")}
+          className="absolute right-4 top-4 z-10 rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        {content}
+      </aside>
+    )
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <SheetContent
+        aria-label={t("Repository details", "仓库详情")}
+        className="w-full sm:max-w-lg p-0 border-0 bg-card overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <SheetTitle className="sr-only">{t("Repository details", "仓库详情")}</SheetTitle>
+        {content}
       </SheetContent>
     </Sheet>
   )

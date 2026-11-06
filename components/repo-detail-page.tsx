@@ -66,7 +66,11 @@ import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import type { ContributionOpportunity } from "@/lib/contribution-opportunities"
+import { readmeRehypePlugins, resolveRepoUrl } from "@/lib/readme-html"
 import { useUser } from "@/components/providers/user-provider"
+import { useI18n } from "@/components/i18n-provider"
+import { chipHue } from "@/lib/more-color"
+import { paletteInk } from "@/lib/palette"
 
 interface RepoDetailPageProps {
   owner: string
@@ -76,13 +80,6 @@ interface RepoDetailPageProps {
 function formatNumber(num: number): string {
   if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k"
   return num.toString()
-}
-
-function resolveImageUrl(src: string | undefined, owner: string, repoName: string): string {
-  if (!src) return ""
-  if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src
-  const path = src.startsWith("/") ? src.slice(1) : src.startsWith("./") ? src.slice(2) : src
-  return `https://raw.githubusercontent.com/${owner}/${repoName}/HEAD/${path}`
 }
 
 // ─── Section card wrapper ─────────────────────────────────────────────────────
@@ -104,10 +101,10 @@ function SectionCard({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+    <div className="rounded-lg bg-muted/30 overflow-hidden">
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-3 border-b border-border/40",
+          "flex items-center justify-between px-4 py-3",
           collapsible && "cursor-pointer hover:bg-muted/30 transition-colors",
         )}
         onClick={collapsible ? () => setOpen((o) => !o) : undefined}
@@ -187,9 +184,9 @@ function ReadmeSection({
       className="prose prose-sm dark:prose-invert max-w-none
       prose-headings:font-semibold prose-headings:text-foreground prose-headings:mt-6 prose-headings:mb-3
       prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-2
-      prose-code:text-accent prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
+      prose-code:text-foreground prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
       prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0 prose-pre:my-3
-      prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+      prose-a:text-foreground prose-a:no-underline hover:prose-a:underline
       prose-strong:text-foreground
       prose-blockquote:border-l-2 prose-blockquote:border-accent/30 prose-blockquote:text-muted-foreground prose-blockquote:not-italic
       prose-li:text-muted-foreground prose-li:my-0.5
@@ -201,6 +198,7 @@ function ReadmeSection({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={readmeRehypePlugins}
         components={{
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           code({ className, children, ...props }: any) {
@@ -225,13 +223,17 @@ function ReadmeSection({
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           img({ src, alt }: any) {
-            const resolved = resolveImageUrl(src as string | undefined, owner, repoName)
+            const resolved = resolveRepoUrl(src as string | undefined, owner, repoName, "img")
             // eslint-disable-next-line @next/next/no-img-element
             return <img src={resolved} alt={alt ?? ""} className="rounded-lg max-w-full" />
           },
           a({ href, children }) {
             return (
-              <a href={href} target="_blank" rel="noopener noreferrer">
+              <a
+                href={resolveRepoUrl(href, owner, repoName, "link")}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {children}
               </a>
             )
@@ -244,9 +246,7 @@ function ReadmeSection({
   )
 }
 
-// ─── Intel section ────────────────────────────────────────────────────────────
-
-function IntelSection({ owner, repoName }: { owner: string; repoName: string }) {
+function HealthSection({ owner, repoName }: { owner: string; repoName: string }) {
   return <RepoIntelTab owner={owner} name={repoName} />
 }
 
@@ -429,7 +429,7 @@ function MiniContribCard({ opp }: { opp: ContributionOpportunity }) {
   return (
     <a
       href={workspaceUrl}
-      className="block rounded-md border border-border/50 bg-background/40 px-3 py-2.5 hover:border-border hover:bg-muted/30 transition-all group"
+      className="block rounded-md bg-background/40 px-3 py-2.5 hover:bg-muted/50 transition-colors group"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium leading-snug line-clamp-2 flex-1">{opp.title}</p>
@@ -545,13 +545,13 @@ function OrganizeSection({
         <button
           onClick={onPinToggle}
           className={cn(
-            "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all",
+            "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             repo.isPinned
-              ? "border-accent/40 bg-accent/10 text-accent"
-              : "border-border text-muted-foreground hover:border-muted-foreground",
+              ? "bg-muted text-foreground"
+              : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
-          <Pin className={cn("h-3 w-3", repo.isPinned && "fill-accent")} />
+          <Pin className={cn("h-3 w-3", repo.isPinned && "fill-foreground")} />
           {repo.isPinned ? "Pinned" : "Pin"}
         </button>
       </div>
@@ -567,10 +567,10 @@ function OrganizeSection({
               key={key}
               onClick={() => onStatusChange(repo.status === key ? null : (key as RepoStatus))}
               className={cn(
-                "text-xs px-2.5 py-1 rounded-full border transition-all",
+                "text-xs px-2.5 py-1 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 repo.status === key
                   ? color
-                  : "border-border text-muted-foreground hover:border-muted-foreground",
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {label}
@@ -678,8 +678,8 @@ function OrganizeSection({
             <Badge
               key={tag.id}
               variant="outline"
-              className="text-xs border-0 gap-1 cursor-pointer pr-1"
-              style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+              data-hue={chipHue(tag.label)}
+              className="cursor-pointer gap-1 border-0 pr-1 text-xs"
               onClick={() => onTagToggle(tag.id)}
             >
               {tag.label}
@@ -714,7 +714,7 @@ function OrganizeSection({
                   >
                     <span
                       className="h-2 w-2 rounded-full shrink-0"
-                      style={{ backgroundColor: tag.color }}
+                      style={{ backgroundColor: paletteInk(tag.label) }}
                     />
                     {tag.label}
                   </button>
@@ -765,6 +765,7 @@ function OrganizeSection({
 
 export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
   const { user } = useUser()
+  const { t } = useI18n()
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const userId = user?.id
@@ -1058,7 +1059,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
           </div>
 
           {/* Hero */}
-          <div className="rounded-xl border border-border/60 bg-card mb-5 overflow-hidden">
+          <div className="rounded-xl bg-card shadow-sm mb-5 overflow-hidden">
             {repo.archived && (
               <div className="flex items-center gap-2 px-5 py-2 bg-orange-500/10 border-b border-orange-500/20 text-orange-400 text-xs">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
@@ -1088,7 +1089,9 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                     onClick={handlePinToggle}
                     title={repo.isPinned ? "Unpin" : "Pin"}
                   >
-                    <Pin className={cn("h-4 w-4", repo.isPinned && "fill-accent text-accent")} />
+                    <Pin
+                      className={cn("h-4 w-4", repo.isPinned && "fill-foreground text-foreground")}
+                    />
                   </Button>
                   <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
                     <a
@@ -1185,7 +1188,7 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                   href={repo.homepage}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-accent hover:underline"
+                  className="flex items-center gap-1.5 text-foreground hover:underline"
                 >
                   <Globe className="h-3 w-3" />
                   {repo.homepage.replace(/^https?:\/\//, "").replace(/\/$/, "")}
@@ -1311,10 +1314,9 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
               </SectionCard>
             </div>
 
-            {/* Right: Intel + Organize */}
             <div className="space-y-4 sticky top-6 self-start">
               <SectionCard
-                title="Intel"
+                title={t("Health", "健康")}
                 icon={Zap}
                 collapsible
                 defaultOpen
@@ -1326,14 +1328,14 @@ export function RepoDetailPage({ owner, repo: repoName }: RepoDetailPageProps) {
                     asChild
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Link href={`/intel/${repo.owner}/${repo.name}`}>
+                    <Link href={`/health/${repo.owner}/${repo.name}`}>
                       <ExternalLink className="h-3 w-3" />
                       Full report
                     </Link>
                   </Button>
                 }
               >
-                <IntelSection owner={repo.owner} repoName={repo.name} />
+                <HealthSection owner={repo.owner} repoName={repo.name} />
               </SectionCard>
 
               <SectionCard title="Organize" icon={TagIcon} collapsible defaultOpen>

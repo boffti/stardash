@@ -153,7 +153,7 @@ const SummarySchema = z.object({
 export async function summarizeReleases(
   rows: NewRelease[],
   model: LanguageModel,
-  providerOptions: Record<string, Record<string, string>> = {},
+  providerOptions: Record<string, Record<string, string | boolean>> = {},
 ) {
   const batch = rows.slice(0, 30)
   if (batch.length === 0) return 0

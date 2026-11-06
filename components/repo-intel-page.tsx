@@ -1,9 +1,13 @@
 "use client"
 
+import { translateIntelLabel } from "@/lib/intel-labels"
+import { useI18n } from "@/components/i18n-provider"
+
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
 import { format, formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
 import {
   ArrowLeft,
   ExternalLink,
@@ -283,7 +287,7 @@ function MaturityBadge({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+        "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors",
         present
           ? "border-emerald-500/20 bg-emerald-500/8 text-emerald-700 dark:text-emerald-400"
           : "border-border/40 bg-muted/15 text-muted-foreground/50",
@@ -309,15 +313,16 @@ function RepoHero({
   owner: string
   name: string
 }) {
+  const { t, locale } = useI18n()
   const fullName = repo?.fullName ?? `${owner}/${name}`
   const avatarUrl = repo?.avatarUrl
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+    <div className="overflow-hidden rounded-xl bg-card shadow-sm">
       {repo?.archived && (
         <div className="flex items-center gap-2 border-b border-orange-500/20 bg-orange-500/10 px-5 py-2 text-xs text-orange-400">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          Archived - no longer actively maintained.
+          {t("Archived - no longer actively maintained.", "已归档，不再积极维护。")}
         </div>
       )}
 
@@ -372,7 +377,7 @@ function RepoHero({
                 <span className="font-mono font-semibold text-foreground">
                   {formatNumber(repo.openIssuesCount)}
                 </span>
-                <span className="text-xs">issues</span>
+                <span className="text-xs">{t("issues", "议题")}</span>
               </span>
               {repo.language && (
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -408,11 +413,17 @@ function RepoHero({
               )}
               <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
                 <RefreshCw className="h-3.5 w-3.5" />
-                Updated {formatDistanceToNow(new Date(repo.pushedAt), { addSuffix: true })}
+                {t("Updated", "更新于")}{" "}
+                {formatDistanceToNow(new Date(repo.pushedAt), {
+                  addSuffix: true,
+                  locale: locale === "zh-CN" ? zhCN : undefined,
+                })}
               </span>
             </>
           ) : (
-            <span className="text-xs text-muted-foreground">Repository metadata is loading.</span>
+            <span className="text-xs text-muted-foreground">
+              {t("Repository metadata is loading.", "正在加载仓库信息。")}
+            </span>
           )}
         </div>
       </div>
@@ -430,7 +441,7 @@ function RepoHero({
                 href={repo.homepage}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-accent hover:underline"
+                className="flex items-center gap-1.5 text-foreground hover:underline"
               >
                 <Globe className="h-3 w-3" />
                 {repo.homepage.replace(/^https?:\/\//, "").replace(/\/$/, "")}
@@ -577,10 +588,11 @@ function EvidenceSignal({
   tone: EvidenceTone
   className?: string
 }) {
+  const { t } = useI18n()
   const styles = evidenceToneStyles[tone]
 
   return (
-    <div className={cn("rounded-lg border px-3.5 py-3 transition-colors", styles.panel, className)}>
+    <div className={cn("rounded-lg px-3.5 py-3 transition-colors", styles.panel, className)}>
       <div className="flex items-start justify-between gap-3">
         <div
           className={cn(
@@ -595,7 +607,7 @@ function EvidenceSignal({
           className={cn("h-5 gap-1 rounded-md px-1.5 text-[10px] font-medium", styles.badge)}
         >
           <span className={cn("h-1.5 w-1.5 rounded-full", styles.dot)} />
-          {evidenceStatus(tone)}
+          {translateIntelLabel(evidenceStatus(tone), t)}
         </Badge>
       </div>
       <div className="mt-3 min-w-0">
@@ -610,6 +622,7 @@ function EvidenceSignal({
 }
 
 function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVelocity | null }) {
+  const { t } = useI18n()
   const metrics = intel.metrics
   const topThreeShare = metrics.topThreeContributorShare
   const releaseCount = metrics.releases12mo ?? 0
@@ -631,13 +644,13 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
       <CardHeader className="border-b border-border/40 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/20 text-muted-foreground">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/20 text-muted-foreground">
               <Activity className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-sm font-semibold">Evidence</CardTitle>
+              <CardTitle className="text-sm font-semibold">{t("Evidence", "依据")}</CardTitle>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Deterministic signals behind this report
+                {t("Deterministic signals behind this report", "报告依据的客观信号")}
               </p>
             </div>
           </div>
@@ -645,7 +658,7 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
             variant="outline"
             className="h-6 shrink-0 rounded-md border-border/60 bg-muted/20 px-2 text-[11px] text-muted-foreground"
           >
-            7 signals
+            {t("7 signals", "7 个信号")}
           </Badge>
         </div>
       </CardHeader>
@@ -653,36 +666,47 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
         <div className="grid gap-3 lg:grid-cols-4">
           <EvidenceSignal
             icon={velocity ? velocityConfig[velocity.label].icon : Star}
-            label="Star velocity"
-            value={velocity ? `+${velocity.growth30d}` : "Unknown"}
+            label={t("Star velocity", "星标增长")}
+            value={velocity ? `+${velocity.growth30d}` : t("Unknown", "未知")}
             detail={
               velocity
                 ? `+${velocity.growth7d} in 7d / +${velocity.growth90d ?? velocity.growth30d} in 90d`
-                : "Snapshot history unavailable"
+                : t("Snapshot history unavailable", "没有历史快照")
             }
             tone={toneForVelocity(velocity?.label)}
           />
           <EvidenceSignal
             icon={RefreshCw}
-            label="Release cadence"
-            value={`${releaseCount} / year`}
-            detail={`Median ${formatOptionalDays(metrics.releaseCadenceDays)}`}
+            label={t("Release cadence", "发布频率")}
+            value={t(`${releaseCount} / year`, `每年 ${releaseCount} 次`)}
+            detail={t(
+              `Median ${formatOptionalDays(metrics.releaseCadenceDays)}`,
+              `中位数 ${formatOptionalDays(metrics.releaseCadenceDays)}`,
+            )}
             tone={toneForReleaseCount(releaseCount)}
           />
           <EvidenceSignal
             icon={Users}
-            label="Contributor risk"
-            value={concentrationLabel}
-            detail={`Top 3 share ${formatOptionalPercent(topThreeShare)}`}
+            label={t("Contributor risk", "贡献者风险")}
+            value={translateIntelLabel(concentrationLabel, t)}
+            detail={t(
+              `Top 3 share ${formatOptionalPercent(topThreeShare)}`,
+              `前三名占比 ${formatOptionalPercent(topThreeShare)}`,
+            )}
             tone={toneForContributorShare(topThreeShare)}
           />
           <EvidenceSignal
             icon={AlertCircle}
-            label="Stale work"
+            label={t("Stale work", "长期未处理工作")}
             value={
-              stalePrCountKnown ? `${staleWorkCount} items` : `${metrics.staleIssueCount}+ items`
+              stalePrCountKnown
+                ? t(`${staleWorkCount} items`, `${staleWorkCount} 项`)
+                : t(`${metrics.staleIssueCount}+ items`, `${metrics.staleIssueCount}+ 项`)
             }
-            detail={`${metrics.staleIssueCount} stale issues / ${stalePrCountKnown ? stalePrCount : "unknown"} stale PRs`}
+            detail={t(
+              `${metrics.staleIssueCount} stale issues / ${stalePrCountKnown ? stalePrCount : "unknown"} stale PRs`,
+              `${metrics.staleIssueCount} 个长期未处理议题 / ${stalePrCountKnown ? stalePrCount : "未知数量的"} 个长期未处理拉取请求`,
+            )}
             tone={stalePrCountKnown ? toneForStaleWork(staleWorkCount) : "neutral"}
           />
         </div>
@@ -690,22 +714,31 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <EvidenceSignal
             icon={GitCommit}
-            label="Commits"
-            value={`${commits90d} in 90d`}
-            detail={`${metrics.activeCommitAuthors90d ?? 0} active authors`}
+            label={t("Commits", "提交")}
+            value={t(`${commits90d} in 90d`, `90 天内 ${commits90d} 次`)}
+            detail={t(
+              `${metrics.activeCommitAuthors90d ?? 0} active authors`,
+              `${metrics.activeCommitAuthors90d ?? 0} 位活跃作者`,
+            )}
             tone={toneForCommits(commits90d)}
           />
           <EvidenceSignal
             icon={CheckCircle2}
-            label="Issues"
-            value={`${Math.round(metrics.issueCloseRate * 100)}% closed`}
+            label={t("Issues", "议题")}
+            value={t(
+              `${Math.round(metrics.issueCloseRate * 100)}% closed`,
+              `已关闭 ${Math.round(metrics.issueCloseRate * 100)}%`,
+            )}
             detail={`Median close ${formatOptionalDays(metrics.medianIssueCloseDays ?? metrics.avgIssueResponseDays)}`}
             tone={toneForRatio(metrics.issueCloseRate)}
           />
           <EvidenceSignal
             icon={GitPullRequest}
-            label="Pull requests"
-            value={`${Math.round(metrics.prMergeRate * 100)}% merged`}
+            label={t("Pull requests", "拉取请求")}
+            value={t(
+              `${Math.round(metrics.prMergeRate * 100)}% merged`,
+              `已合并 ${Math.round(metrics.prMergeRate * 100)}%`,
+            )}
             detail={`Median merge ${formatOptionalDays(metrics.avgPrMergeDays)}`}
             tone={toneForRatio(metrics.prMergeRate)}
           />
@@ -718,6 +751,7 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function RepoIntelPage({ owner, repo }: Props) {
+  const { t, locale } = useI18n()
   const { user } = useUser()
   const [refreshKey, setRefreshKey] = useState(0)
   const [intelCacheHydrated, setIntelCacheHydrated] = useState(false)
@@ -911,7 +945,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 ) : (
                   <RefreshCw className="h-3.5 w-3.5" />
                 )}
-                {isLoading ? "Analyzing..." : "Re-analyze"}
+                {isLoading ? t("Analyzing...", "正在分析...") : t("Re-analyze", "重新分析")}
               </Button>
             </>
           }
@@ -926,8 +960,8 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 size="sm"
                 className="h-7 gap-1.5 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
               >
-                <Link href="/intel" className="hover:text-foreground">
-                  Intel
+                <Link href="/health" className="hover:text-foreground">
+                  {t("Health", "健康")}
                 </Link>
               </Button>
               <span className="text-border">/</span>
@@ -938,9 +972,9 @@ export function RepoIntelPage({ owner, repo }: Props) {
 
             <div className="flex flex-wrap gap-2 md:hidden">
               <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href="/intel">
+                <Link href="/health">
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  Intel
+                  {t("Health", "健康")}
                 </Link>
               </Button>
               <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
@@ -965,7 +999,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                 ) : (
                   <RefreshCw className="h-3.5 w-3.5" />
                 )}
-                {isLoading ? "Analyzing..." : "Re-analyze"}
+                {isLoading ? t("Analyzing...", "正在分析...") : t("Re-analyze", "重新分析")}
               </Button>
             </div>
 
@@ -975,28 +1009,37 @@ export function RepoIntelPage({ owner, repo }: Props) {
             {isLoading && (
               <div className="flex flex-col items-center gap-4 py-24 text-center">
                 <Brain className="h-8 w-8 animate-pulse text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">Analyzing repository…</p>
-                <p className="text-xs text-muted-foreground/60">This may take a moment</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("Analyzing repository…", "正在分析仓库…")}
+                </p>
+                <p className="text-xs text-muted-foreground/60">
+                  {t("This may take a moment", "可能需要一点时间")}
+                </p>
               </div>
             )}
 
             {/* Error */}
             {!isLoading && error && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <div className="flex items-center gap-2.5 rounded-xl bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                Failed to load intel. Check your AI key or try again.
+                {t(
+                  "Failed to load intel. Check your AI key or try again.",
+                  "加载分析失败。请检查 AI 密钥或重试。",
+                )}
               </div>
             )}
 
             {/* Limit warning */}
             {!isLoading && intelData?.limitReached && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+              <div className="flex items-center gap-2.5 rounded-xl bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                Weekly AI limit reached. Showing cached analysis.
+                {t(
+                  "Weekly AI limit reached. Showing cached analysis.",
+                  "已达到每周 AI 使用上限，正在显示缓存的分析。",
+                )}
               </div>
             )}
 
-            {/* Intel content */}
             {!isLoading && intel && subScores && (
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
                 <section className="min-w-0 space-y-5">
@@ -1006,12 +1049,15 @@ export function RepoIntelPage({ owner, repo }: Props) {
                       <CardHeader className="pb-4">
                         <div className="flex items-center justify-between gap-3">
                           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                            Health Overview
+                            {t("Health Overview", "健康概览")}
                           </CardTitle>
                           {intelData?.cached && (
                             <span className="flex items-center gap-1 whitespace-nowrap text-[11px] text-muted-foreground/50">
                               <Sparkles className="h-3 w-3" />
-                              {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(intel.analyzedAt), {
+                                addSuffix: true,
+                                locale: locale === "zh-CN" ? zhCN : undefined,
+                              })}
                             </span>
                           )}
                         </div>
@@ -1028,25 +1074,25 @@ export function RepoIntelPage({ owner, repo }: Props) {
                             <ScoreDial
                               score={subScores.maintenance}
                               size={64}
-                              label="Maintenance"
+                              label={t("Maintenance", "维护")}
                               icon={Wrench}
                             />
                             <ScoreDial
                               score={subScores.activity}
                               size={64}
-                              label="Activity"
+                              label={t("Activity", "活跃度")}
                               icon={Activity}
                             />
                             <ScoreDial
                               score={subScores.community}
                               size={64}
-                              label="Community"
+                              label={t("Community", "社区")}
                               icon={Users}
                             />
                             <ScoreDial
                               score={subScores.trust}
                               size={64}
-                              label="Trust"
+                              label={t("Trust", "可信度")}
                               icon={Shield}
                             />
                           </div>
@@ -1062,7 +1108,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                         <Brain className="h-4 w-4" />
-                        AI Analysis
+                        {t("AI Analysis", "AI 分析")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1070,7 +1116,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                         {intel.summary}
                       </p>
                       {intel.recommendation && (
-                        <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                        <div className="rounded-lg bg-muted/20 px-4 py-3">
                           <p className="text-sm font-medium text-foreground">
                             {intel.recommendation}
                           </p>
@@ -1084,7 +1130,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                          Maintenance Signals
+                          {t("Maintenance Signals", "维护信号")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -1107,18 +1153,17 @@ export function RepoIntelPage({ owner, repo }: Props) {
                               },
                             ] as const
                           ).map(({ label, value }) => (
-                            <div
-                              key={label}
-                              className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2"
-                            >
-                              <div className="text-[11px] text-muted-foreground">{label}</div>
+                            <div key={label} className="rounded-lg bg-muted/15 px-3 py-2">
+                              <div className="text-[11px] text-muted-foreground">
+                                {translateIntelLabel(label, t)}
+                              </div>
                               <div
                                 className={cn(
                                   "mt-1 text-sm font-semibold capitalize",
                                   signalColor[value ?? "unknown"],
                                 )}
                               >
-                                {value ?? "Unknown"}
+                                {translateIntelLabel(value ?? "Unknown", t)}
                               </div>
                             </div>
                           ))}
@@ -1140,16 +1185,13 @@ export function RepoIntelPage({ owner, repo }: Props) {
                       <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                           <AlertCircle className="h-4 w-4" />
-                          Known Issues
+                          {t("Known Issues", "已知问题")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-2 lg:grid-cols-2">
                           {intel.topPainPoints.map((point, i) => (
-                            <div
-                              key={i}
-                              className="flex gap-3 rounded-lg border border-border/50 bg-muted/10 px-3 py-2.5"
-                            >
+                            <div key={i} className="flex gap-3 rounded-lg bg-muted/10 px-3 py-2.5">
                               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
                                 {i + 1}
                               </span>
@@ -1169,7 +1211,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                        Repo Status
+                        {t("Repo Status", "仓库状态")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -1182,24 +1224,30 @@ export function RepoIntelPage({ owner, repo }: Props) {
                               className="gap-1.5 px-3 py-1 text-sm font-medium"
                             >
                               <span className={cn("h-1.5 w-1.5 rounded-full", v?.dotClass)} />
-                              {v?.label ?? intel.maintenanceVerdict}
+                              {translateIntelLabel(v?.label ?? intel.maintenanceVerdict, t)}
                             </Badge>
                           )
                         })()}
                         <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
-                          {{
-                            "production-ready": "Production Ready",
-                            maturing: "Maturing",
-                            experimental: "Experimental",
-                            deprecated: "Deprecated",
-                          }[intel.adoptionReadiness] ?? intel.adoptionReadiness}
+                          {translateIntelLabel(
+                            {
+                              "production-ready": "Production Ready",
+                              maturing: "Maturing",
+                              experimental: "Experimental",
+                              deprecated: "Deprecated",
+                            }[intel.adoptionReadiness] ?? intel.adoptionReadiness,
+                            t,
+                          )}
                         </Badge>
                         <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
-                          {{
-                            positive: "Positive Sentiment",
-                            mixed: "Mixed Sentiment",
-                            frustrated: "Frustrated Users",
-                          }[intel.communitySentiment] ?? intel.communitySentiment}
+                          {translateIntelLabel(
+                            {
+                              positive: "Positive Sentiment",
+                              mixed: "Mixed Sentiment",
+                              frustrated: "Frustrated Users",
+                            }[intel.communitySentiment] ?? intel.communitySentiment,
+                            t,
+                          )}
                         </Badge>
                       </div>
                     </CardContent>
@@ -1214,7 +1262,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                           <CardContent className="flex items-center gap-4 p-4">
                             <div
                               className={cn(
-                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
                                 vcfg.className,
                               )}
                             >
@@ -1222,10 +1270,14 @@ export function RepoIntelPage({ owner, repo }: Props) {
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-foreground">
-                                Star Momentum: {vcfg.label}
+                                {t("Star Momentum", "星标增长趋势")}:{" "}
+                                {translateIntelLabel(vcfg.label, t)}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                +{velocity.growth7d} this week · +{velocity.growth30d} this month
+                                {t(
+                                  `+${velocity.growth7d} this week · +${velocity.growth30d} this month`,
+                                  `本周 +${velocity.growth7d} · 本月 +${velocity.growth30d}`,
+                                )}
                               </p>
                             </div>
                           </CardContent>
@@ -1238,7 +1290,7 @@ export function RepoIntelPage({ owner, repo }: Props) {
                     <Card className="md:col-span-2 xl:col-span-1">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                          Governance & Maturity
+                          {t("Governance & Maturity", "治理与成熟度")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1250,32 +1302,32 @@ export function RepoIntelPage({ owner, repo }: Props) {
                           />
                           <MaturityBadge
                             present={Boolean(cf.license)}
-                            label="License"
+                            label={t("License", "许可证")}
                             icon={FileCode2}
                           />
                           <MaturityBadge
                             present={Boolean(cf.securityPolicy)}
-                            label="Security Policy"
+                            label={t("Security Policy", "安全政策")}
                             icon={ShieldCheck}
                           />
                           <MaturityBadge
                             present={cf.contributingGuide}
-                            label="Contributing Guide"
+                            label={t("Contributing Guide", "贡献指南")}
                             icon={BookOpen}
                           />
                           <MaturityBadge
                             present={cf.codeOfConduct}
-                            label="Code of Conduct"
+                            label={t("Code of Conduct", "行为准则")}
                             icon={FileCode2}
                           />
                           <MaturityBadge
                             present={Boolean(cf.issueTemplate)}
-                            label="Issue Templates"
+                            label={t("Issue Templates", "议题模板")}
                             icon={AlertCircle}
                           />
                           <MaturityBadge
                             present={Boolean(cf.pullRequestTemplate)}
-                            label="PR Template"
+                            label={t("PR Template", "拉取请求模板")}
                             icon={GitCommit}
                           />
                           <MaturityBadge

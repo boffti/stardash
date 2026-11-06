@@ -1,5 +1,7 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
+
 import React, { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { useAIKey } from "@/lib/use-ai-key"
@@ -30,6 +32,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -54,7 +57,6 @@ import type {
   ContributionType,
 } from "@/lib/contribution-opportunities"
 import type { StarredRepo, UserMetadata } from "@/lib/types"
-import { cn } from "@/lib/utils"
 import { ContributionCommandPalette } from "@/components/contribution-command-palette"
 import { IssueViewer } from "@/components/issue-viewer"
 import ReactMarkdown from "react-markdown"
@@ -143,12 +145,6 @@ const typeIcons: Record<ContributionType, React.ElementType> = {
   infra: ShieldAlert,
   feature: Sparkles,
   maintenance: GitPullRequestArrow,
-}
-
-function scoreTone(score: number) {
-  if (score >= 80) return "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-  if (score >= 60) return "border-sky-500/30 bg-sky-500/10 text-sky-400"
-  return "border-amber-500/30 bg-amber-500/10 text-amber-400"
 }
 
 const languageColors: Record<string, string> = {
@@ -260,7 +256,7 @@ function InlineMd({ children }: { children: string }) {
 
 function OpportunitySkeleton() {
   return (
-    <Card className="border-border/60 bg-card">
+    <Card className="border-0 bg-card shadow-sm">
       <CardHeader className="gap-3">
         <Skeleton className="h-5 w-2/3 bg-muted" />
         <div className="flex gap-2">
@@ -284,21 +280,26 @@ function EmptyOpportunities({
   onRefresh: () => void
   disabled?: boolean
 }) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20">
+      <div className="flex h-16 w-16 items-center justify-center">
         <Search className="h-7 w-7 text-muted-foreground/50" />
       </div>
       <div className="flex max-w-md flex-col gap-2">
-        <h3 className="text-lg font-semibold tracking-tight">No matching issues found</h3>
+        <h3 className="text-lg font-semibold tracking-tight">
+          {t("No matching issues found", "没有找到匹配的议题")}
+        </h3>
         <p className="text-sm leading-6 text-muted-foreground">
-          Try broadening the filters or syncing your starred repos first. The MVP scans active
-          starred repos with open issues.
+          {t(
+            "Try broadening the filters or syncing your starred repos.",
+            "试着放宽筛选条件，或先同步星标仓库。",
+          )}
         </p>
       </div>
       <Button variant="outline" onClick={onRefresh} disabled={disabled}>
         <RefreshCw data-icon="inline-start" />
-        Scan again
+        {t("Scan again", "重新扫描")}
       </Button>
     </div>
   )
@@ -319,10 +320,11 @@ function OpportunityCard({
   isBriefLimited: boolean
   briefTooltip: string
 }) {
+  const { t } = useI18n()
   const langColor = languageColors[opportunity.repoLanguage ?? ""] ?? "#6b7280"
 
   return (
-    <Card className="flex flex-col overflow-hidden border-border/60 bg-card/75 transition-colors hover:border-border">
+    <Card className="flex flex-col overflow-hidden border border-border bg-card hover:bg-muted">
       <CardHeader className="gap-2.5 pb-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -347,9 +349,13 @@ function OpportunityCard({
           </div>
           <Badge
             variant="outline"
-            className={cn("shrink-0 tabular-nums", scoreTone(opportunity.score))}
+            title={t(
+              "How closely this issue matches the repositories you star",
+              "这个议题和你星标的仓库有多接近",
+            )}
+            className="shrink-0 tabular-nums"
           >
-            {opportunity.score}%
+            {t(`${opportunity.score}% fit`, `匹配 ${opportunity.score}%`)}
           </Badge>
         </div>
 
@@ -384,20 +390,34 @@ function OpportunityCard({
 
         <div className="mt-auto flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary" className="text-xs">
+            <Badge
+              variant="secondary"
+              data-hue={chipHue(opportunity.difficulty)}
+              className="text-xs"
+            >
               {opportunity.difficulty}
             </Badge>
             {opportunity.contributionTypes.map((type) => {
               const Icon = typeIcons[type]
               return (
-                <Badge key={type} variant="outline" className="gap-1 text-xs">
+                <Badge
+                  key={type}
+                  variant="outline"
+                  data-hue={chipHue(typeLabels[type])}
+                  className="gap-1 text-xs"
+                >
                   <Icon className="h-3 w-3" />
                   {typeLabels[type]}
                 </Badge>
               )
             })}
             {opportunity.labels.slice(0, 3).map((label) => (
-              <Badge key={label} variant="secondary" className="max-w-32 truncate text-xs">
+              <Badge
+                key={label}
+                variant="secondary"
+                data-hue={chipHue(label)}
+                className="max-w-32 truncate text-xs"
+              >
                 {label}
               </Badge>
             ))}
@@ -427,7 +447,7 @@ function OpportunityCard({
                       ) : (
                         <Bot className="h-3 w-3" />
                       )}
-                      <span className="ml-1">Brief</span>
+                      <span className="ml-1">{t("Brief", "简报")}</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -448,6 +468,7 @@ function OpportunityCard({
 }
 
 export function ContributionDashboard() {
+  const { t } = useI18n()
   const { user, reauthenticate } = useUser()
   const { data, error, isLoading, isRefreshing, refresh } = useStarredRepos(user?.id)
   const { data: metadata } = useSWR<UserMetadata>(
@@ -767,19 +788,19 @@ export function ContributionDashboard() {
           lastSynced={lastSynced}
           onRefresh={isTokenExpired ? undefined : handleRefreshRepos}
           isRefreshing={isRefreshing}
-          searchLabel="Search opportunities..."
+          searchLabel={t("Search opportunities...", "搜索贡献机会...")}
           hideNavActions
           desktopControls={
             <>
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger
-                  aria-label="Language filter"
-                  className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  aria-label={t("Language filter", "语言筛选")}
+                  className="h-8 w-auto gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-muted lg:w-auto [&_svg]:text-muted-foreground"
                 >
-                  <SelectValue placeholder="Language" />
+                  <SelectValue placeholder={t("Language", "语言")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All languages</SelectItem>
+                  <SelectItem value="all">{t("All languages", "所有语言")}</SelectItem>
                   {languageOptions.map(([name, count]) => (
                     <SelectItem key={name} value={name}>
                       {name} ({count})
@@ -792,16 +813,16 @@ export function ContributionDashboard() {
                 onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}
               >
                 <SelectTrigger
-                  aria-label="Difficulty filter"
-                  className="w-32 lg:w-36 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  aria-label={t("Difficulty filter", "难度筛选")}
+                  className="h-8 w-auto gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-muted lg:w-auto [&_svg]:text-muted-foreground"
                 >
-                  <SelectValue placeholder="Difficulty" />
+                  <SelectValue placeholder={t("Difficulty", "难度")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any difficulty</SelectItem>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="all">{t("Any difficulty", "所有难度")}</SelectItem>
+                  <SelectItem value="beginner">{t("Beginner", "入门")}</SelectItem>
+                  <SelectItem value="intermediate">{t("Intermediate", "中级")}</SelectItem>
+                  <SelectItem value="advanced">{t("Advanced", "高级")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -809,13 +830,13 @@ export function ContributionDashboard() {
                 onValueChange={(value) => setContributionType(value as SelectableType)}
               >
                 <SelectTrigger
-                  aria-label="Contribution type filter"
-                  className="w-36 lg:w-40 h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+                  aria-label={t("Contribution type filter", "贡献类型筛选")}
+                  className="h-8 w-auto gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-muted [&_svg]:text-muted-foreground"
                 >
-                  <SelectValue placeholder="Contribution type" />
+                  <SelectValue placeholder={t("Contribution type", "贡献类型")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any type</SelectItem>
+                  <SelectItem value="all">{t("Any type", "所有类型")}</SelectItem>
                   {Object.entries(typeLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
@@ -829,13 +850,13 @@ export function ContributionDashboard() {
             <>
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger
-                  aria-label="Language filter"
-                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  aria-label={t("Language filter", "语言筛选")}
+                  className="h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
                 >
-                  <SelectValue placeholder="Language" />
+                  <SelectValue placeholder={t("Language", "语言")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All languages</SelectItem>
+                  <SelectItem value="all">{t("All languages", "所有语言")}</SelectItem>
                   {languageOptions.map(([name, count]) => (
                     <SelectItem key={name} value={name}>
                       {name} ({count})
@@ -848,16 +869,16 @@ export function ContributionDashboard() {
                 onValueChange={(value) => setDifficulty(value as SelectableDifficulty)}
               >
                 <SelectTrigger
-                  aria-label="Difficulty filter"
-                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  aria-label={t("Difficulty filter", "难度筛选")}
+                  className="h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
                 >
-                  <SelectValue placeholder="Difficulty" />
+                  <SelectValue placeholder={t("Difficulty", "难度")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any difficulty</SelectItem>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="all">{t("Any difficulty", "所有难度")}</SelectItem>
+                  <SelectItem value="beginner">{t("Beginner", "入门")}</SelectItem>
+                  <SelectItem value="intermediate">{t("Intermediate", "中级")}</SelectItem>
+                  <SelectItem value="advanced">{t("Advanced", "高级")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -865,13 +886,13 @@ export function ContributionDashboard() {
                 onValueChange={(value) => setContributionType(value as SelectableType)}
               >
                 <SelectTrigger
-                  aria-label="Contribution type filter"
-                  className="w-full h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+                  aria-label={t("Contribution type filter", "贡献类型筛选")}
+                  className="h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
                 >
-                  <SelectValue placeholder="Contribution type" />
+                  <SelectValue placeholder={t("Contribution type", "贡献类型")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any type</SelectItem>
+                  <SelectItem value="all">{t("Any type", "所有类型")}</SelectItem>
                   {Object.entries(typeLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
@@ -888,11 +909,13 @@ export function ContributionDashboard() {
                   <span>
                     <Button variant="outline" size="sm" disabled>
                       <RefreshCw data-icon="inline-start" />
-                      <span className="hidden sm:inline">Scan issues</span>
+                      <span className="hidden sm:inline">{t("Scan issues", "扫描议题")}</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>Reconnect GitHub to scan issues</TooltipContent>
+                <TooltipContent>
+                  {t("Reconnect GitHub to scan issues", "重新连接 GitHub 以扫描议题")}
+                </TooltipContent>
               </Tooltip>
             ) : (
               <Tooltip>
@@ -911,7 +934,7 @@ export function ContributionDashboard() {
                       ) : (
                         <RefreshCw data-icon="inline-start" />
                       )}
-                      <span className="hidden sm:inline">Scan issues</span>
+                      <span className="hidden sm:inline">{t("Scan issues", "扫描议题")}</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -928,30 +951,35 @@ export function ContributionDashboard() {
         <main className="flex-1 p-6">
           <section className="mb-8 space-y-4">
             <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Contribute</h1>
-              <p className="text-sm text-muted-foreground">
-                Open issues from repos you already starred, ranked by fit.
-              </p>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t("Contribute", "参与贡献")}
+              </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+              <div className="px-1 py-2">
                 <span className="text-sm font-semibold tabular-nums">
                   {filteredOpportunities.length}
                 </span>
-                <span className="ml-1.5 text-xs text-muted-foreground">Matches</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  {t("Matches", "匹配项")}
+                </span>
               </div>
-              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+              <div className="px-1 py-2">
                 <span className="text-sm font-semibold tabular-nums">{topStats.starter}</span>
-                <span className="ml-1.5 text-xs text-muted-foreground">Beginner</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  {t("Beginner", "入门")}
+                </span>
               </div>
-              <div className="rounded-lg border border-border/60 bg-card/70 px-3 py-2">
+              <div className="px-1 py-2">
                 <span className="text-sm font-semibold tabular-nums">{scannedRepos}</span>
-                <span className="ml-1.5 text-xs text-muted-foreground">Repos scanned</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  {t("Repos scanned", "已扫描仓库")}
+                </span>
               </div>
               <span className="ml-1 text-xs text-muted-foreground">
                 {generatedAt
                   ? `Updated ${formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}`
-                  : "Not scanned yet"}
+                  : t("Not scanned yet", "尚未扫描")}
               </span>
             </div>
           </section>
@@ -971,17 +999,17 @@ export function ContributionDashboard() {
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-destructive">
                 {isTokenExpired
-                  ? "Your GitHub session has expired."
-                  : "Failed to load starred repositories"}
+                  ? t("Your GitHub session has expired.", "GitHub 会话已过期。")
+                  : t("Failed to load starred repositories", "加载星标仓库失败")}
               </p>
               {isTokenExpired ? (
                 <Button variant="outline" onClick={handleReconnect}>
                   <LogIn className="h-4 w-4 mr-2" />
-                  Reconnect GitHub
+                  {t("Reconnect GitHub", "重新连接 GitHub")}
                 </Button>
               ) : (
                 <Button variant="outline" onClick={handleRefreshRepos}>
-                  Try again
+                  {t("Try again", "重试")}
                 </Button>
               )}
             </div>
@@ -992,7 +1020,7 @@ export function ContributionDashboard() {
           )}
 
           {scanCooldownSeconds !== null && !opportunityError && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
               <RefreshCw className="h-3.5 w-3.5 shrink-0" />
               Showing cached results. Next scan available in {Math.ceil(
                 scanCooldownSeconds / 60,
@@ -1011,7 +1039,7 @@ export function ContributionDashboard() {
               return isOpportunityTokenError ? (
                 <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
               ) : (
-                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="mb-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {opportunityError}
                 </div>
               )
@@ -1062,23 +1090,23 @@ export function ContributionDashboard() {
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Contribution brief</DialogTitle>
+            <DialogTitle>{t("Contribution brief", "贡献简报")}</DialogTitle>
             <DialogDescription>
               {selectedOpportunity
                 ? `${selectedOpportunity.repoFullName} #${selectedOpportunity.issueNumber}`
-                : "Issue plan"}
+                : t("Issue plan", "议题计划")}
             </DialogDescription>
           </DialogHeader>
 
           {briefLoadingId && (
-            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/20 p-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Generating a practical first-pass plan...
             </div>
           )}
 
           {briefError && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {briefError}
             </div>
           )}
@@ -1091,7 +1119,7 @@ export function ContributionDashboard() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <h3 className="font-medium">Why it fits</h3>
+                  <h3 className="font-medium">{t("Why it fits", "匹配原因")}</h3>
                   <ul className="flex flex-col gap-1.5 text-muted-foreground">
                     {brief.whyItFits.map((item) => (
                       <li key={item} className="flex items-start gap-1.5">
@@ -1102,7 +1130,7 @@ export function ContributionDashboard() {
                   </ul>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <h3 className="font-medium">Likely starting points</h3>
+                  <h3 className="font-medium">{t("Likely starting points", "可能的切入点")}</h3>
                   <ul className="flex flex-col gap-1.5 text-muted-foreground">
                     {brief.likelyFiles.map((item) => (
                       <li key={item} className="flex items-start gap-1.5">
@@ -1115,7 +1143,7 @@ export function ContributionDashboard() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <h3 className="font-medium">First steps</h3>
+                <h3 className="font-medium">{t("First steps", "第一步")}</h3>
                 <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
                   {brief.firstSteps.map((item) => (
                     <li key={item}>
@@ -1126,7 +1154,7 @@ export function ContributionDashboard() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <h3 className="font-medium">Questions to ask</h3>
+                <h3 className="font-medium">{t("Questions to ask", "待确认问题")}</h3>
                 <ul className="flex flex-col gap-1.5 text-muted-foreground">
                   {brief.questionsToAsk.map((item) => (
                     <li key={item} className="flex items-start gap-1.5">
@@ -1139,7 +1167,7 @@ export function ContributionDashboard() {
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium">Coding assistant prompt</h3>
+                  <h3 className="font-medium">{t("Coding assistant prompt", "编程助手提示词")}</h3>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1159,10 +1187,12 @@ export function ContributionDashboard() {
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{copiedPrompt ? "Copied!" : "Copy prompt"}</TooltipContent>
+                    <TooltipContent>
+                      {copiedPrompt ? t("Copied!", "已复制！") : t("Copy prompt", "复制提示词")}
+                    </TooltipContent>
                   </Tooltip>
                 </div>
-                <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                <div className="rounded-lg bg-muted/30 p-3">
                   <article
                     className="prose dark:prose-invert prose-sm max-w-full
                     prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:my-1
@@ -1170,7 +1200,7 @@ export function ContributionDashboard() {
                     prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
                     prose-code:rounded prose-code:text-xs prose-code:font-mono
                     prose-code:before:content-none prose-code:after:content-none
-                    prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:my-2
+                    prose-pre:bg-muted prose-pre:rounded-lg prose-pre:my-2
                     prose-li:text-muted-foreground prose-li:my-0.5
                     prose-ul:my-1 prose-ol:my-1
                     prose-strong:text-foreground

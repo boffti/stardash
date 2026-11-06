@@ -12,6 +12,7 @@ import {
 import { analyzeRepoIntel } from "@/lib/ai-repo-intel"
 import { langfuseSpanProcessor } from "@/instrumentation"
 import { getAIModel, getProviderOptions, type AIModelConfig } from "@/lib/ai-provider"
+import { aiErrorMessage } from "@/lib/ai-error"
 import { checkAndIncrementWeeklyLimit, type WeeklyLimitResult } from "@/lib/ai-weekly-limit"
 import type { RepoIntel } from "@/lib/types"
 import { type RepoInsightRow, rowToIntel } from "@/lib/repo-insight-row"
@@ -232,9 +233,9 @@ export async function GET(request: Request) {
     }
     Sentry.captureException(err)
     console.error("[repo-intel] error:", err)
-    return NextResponse.json(
-      { error: "Failed to analyze repository. Please try again." },
-      { status: 500 },
-    )
+    if (err && typeof err === "object" && "text" in err) {
+      console.error("model text:", String((err as { text?: unknown }).text).slice(0, 500))
+    }
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 })
   }
 }

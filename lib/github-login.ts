@@ -36,7 +36,7 @@ export async function signInWithGitHubToken(
   const owner = db.prepare("select github_id, github_username from profiles limit 1").get() as
     { github_id: string; github_username: string } | undefined
   if (owner && owner.github_id !== githubId) {
-    return { ok: false, error: `This StarDash belongs to @${owner.github_username}.`, status: 403 }
+    return { ok: false, error: `This Stellan belongs to @${owner.github_username}.`, status: 403 }
   }
 
   db.prepare(

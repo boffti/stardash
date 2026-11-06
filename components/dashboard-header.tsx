@@ -1,4 +1,6 @@
 "use client"
+
+import { useI18n } from "@/components/i18n-provider"
 import {
   Select,
   SelectContent,
@@ -43,13 +45,14 @@ export function DashboardHeader({
   isCategorizing = false,
   categorizeLimit,
 }: DashboardHeaderProps) {
+  const { t } = useI18n()
   const searchLabel = searchQuery
-    ? `Search: ${searchQuery}`
-    : "Search repositories, tags, and actions"
+    ? t(`Search: ${searchQuery}`, `搜索：${searchQuery}`)
+    : t("Search", "搜索")
   const desktopControlClassName =
-    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none transition-colors hover:bg-accent/60 hover:text-foreground [&_svg]:text-muted-foreground"
+    "h-7 w-auto justify-start gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none hover:bg-background/80 hover:text-foreground [&_svg]:size-3.5 [&_svg]:text-muted-foreground"
   const mobileControlClassName =
-    "h-10 rounded-xl border border-border/70 bg-secondary/45 text-muted-foreground shadow-none [&_svg]:text-muted-foreground"
+    "h-8 w-full gap-1 border-0 bg-transparent px-2 text-[13px] text-foreground/80 shadow-none [&_svg]:text-muted-foreground"
 
   const filterControls = (
     <>
@@ -57,11 +60,11 @@ export function DashboardHeader({
         value={languageFilter ?? "all"}
         onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
       >
-        <SelectTrigger className={`w-32 lg:w-40 ${desktopControlClassName}`}>
-          <SelectValue placeholder="Language" />
+        <SelectTrigger className={desktopControlClassName}>
+          <SelectValue placeholder={t("Language", "语言")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Languages</SelectItem>
+          <SelectItem value="all">{t("All Languages", "全部语言")}</SelectItem>
           {languages.map((lang) => (
             <SelectItem key={lang} value={lang}>
               {lang}
@@ -76,27 +79,35 @@ export function DashboardHeader({
           onHealthFilterChange(value === "all" ? null : (value as RepoHealthFilter))
         }
       >
-        <SelectTrigger className={`w-32 lg:w-36 ${desktopControlClassName}`}>
-          <SelectValue placeholder="Health" />
+        <SelectTrigger className={desktopControlClassName}>
+          <SelectValue placeholder={t("Health", "状态")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Health</SelectItem>
-          <SelectItem value="archived">Archived</SelectItem>
-          <SelectItem value="dormant">Dormant</SelectItem>
+          <SelectItem value="all">{t("All Health", "全部状态")}</SelectItem>
+          <SelectItem value="archived">{t("Archived", "已归档")}</SelectItem>
+          <SelectItem value="dormant">{t("Dormant", "长期未更新")}</SelectItem>
         </SelectContent>
       </Select>
 
       <Select value={sortBy} onValueChange={onSortChange}>
-        <SelectTrigger className={`w-40 lg:w-52 ${desktopControlClassName}`}>
-          <SelectValue placeholder="Sort by" />
+        <SelectTrigger className={desktopControlClassName}>
+          <SelectValue placeholder={t("Sort by", "排序")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="starred-desc">Date Starred (Newest)</SelectItem>
-          <SelectItem value="starred-asc">Date Starred (Oldest)</SelectItem>
-          <SelectItem value="stars-desc">GitHub Stars (High)</SelectItem>
-          <SelectItem value="stars-asc">GitHub Stars (Low)</SelectItem>
-          <SelectItem value="updated-desc">Last Updated (Recent)</SelectItem>
-          <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+          <SelectItem value="starred-desc">
+            {t("Date Starred (Newest)", "收藏时间（最新）")}
+          </SelectItem>
+          <SelectItem value="starred-asc">
+            {t("Date Starred (Oldest)", "收藏时间（最早）")}
+          </SelectItem>
+          <SelectItem value="stars-desc">
+            {t("GitHub Stars (High)", "GitHub 星标（从高到低）")}
+          </SelectItem>
+          <SelectItem value="stars-asc">
+            {t("GitHub Stars (Low)", "GitHub 星标（从低到高）")}
+          </SelectItem>
+          <SelectItem value="updated-desc">{t("Last Updated (Recent)", "最近更新")}</SelectItem>
+          <SelectItem value="name-asc">{t("Name (A-Z)", "名称（A-Z）")}</SelectItem>
         </SelectContent>
       </Select>
     </>
@@ -109,10 +120,10 @@ export function DashboardHeader({
         onValueChange={(value) => onLanguageFilterChange(value === "all" ? null : value)}
       >
         <SelectTrigger className={`w-full ${mobileControlClassName}`}>
-          <SelectValue placeholder="Language" />
+          <SelectValue placeholder={t("Language", "语言")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Languages</SelectItem>
+          <SelectItem value="all">{t("All Languages", "全部语言")}</SelectItem>
           {languages.map((lang) => (
             <SelectItem key={lang} value={lang}>
               {lang}
@@ -128,26 +139,34 @@ export function DashboardHeader({
         }
       >
         <SelectTrigger className={`w-full ${mobileControlClassName}`}>
-          <SelectValue placeholder="Health" />
+          <SelectValue placeholder={t("Health", "状态")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Health</SelectItem>
-          <SelectItem value="archived">Archived</SelectItem>
-          <SelectItem value="dormant">Dormant</SelectItem>
+          <SelectItem value="all">{t("All Health", "全部状态")}</SelectItem>
+          <SelectItem value="archived">{t("Archived", "已归档")}</SelectItem>
+          <SelectItem value="dormant">{t("Dormant", "长期未更新")}</SelectItem>
         </SelectContent>
       </Select>
 
       <Select value={sortBy} onValueChange={onSortChange}>
         <SelectTrigger className={`w-full ${mobileControlClassName}`}>
-          <SelectValue placeholder="Sort by" />
+          <SelectValue placeholder={t("Sort by", "排序")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="starred-desc">Date Starred (Newest)</SelectItem>
-          <SelectItem value="starred-asc">Date Starred (Oldest)</SelectItem>
-          <SelectItem value="stars-desc">GitHub Stars (High)</SelectItem>
-          <SelectItem value="stars-asc">GitHub Stars (Low)</SelectItem>
-          <SelectItem value="updated-desc">Last Updated (Recent)</SelectItem>
-          <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+          <SelectItem value="starred-desc">
+            {t("Date Starred (Newest)", "收藏时间（最新）")}
+          </SelectItem>
+          <SelectItem value="starred-asc">
+            {t("Date Starred (Oldest)", "收藏时间（最早）")}
+          </SelectItem>
+          <SelectItem value="stars-desc">
+            {t("GitHub Stars (High)", "GitHub 星标（从高到低）")}
+          </SelectItem>
+          <SelectItem value="stars-asc">
+            {t("GitHub Stars (Low)", "GitHub 星标（从低到高）")}
+          </SelectItem>
+          <SelectItem value="updated-desc">{t("Last Updated (Recent)", "最近更新")}</SelectItem>
+          <SelectItem value="name-asc">{t("Name (A-Z)", "名称（A-Z）")}</SelectItem>
         </SelectContent>
       </Select>
     </>

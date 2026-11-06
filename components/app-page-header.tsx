@@ -1,15 +1,9 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { useI18n } from "@/components/i18n-provider"
 import React, { useState } from "react"
-import {
-  Menu,
-  MessageCircleQuestion,
-  RefreshCw,
-  Search,
-  Sparkles,
-  User as UserIcon,
-} from "lucide-react"
+import { Codicon } from "@/components/icons/codicon"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -24,7 +18,7 @@ const UserMenu = dynamic(() => import("@/components/user-menu").then((module) =>
     <Button variant="ghost" size="icon" className="rounded-full">
       <Avatar className="h-8 w-8">
         <AvatarFallback>
-          <UserIcon className="h-4 w-4" />
+          <Codicon name="account" className="h-4 w-4" />
         </AvatarFallback>
       </Avatar>
     </Button>
@@ -48,7 +42,7 @@ interface AppPageHeaderProps {
 }
 
 export function AppPageHeader({
-  searchLabel = "Search pages, stars and actions",
+  searchLabel = "Search",
   searchShortcutLabel = "⌘",
   desktopControls,
   mobileControls,
@@ -61,6 +55,7 @@ export function AppPageHeader({
   isRefreshing = false,
   hideNavActions = false,
 }: AppPageHeaderProps) {
+  const { t } = useI18n()
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false)
   const [localRefreshing, setLocalRefreshing] = useState(false)
 
@@ -83,7 +78,7 @@ export function AppPageHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 flex h-12 items-center justify-between bg-background px-3">
         <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
           <SidebarTrigger className="-ml-1 shrink-0" />
 
@@ -91,10 +86,10 @@ export function AppPageHeader({
             <button
               type="button"
               onClick={onOpenCommandPalette}
-              className="hidden h-9 min-w-0 flex-1 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground md:inline-flex lg:max-w-[420px]"
-              aria-label="Open command palette"
+              className="hidden h-8 min-w-0 flex-1 items-center gap-2 rounded-md bg-muted/70 px-2.5 text-left text-[13px] text-muted-foreground hover:bg-muted md:inline-flex lg:max-w-[320px]"
+              aria-label={t("Open command palette", "打开命令面板")}
             >
-              <Search className="h-4 w-4 shrink-0" />
+              <Codicon name="search" className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{searchLabel}</span>
               <KbdGroup className="shrink-0">
                 <Kbd>{searchShortcutLabel}</Kbd>
@@ -109,40 +104,42 @@ export function AppPageHeader({
               variant="ghost"
               size="sm"
               onClick={() => palette?.openAsk()}
-              className="h-9 shrink-0 gap-1.5 rounded-xl px-2.5 text-muted-foreground hover:text-foreground"
-              aria-label="Ask your stars"
-              title="Ask your stars a question"
+              className="h-8 shrink-0 gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("Ask your stars", "询问收藏")}
+              title={t("Ask your stars a question", "向收藏提问")}
             >
-              <MessageCircleQuestion className="h-4 w-4" />
-              <span className="hidden lg:inline">Ask</span>
+              <Codicon name="comment-discussion" className="h-4 w-4" />
+              <span className="hidden lg:inline">{t("Ask", "提问")}</span>
             </Button>
           )}
 
           {desktopControls && (
-            <div className="hidden xl:flex items-center gap-3">{desktopControls}</div>
+            <div className="hidden h-8 items-center gap-0.5 rounded-md bg-muted px-1 xl:flex">
+              {desktopControls}
+            </div>
           )}
 
           {hasMobileControls && (
             <button
               type="button"
-              className="xl:hidden inline-flex h-8 w-8 items-center justify-center rounded bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0"
+              className="xl:hidden inline-flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0"
               onClick={() => setMobileControlsOpen((open) => !open)}
-              aria-label="Toggle filters"
-              title="Filters"
+              aria-label={t("Toggle filters", "切换筛选")}
+              title={t("Filters", "筛选")}
             >
-              <Menu className="h-4 w-4" />
+              <Codicon name="menu" className="h-4 w-4" />
             </button>
           )}
 
           {hasSearch && (
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0 md:hidden"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/50 text-foreground hover:bg-secondary/70 shrink-0 md:hidden"
               onClick={onOpenCommandPalette}
-              aria-label="Open command palette"
-              title="Search"
+              aria-label={t("Open command palette", "打开命令面板")}
+              title={t("Search", "搜索")}
             >
-              <Search className="h-4 w-4" />
+              <Codicon name="search" className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -166,13 +163,11 @@ export function AppPageHeader({
                           type="button"
                           onClick={onCategorize}
                           disabled={Boolean(isCategorizing) || !onCategorize || isCategorizeLimited}
-                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] text-foreground/80 hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <Sparkles
-                            className={`h-3.5 w-3.5 ${isCategorizing ? "animate-pulse text-violet-400" : ""}`}
-                          />
+                          <Codicon name="sparkle" className="h-3.5 w-3.5" />
                           <span suppressHydrationWarning className="hidden sm:inline">
-                            {isCategorizing ? "Analyzing…" : "Categorize"}
+                            {isCategorizing ? t("Analyzing…", "分析中…") : t("Categorize", "分类")}
                           </span>
                         </button>
                       </span>
@@ -185,11 +180,16 @@ export function AppPageHeader({
                 type="button"
                 onClick={handleRefreshClick}
                 aria-disabled={spinning || !onRefresh}
-                className={`flex items-center gap-1.5 text-xs transition-colors ${spinning ? "text-blue-400 cursor-default" : !onRefresh ? "text-muted-foreground opacity-50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] ${spinning ? "cursor-default text-foreground/80" : !onRefresh ? "cursor-not-allowed text-muted-foreground opacity-50" : "text-foreground/80 hover:bg-muted hover:text-foreground"}`}
                 title={spinning ? "Syncing…" : (lastSynced ?? "Sync")}
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">{spinning ? "Syncing…" : "Sync"}</span>
+                <Codicon
+                  name="refresh"
+                  className={`h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline">
+                  {spinning ? t("Syncing…", "同步中…") : t("Sync", "同步")}
+                </span>
               </button>
             </>
           )}

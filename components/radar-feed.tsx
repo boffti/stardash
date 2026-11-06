@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import useSWR, { mutate as globalMutate } from "swr"
 import { formatDistanceToNow } from "date-fns"
@@ -24,6 +24,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { AppPageHeader } from "@/components/app-page-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { chipHue } from "@/lib/more-color"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -33,7 +34,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Kbd } from "@/components/ui/kbd"
+import { useI18n } from "@/components/i18n-provider"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SearchStarPopover } from "@/components/search-star-popover"
 import { TrendingSections } from "@/components/trending-sections"
@@ -51,28 +52,22 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 type Tab = "inbox" | "releases" | "stars"
 type Filter = "all" | "following" | "hn" | "velocity" | "new"
 
-// Same tile vocabulary as Intel's stats row: icon chip, big number, small label.
-const FILTERS: { id: Filter; label: string; icon: React.ElementType; chip: string }[] = [
-  { id: "all", label: "On the radar", icon: Telescope, chip: "bg-muted text-foreground" },
-  {
-    id: "following",
-    label: "People you follow",
-    icon: Users,
-    chip: "bg-accent/15 text-accent",
-  },
-  { id: "hn", label: "Hacker News", icon: Flame, chip: "bg-orange-500/10 text-orange-400" },
-  { id: "velocity", label: "Rising", icon: TrendingUp, chip: "bg-violet-500/10 text-violet-400" },
-  { id: "new", label: "New this week", icon: Sparkles, chip: "bg-sky-500/10 text-sky-400" },
+const FILTERS: { id: Filter; label: string; icon: React.ElementType }[] = [
+  { id: "all", label: "On the radar", icon: Telescope },
+  { id: "following", label: "People you follow", icon: Users },
+  { id: "hn", label: "Hacker News", icon: Flame },
+  { id: "velocity", label: "Rising", icon: TrendingUp },
+  { id: "new", label: "New this week", icon: Sparkles },
 ]
 
 // One hue per signal kind, used for the reason dots and the signal badge.
 const KIND_DOT: Record<RadarReasonKind, string> = {
-  following: "bg-accent",
-  hn: "bg-orange-400",
-  velocity: "bg-violet-400",
-  new: "bg-sky-400",
-  topic: "bg-muted-foreground/60",
-  language: "bg-muted-foreground/60",
+  following: "bg-muted-foreground/70",
+  hn: "bg-muted-foreground/70",
+  velocity: "bg-muted-foreground/70",
+  new: "bg-muted-foreground/70",
+  topic: "bg-muted-foreground/70",
+  language: "bg-muted-foreground/70",
 }
 
 const KIND_LABEL: Partial<Record<RadarReasonKind, string>> = {
@@ -99,6 +94,7 @@ async function sendAction(
 }
 
 export function RadarFeed() {
+  const { t } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const rawTab = searchParams.get("tab")
@@ -149,11 +145,11 @@ export function RadarFeed() {
         await sendAction(item.id, action)
         toast(
           action === "dismissed"
-            ? `Dismissed ${item.fullName}`
-            : `Snoozed ${item.fullName} for a week`,
+            ? t(`Dismissed ${item.fullName}`, `已忽略 ${item.fullName}`)
+            : t(`Snoozed ${item.fullName} for a week`, `已将 ${item.fullName} 暂缓一周`),
           {
             action: {
-              label: "Undo",
+              label: t("Undo", "撤销"),
               onClick: async () => {
                 unhide(item.id)
                 await sendAction(item.id, "undo").catch(() => hide(item.id))
@@ -163,10 +159,10 @@ export function RadarFeed() {
         )
       } catch {
         unhide(item.id)
-        toast.error("Couldn't save that. Try again.")
+        toast.error(t("Could not save. Try again.", "保存失败，请重试。"))
       }
     },
-    [hide, unhide],
+    [hide, unhide, t],
   )
 
   const onStarred = useCallback(
@@ -184,17 +180,17 @@ export function RadarFeed() {
       const res = await fetch("/api/radar/scan", { method: "POST" })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        toast.error(body.error ?? "Scan failed")
+        toast.error(body.error ?? t("Scan failed", "扫描失败"))
         return
       }
       await mutate()
       toast.success(
-        `Scanned ${body.candidates ?? 0} repos across GitHub, Hacker News and people you follow`,
+        t(`Scanned ${body.candidates ?? 0} repositories`, `已扫描 ${body.candidates ?? 0} 个仓库`),
       )
     } finally {
       setScanning(false)
     }
-  }, [mutate])
+  }, [mutate, t])
 
   // Keyboard triage: j/k move, x dismiss, z snooze, o open. Releases has its own.
   useEffect(() => {
@@ -229,7 +225,12 @@ export function RadarFeed() {
     return () => window.removeEventListener("keydown", handler)
   }, [tab, items, activeIndex, triage])
 
+  const pointerMoved = useRef(false)
   useEffect(() => {
+    if (pointerMoved.current) {
+      pointerMoved.current = false
+      return
+    }
     document
       .getElementById(`radar-row-${items[activeIndex]?.id}`)
       ?.scrollIntoView({ block: "nearest" })
@@ -262,9 +263,6 @@ export function RadarFeed() {
     return c
   }, [data?.items, hidden])
 
-  const scannedAgo = data?.scannedAt
-    ? formatDistanceToNow(new Date(data.scannedAt), { addSuffix: true })
-    : null
   const neverScanned = !isLoading && !error && data && data.total === 0 && !data.scannedAt
   const fewStars = Boolean(data && data.starCount < 10)
   const hasInbox = Boolean(data && data.total > 0)
@@ -276,14 +274,14 @@ export function RadarFeed() {
       onClick={scanNow}
       disabled={scanning}
       className="gap-1.5"
-      title="Pull fresh signals from GitHub, Hacker News and people you follow"
+      title={t("Scan for repositories", "扫描仓库")}
     >
       {scanning ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (
         <RefreshCw className="h-3.5 w-3.5" />
       )}
-      {scanning ? "Scanning…" : "Scan now"}
+      {scanning ? t("Scanning…", "扫描中…") : t("Scan now", "立即扫描")}
     </Button>
   )
 
@@ -305,17 +303,11 @@ export function RadarFeed() {
       <SidebarInset className="overflow-x-clip">
         <AppPageHeader lastSynced={null} hideNavActions />
 
-        <main className="flex-1 p-6">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-8 sm:px-8">
           <section className="mb-5 flex flex-col gap-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-semibold tracking-tight">Radar</h1>
-                <p className="text-sm text-muted-foreground">
-                  New and rising repos, ranked by how well they fit your stars.
-                  {scannedAgo && (
-                    <span className="text-muted-foreground/60"> Scanned {scannedAgo}.</span>
-                  )}
-                </p>
+                <h1 className="text-2xl font-semibold tracking-tight">{t("Radar", "雷达")}</h1>
               </div>
               {tab === "inbox" && scanButton()}
             </div>
@@ -323,13 +315,13 @@ export function RadarFeed() {
             <div
               className="flex gap-1 border-b border-border/60"
               role="tablist"
-              aria-label="Radar views"
+              aria-label={t("Radar views", "雷达视图")}
             >
               {(
                 [
-                  ["inbox", "Inbox"],
-                  ["releases", "Releases"],
-                  ["stars", "From your stars"],
+                  ["inbox", t("Inbox", "收件箱")],
+                  ["releases", t("Releases", "版本发布")],
+                  ["stars", t("From your stars", "来自星标")],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -338,7 +330,7 @@ export function RadarFeed() {
                   aria-selected={tab === id}
                   onClick={() => setTab(id)}
                   className={cn(
-                    "-mb-px cursor-pointer border-b-2 px-3 py-2 text-sm transition-colors duration-200",
+                    "-mb-px cursor-pointer border-b-2 px-3 py-2 text-sm",
                     tab === id
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
@@ -358,9 +350,9 @@ export function RadarFeed() {
             <>
               {hasInbox && (
                 <div
-                  className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5"
+                  className="mb-5 flex flex-wrap items-center gap-1"
                   role="tablist"
-                  aria-label="Filter signals"
+                  aria-label={t("Filter signals", "筛选动态")}
                 >
                   {FILTERS.map((f) => {
                     const active = filter === f.id
@@ -372,28 +364,26 @@ export function RadarFeed() {
                         aria-selected={active}
                         onClick={() => setFilter(f.id)}
                         className={cn(
-                          "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors duration-200",
+                          "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[13px]",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           active
-                            ? "border-foreground/40 bg-muted/30"
-                            : "border-border/60 bg-card hover:border-muted-foreground/30",
+                            ? "bg-muted text-foreground"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                         )}
                       >
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
-                            f.chip,
+                        <Icon className="size-3.5 text-muted-foreground" />
+                        <span className="tabular-nums">{counts[f.id]}</span>
+                        <span>
+                          {t(
+                            f.label,
+                            {
+                              all: "全部",
+                              following: "关注的人",
+                              hn: "Hacker News",
+                              velocity: "上升中",
+                              new: "本周新增",
+                            }[f.id],
                           )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-lg font-semibold leading-none tabular-nums">
-                            {counts[f.id]}
-                          </span>
-                          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-                            {f.label}
-                          </span>
                         </span>
                       </button>
                     )
@@ -401,7 +391,7 @@ export function RadarFeed() {
                 </div>
               )}
 
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
+              <div className="grid gap-6">
                 <div className="min-w-0">
                   {isLoading && (
                     <div className="flex flex-col gap-3">
@@ -413,18 +403,18 @@ export function RadarFeed() {
 
                   {error && (
                     <RadarEmpty
-                      title="Radar couldn't load."
-                      body="Reload the page. If it keeps failing, the nightly scan may not have run yet."
+                      title={t("Could not load Radar", "无法加载雷达")}
+                      body={t("Reload the page to try again.", "重新加载页面以重试。")}
                     />
                   )}
 
                   {neverScanned && (
                     <RadarEmpty
-                      title="Nothing on the radar yet."
+                      title={t("No repositories yet", "暂无仓库")}
                       body={
                         fewStars
-                          ? "Star a handful of repos first so Radar knows your taste, then scan."
-                          : "The first scan pulls new repos from GitHub, Hacker News and the people you follow."
+                          ? t("Star some repositories, then scan.", "先收藏一些仓库，然后扫描。")
+                          : t("Scan for new repositories.", "扫描新仓库。")
                       }
                       action={scanButton("default")}
                     />
@@ -432,11 +422,15 @@ export function RadarFeed() {
 
                   {hasInbox && items.length === 0 && (
                     <RadarEmpty
-                      title={filter === "all" ? "You're caught up." : "Nothing here right now."}
+                      title={
+                        filter === "all"
+                          ? t("All caught up", "已处理全部动态")
+                          : t("Nothing here", "暂无动态")
+                      }
                       body={
                         filter === "all"
-                          ? "Everything has been starred, snoozed or dismissed. New signals land overnight."
-                          : "Try another filter, or scan now to pull fresh signals."
+                          ? t("New signals arrive after the next scan.", "下次扫描后会出现新动态。")
+                          : t("Try another filter or scan again.", "试试其他筛选条件，或重新扫描。")
                       }
                     />
                   )}
@@ -450,7 +444,10 @@ export function RadarFeed() {
                           active={index === activeIndex}
                           tags={tags}
                           collections={collections}
-                          onFocus={() => setCursor(index)}
+                          onFocus={() => {
+                            pointerMoved.current = true
+                            setCursor(index)
+                          }}
                           onStarred={() => onStarred(item)}
                           onDismiss={() => triage(item, "dismissed")}
                           onSnooze={() => triage(item, "snoozed")}
@@ -459,34 +456,6 @@ export function RadarFeed() {
                     </ol>
                   )}
                 </div>
-
-                {hasInbox && (
-                  <aside className="hidden xl:block">
-                    <div className="sticky top-20 flex flex-col gap-4">
-                      <div className="rounded-lg border border-border/60 bg-card">
-                        <div className="border-b border-border/40 px-4 py-3 text-sm font-medium">
-                          Keyboard
-                        </div>
-                        <dl className="flex flex-col gap-2 px-4 py-3 text-xs text-muted-foreground">
-                          <ShortcutRow keys={["j", "k"]} label="Move" />
-                          <ShortcutRow keys={["x"]} label="Dismiss" />
-                          <ShortcutRow keys={["z"]} label="Snooze a week" />
-                          <ShortcutRow keys={["o"]} label="Open on GitHub" />
-                        </dl>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card">
-                        <div className="border-b border-border/40 px-4 py-3 text-sm font-medium">
-                          How it ranks
-                        </div>
-                        <p className="px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                          A taste profile built from your stars scores every candidate. A star from
-                          someone you follow outranks a topic match. Dismissed repos stay gone;
-                          snoozed ones return in a week.
-                        </p>
-                      </div>
-                    </div>
-                  </aside>
-                )}
               </div>
             </>
           )}
@@ -508,19 +477,6 @@ function ReasonText({ reason, hn }: { reason: RadarItem["reasons"][number]; hn: 
   return <>{reason.text}</>
 }
 
-function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt>{label}</dt>
-      <dd className="flex items-center gap-1">
-        {keys.map((k) => (
-          <Kbd key={k}>{k}</Kbd>
-        ))}
-      </dd>
-    </div>
-  )
-}
-
 function RadarEmpty({
   title,
   body,
@@ -531,7 +487,7 @@ function RadarEmpty({
   action?: React.ReactNode
 }) {
   return (
-    <Empty className="min-h-64 border border-border/60 bg-card">
+    <Empty className="min-h-64 bg-transparent">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Telescope />
@@ -563,6 +519,7 @@ function RadarRow({
   onDismiss: () => void
   onSnooze: () => void
 }) {
+  const { t } = useI18n()
   const langColor = item.language ? (LANGUAGE_COLORS[item.language] ?? "#64748b") : null
   const age = item.ghCreatedAt
     ? formatDistanceToNow(new Date(item.ghCreatedAt), { addSuffix: false })
@@ -577,10 +534,8 @@ function RadarRow({
       data-active={active || undefined}
       onMouseEnter={onFocus}
       className={cn(
-        "group rounded-lg border bg-card transition-colors duration-150",
-        active
-          ? "border-foreground/40 bg-muted/20"
-          : "border-border/60 hover:border-muted-foreground/30",
+        "group rounded-lg border border-border bg-card",
+        active ? "bg-muted" : "hover:bg-muted",
       )}
     >
       <div className="p-4">
@@ -620,7 +575,7 @@ function RadarRow({
               </div>
 
               {signal && (
-                <span className="inline-flex max-w-full min-h-6 items-start gap-1.5 self-start rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-[11px] leading-4 font-medium text-foreground/90 [overflow-wrap:anywhere] sm:max-w-[40%]">
+                <span className="inline-flex max-w-full min-h-6 items-start gap-1.5 self-start rounded-full bg-background/60 px-2.5 py-1 text-[11px] leading-4 font-medium text-foreground/90 [overflow-wrap:anywhere] sm:max-w-[40%]">
                   <span
                     className={cn(
                       "mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full",
@@ -640,7 +595,7 @@ function RadarRow({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
             {item.language && (
               <span className="flex items-center gap-1.5">
@@ -667,6 +622,7 @@ function RadarRow({
               <Badge
                 key={t}
                 variant="secondary"
+                data-hue={chipHue(t)}
                 className="hidden h-5 px-1.5 py-0 text-xs font-normal sm:inline-flex"
               >
                 {t}
@@ -675,26 +631,26 @@ function RadarRow({
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
-            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 group-data-[active]:opacity-100 max-sm:opacity-100">
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onSnooze}
                 className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-                aria-label={`Snooze ${item.fullName} for a week`}
+                aria-label={t(`Snooze ${item.fullName} for a week`, `将 ${item.fullName} 暂缓一周`)}
               >
                 <MoonStar className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Snooze</span>
+                <span className="hidden sm:inline">{t("Snooze", "暂缓")}</span>
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onDismiss}
                 className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-                aria-label={`Dismiss ${item.fullName}`}
+                aria-label={t(`Dismiss ${item.fullName}`, `忽略 ${item.fullName}`)}
               >
                 <X className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Dismiss</span>
+                <span className="hidden sm:inline">{t("Dismiss", "忽略")}</span>
               </Button>
             </div>
             <SearchStarPopover

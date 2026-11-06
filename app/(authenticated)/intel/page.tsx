@@ -1,5 +1,5 @@
-import { IntelDashboard } from "@/components/intel-dashboard"
+import { redirect } from "next/navigation"
 
-export default function IntelPage() {
-  return <IntelDashboard />
+export default function IntelRedirect() {
+  redirect("/health")
 }

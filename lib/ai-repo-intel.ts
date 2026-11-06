@@ -123,7 +123,7 @@ export async function analyzeRepoIntel(
   issueSamples: IssueSample[],
   contributorCount: number,
   model: LanguageModel,
-  providerOptions: Record<string, Record<string, string>> = {},
+  providerOptions: Record<string, Record<string, string | boolean>> = {},
 ): Promise<Omit<RepoIntel, "id" | "repoFullName" | "analyzedAt">> {
   const maintenanceAssessment = metrics.maintenanceAssessment ?? {
     verdict: "lightly-maintained" as MaintenanceVerdict,
@@ -152,7 +152,16 @@ export async function analyzeRepoIntel(
     schema: RepoIntelSchema,
     providerOptions,
     experimental_telemetry: { isEnabled: true, functionId: "repo-intel-analysis" },
-    system: `You are an expert open-source project analyst. Given structured health metrics, a deterministic maintenance assessment, and a sample of open issues for a GitHub repository, produce a concise, data-driven analysis. Use the deterministic maintenance verdict as fixed input; do not override it. Be honest — if a project looks abandoned or unhealthy, say so clearly. Avoid generic statements.`,
+    system: `You are an expert open-source project analyst. Given structured health metrics, a deterministic maintenance assessment, and a sample of open issues for a GitHub repository, produce a concise, data-driven analysis. Use the deterministic maintenance verdict as fixed input. Do not override it. Be honest. If a project looks abandoned or unhealthy, say so clearly. Avoid generic statements.
+
+Return one json object and no other text. Use exactly these fields and these enum strings.
+{"healthScore":72,"communitySentiment":"mixed","adoptionReadiness":"maturing","topPainPoints":["Install fails on Windows."],"summary":"Two or three sentences.","recommendation":"Worth adopting if the project matches your stack."}
+healthScore is an integer from 0 to 100.
+communitySentiment is one of positive, mixed, frustrated.
+adoptionReadiness is one of production-ready, maturing, experimental, deprecated.
+topPainPoints is an array of at most 3 short sentences.
+summary is 2 or 3 sentences.
+recommendation is one sentence.`,
     prompt,
   })
 
@@ -169,7 +178,7 @@ export async function analyzeRepoIntel(
     maintenanceVerdict: maintenanceAssessment.verdict,
     communitySentiment: object.communitySentiment as CommunitySentiment,
     adoptionReadiness: object.adoptionReadiness as AdoptionReadiness,
-    topPainPoints: object.topPainPoints,
+    topPainPoints: object.topPainPoints.slice(0, 3),
     summary: object.summary,
     recommendation: object.recommendation,
     metrics,

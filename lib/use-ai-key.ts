@@ -2,11 +2,13 @@
 
 import { useCallback, useSyncExternalStore } from "react"
 
-export type AIProvider = "openrouter" | "openai" | "anthropic"
+export type AIProvider = "openrouter" | "openai" | "anthropic" | "deepseek" | "ollama"
 
 export interface AIKeyConfig {
   provider: AIProvider
   key: string
+  model?: string
+  baseURL?: string
 }
 
 const STORAGE_KEY = "stardash-ai-key"
@@ -52,11 +54,14 @@ function emitStorageChange() {
 export function useAIKey() {
   const config = useSyncExternalStore(subscribeToStorage, readFromStorage, () => null)
 
-  const save = useCallback((provider: AIProvider, key: string) => {
-    const next: AIKeyConfig = { provider, key }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    emitStorageChange()
-  }, [])
+  const save = useCallback(
+    (provider: AIProvider, key: string, model?: string, baseURL?: string) => {
+      const next: AIKeyConfig = { provider, key, model, baseURL }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      emitStorageChange()
+    },
+    [],
+  )
 
   const clear = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -64,10 +69,12 @@ export function useAIKey() {
   }, [])
 
   const getHeaders = useCallback((): Record<string, string> => {
-    if (!config?.key) return {}
+    if (!config || (!config.key && config.provider !== "ollama")) return {}
     return {
       "x-ai-provider": config.provider,
-      "x-ai-key": config.key,
+      ...(config.key ? { "x-ai-key": config.key } : {}),
+      ...(config.model ? { "x-ai-model": config.model } : {}),
+      ...(config.baseURL ? { "x-ai-base-url": config.baseURL } : {}),
     }
   }, [config])
 

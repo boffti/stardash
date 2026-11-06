@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { healthTone } from "@/lib/palette"
+import { translateIntelLabel } from "@/lib/intel-labels"
+import { useI18n } from "@/components/i18n-provider"
+
+import { useState, useCallback } from "react"
 import useSWR from "swr"
 import {
   AlertTriangle,
   AlertCircle,
   Loader2,
   RefreshCw,
-  Zap,
   CheckCircle2,
   Activity,
   Clock,
@@ -28,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import { useAIKey } from "@/lib/use-ai-key"
 import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
 import type {
   RepoIntel,
   MaintenanceVerdict,
@@ -172,90 +176,39 @@ const ADOPTION_CONFIG: Record<
 // ─── Health score ring (animated count-up + glow) ─────────────────────────────
 
 function HealthScoreRing({ score }: { score: number }) {
-  const [display, setDisplay] = useState(0)
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (prefersReducedMotion) {
-      const task = window.setTimeout(() => setDisplay(score), 0)
-      return () => window.clearTimeout(task)
-    }
-
-    const start = performance.now()
-    const duration = 900
-    const raf = (now: number) => {
-      const t = Math.min((now - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setDisplay(Math.round(score * eased))
-      if (t < 1) requestAnimationFrame(raf)
-    }
-    const id = requestAnimationFrame(raf)
-    return () => cancelAnimationFrame(id)
-  }, [score])
-
-  const strokeColor = score >= 70 ? "#4ade80" : score >= 40 ? "#facc15" : "#f87171"
-  const textColor =
-    score >= 70
-      ? "text-green-700 dark:text-green-400"
-      : score >= 40
-        ? "text-yellow-700 dark:text-yellow-400"
-        : "text-red-700 dark:text-red-400"
-  const glowColor =
-    score >= 70
-      ? "rgba(74,222,128,0.18)"
-      : score >= 40
-        ? "rgba(250,204,21,0.15)"
-        : "rgba(248,113,113,0.18)"
+  const { t } = useI18n()
   const label = score >= 70 ? "Healthy" : score >= 40 ? "Moderate" : "At Risk"
-
-  const radius = 36
+  const tone = healthTone(score)
+  const radius = 32
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (score / 100) * circumference
 
   return (
     <div className="flex items-center gap-4">
-      <div className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center">
-        <div className="absolute inset-3 rounded-full blur-lg" style={{ background: glowColor }} />
-        <svg className="absolute inset-0 -rotate-90" width="88" height="88">
+      <div className="relative flex h-20 w-20 shrink-0 items-center justify-center">
+        <svg className="absolute inset-0 -rotate-90" width="80" height="80">
+          <circle cx="40" cy="40" r={radius} fill="none" strokeWidth="4" stroke={tone.wash} />
           <circle
-            cx="44"
-            cy="44"
+            cx="40"
+            cy="40"
             r={radius}
             fill="none"
-            stroke="currentColor"
-            strokeWidth="5"
-            className="text-border"
-          />
-          <circle
-            cx="44"
-            cy="44"
-            r={radius}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth="5"
+            stroke={tone.ink}
+            strokeWidth="4"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"
-            style={{
-              transition: "stroke-dashoffset 0.9s cubic-bezier(0.34,1.56,0.64,1)",
-              filter: `drop-shadow(0 0 5px ${strokeColor}88)`,
-            }}
           />
         </svg>
-        <div className="relative flex flex-col items-center leading-none">
-          <span className={cn("text-2xl font-bold font-mono tabular-nums", textColor)}>
-            {display}
-          </span>
-          <span className="text-[9px] text-muted-foreground/80 mt-0.5 tracking-wider">/ 100</span>
-        </div>
+        <span className="text-2xl font-medium tabular-nums" style={{ color: tone.ink }}>
+          {score}
+        </span>
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Health Score
-        </p>
-        <p className={cn("text-lg font-semibold leading-tight", textColor)}>{label}</p>
+        <p className="text-xs text-muted-foreground">{t("Health score", "健康分")}</p>
+        <p className="text-base font-medium leading-tight">{translateIntelLabel(label, t)}</p>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          AI synthesis of maintenance, community, and release signals.
+          {t("From maintenance, community, and release signals.", "由维护、社区和发布信号得出。")}
         </p>
       </div>
     </div>
@@ -267,9 +220,6 @@ function HealthScoreRing({ score }: { score: number }) {
 function StatusCell({
   category,
   value,
-  className,
-  dotColor,
-  icon: Icon,
 }: {
   category: string
   value: string
@@ -278,15 +228,9 @@ function StatusCell({
   icon: React.ElementType
 }) {
   return (
-    <div className={cn("min-w-0 rounded-lg border px-3 py-2.5 transition-colors", className)}>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-[10px] font-medium uppercase tracking-[0.16em] opacity-70">{category}</p>
-        <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden="true" />
-      </div>
-      <div className="flex min-w-0 items-center gap-2">
-        <span className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
-        <p className="min-w-0 text-xs font-semibold leading-snug">{value}</p>
-      </div>
+    <div className="min-w-0 px-3 py-2 text-foreground">
+      <p className="text-xs text-muted-foreground">{category}</p>
+      <p className="mt-1 truncate text-sm font-medium">{value}</p>
     </div>
   )
 }
@@ -297,7 +241,6 @@ function SignalBar({
   label,
   value,
   fill,
-  fillColor,
 }: {
   label: string
   value: string
@@ -305,18 +248,17 @@ function SignalBar({
   fillColor?: string
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
-      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground leading-none">
-        {label}
-      </p>
-      <p className="mb-2 text-base font-semibold font-mono tabular-nums leading-none text-foreground">
-        {value}
-      </p>
+    <div className="min-w-0 py-1">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-base font-medium tabular-nums text-foreground">{value}</p>
       {fill !== undefined && (
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-background" aria-hidden="true">
           <div
-            className={cn("h-full rounded-full", fillColor ?? "bg-primary")}
-            style={{ width: `${Math.round(fill * 100)}%`, transition: "width 0.8s ease-out" }}
+            className="h-full rounded-full"
+            style={{
+              width: `${Math.round(fill * 100)}%`,
+              background: healthTone(Math.round(fill * 100)).ink,
+            }}
           />
         </div>
       )}
@@ -340,8 +282,8 @@ function HealthPill({
       className={cn(
         "flex min-h-9 items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium border",
         present
-          ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/25"
-          : "bg-muted/30 text-muted-foreground/60 border-border",
+          ? "border-transparent bg-muted text-foreground"
+          : "border-transparent bg-muted/40 text-muted-foreground",
       )}
     >
       <Icon className="h-3 w-3 shrink-0" />
@@ -355,10 +297,7 @@ function HealthPill({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-2.5 flex items-center gap-2">
-      <p className="shrink-0 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        {children}
-      </p>
-      <div className="flex-1 h-px bg-border/50" />
+      <p className="text-xs font-medium text-muted-foreground">{children}</p>
     </div>
   )
 }
@@ -407,6 +346,7 @@ function days(v: number | null, fallback = "N/A") {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
+  const { t, locale } = useI18n()
   const [refreshKey, setRefreshKey] = useState(0)
   const { getHeaders } = useAIKey()
   const [intelLimit, setIntelLimit] = useState<{
@@ -426,7 +366,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       if (res.status === 429) {
         const body = await res.json()
         setIntelLimit({ remaining: 0, nextAllowedAt: body.nextAllowedAt ?? null })
-        throw new Error(body.error ?? "Intel limit reached")
+        throw new Error(body.error ?? "Health limit reached")
       }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -463,10 +403,16 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const isIntelLimited = intelLimit.remaining === 0
   const intelTooltip =
     isIntelLimited && intelLimit.nextAllowedAt
-      ? `Refresh limit reached (10/week). Resets ${new Date(intelLimit.nextAllowedAt).toLocaleDateString()}`
+      ? t(
+          `Refresh limit reached (10/week). Resets ${new Date(intelLimit.nextAllowedAt).toLocaleDateString(locale)}`,
+          `已达到刷新上限（每周 10 次），将于 ${new Date(intelLimit.nextAllowedAt).toLocaleDateString(locale)} 重置`,
+        )
       : intelLimit.remaining !== null
-        ? `Refresh intel (${intelLimit.remaining}/10 remaining this week)`
-        : "Refresh intel analysis"
+        ? t(
+            `Refresh health (${intelLimit.remaining}/10 remaining this week)`,
+            `刷新健康分析（本周剩余 ${intelLimit.remaining}/10 次）`,
+          )
+        : t("Refresh health analysis", "刷新健康分析")
 
   const intel = data?.intel
 
@@ -489,7 +435,10 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
         <div className="flex items-center gap-3 pt-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/50 shrink-0" />
           <p className="text-xs text-muted-foreground/50">
-            Fetching issues, PRs, and running AI synthesis…
+            {t(
+              "Fetching issues, PRs, and running AI synthesis…",
+              "正在获取议题和拉取请求并进行 AI 分析…",
+            )}
           </p>
         </div>
       </div>
@@ -504,9 +453,9 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           <AlertCircle className="h-5 w-5 text-destructive" />
         </div>
         <div>
-          <p className="text-sm font-medium">Analysis failed</p>
+          <p className="text-sm font-medium">{t("Analysis failed", "分析失败")}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-56">
-            {error?.message ?? "Something went wrong. Please try again."}
+            {error?.message ?? t("Something went wrong. Please try again.", "出了点问题，请重试。")}
           </p>
         </div>
         <Tooltip>
@@ -520,7 +469,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
                 className="min-h-10 gap-2"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                Try Again
+                {t("Try Again", "重试")}
               </Button>
             </span>
           </TooltipTrigger>
@@ -538,49 +487,41 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
   const { metrics } = intel
   const assessment = metrics.maintenanceAssessment
 
-  const rateColor = (r: number) =>
-    r >= 0.7 ? "bg-emerald-500" : r >= 0.4 ? "bg-yellow-500" : "bg-red-500"
-
   return (
     <div className="flex flex-col gap-4">
       {/* ── Score hero ──────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border/80 bg-background shadow-sm shadow-black/5">
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <HealthScoreRing score={intel.healthScore} />
-          <div
-            className={cn(
-              "inline-flex w-fit items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold",
-              adoptionCfg.softClassName,
-            )}
-          >
+          <div className="inline-flex h-7 w-fit items-center gap-2 rounded-md bg-muted px-2 text-xs text-foreground">
             <AdoptionIcon className="h-3.5 w-3.5" aria-hidden="true" />
-            {adoptionCfg.label}
+            {translateIntelLabel(adoptionCfg.label, t)}
           </div>
         </div>
-        <div className="border-t border-border/60 bg-muted/20 px-4 py-3">
+        <div className="mt-3 border-t border-border/60 pt-3">
           <p className="text-sm leading-relaxed text-muted-foreground">{intel.summary}</p>
         </div>
       </div>
 
       {/* ── Classification strip ────────────────────────────────────────── */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
+      <div className="grid grid-cols-3 divide-x divide-border/60">
         <StatusCell
-          category="Maintenance"
-          value={verdictCfg.label}
+          category={t("Maintenance", "维护")}
+          value={translateIntelLabel(verdictCfg.label, t)}
           className={verdictCfg.className}
           dotColor={verdictCfg.dotColor}
           icon={verdictCfg.icon}
         />
         <StatusCell
-          category="Community"
-          value={sentimentCfg.label}
+          category={t("Community", "社区")}
+          value={translateIntelLabel(sentimentCfg.label, t)}
           className={sentimentCfg.className}
           dotColor={sentimentCfg.dotColor}
           icon={sentimentCfg.icon}
         />
         <StatusCell
-          category="Adoption"
-          value={adoptionCfg.label}
+          category={t("Adoption", "采用情况")}
+          value={translateIntelLabel(adoptionCfg.label, t)}
           className={adoptionCfg.className}
           dotColor={adoptionCfg.dotColor}
           icon={adoptionCfg.icon}
@@ -589,62 +530,77 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
 
       {/* ── Key signals ─────────────────────────────────────────────────── */}
       <div>
-        <SectionLabel>Key Signals</SectionLabel>
+        <SectionLabel>{t("Key Signals", "关键信号")}</SectionLabel>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
           <SignalBar
-            label="Issue Close Rate"
+            label={t("Issue Close Rate", "议题关闭率")}
             value={pct(metrics.issueCloseRate)}
             fill={metrics.issueCloseRate}
-            fillColor={rateColor(metrics.issueCloseRate)}
+            fillColor="bg-foreground"
           />
           <SignalBar
-            label="PR Merge Rate"
+            label={t("PR Merge Rate", "拉取请求合并率")}
             value={pct(metrics.prMergeRate)}
             fill={metrics.prMergeRate}
-            fillColor={rateColor(metrics.prMergeRate)}
+            fillColor="bg-foreground"
           />
           <SignalBar
-            label="Commit Authors (90d)"
+            label={t("Commit Authors (90d)", "提交作者（90 天）")}
             value={String(metrics.activeCommitAuthors90d ?? metrics.activeContributors90d)}
           />
           {metrics.commits90d !== undefined && (
-            <SignalBar label="Commits (90d)" value={String(metrics.commits90d)} />
+            <SignalBar
+              label={t("Commits (90d)", "提交次数（90 天）")}
+              value={String(metrics.commits90d)}
+            />
           )}
-          <SignalBar label="Last Commit" value={days(metrics.daysSinceLastCommit)} />
+          <SignalBar
+            label={t("Last Commit", "最近提交")}
+            value={days(metrics.daysSinceLastCommit)}
+          />
           {metrics.avgIssueResponseDays !== null && (
             <SignalBar
-              label="Issue Close Time"
+              label={t("Issue Close Time", "议题关闭时间")}
               value={`${Math.round(metrics.avgIssueResponseDays)}d`}
             />
           )}
           {metrics.avgPrMergeDays !== null && (
-            <SignalBar label="Avg PR Merge Time" value={`${Math.round(metrics.avgPrMergeDays)}d`} />
+            <SignalBar
+              label={t("Avg PR Merge Time", "平均合并时间")}
+              value={`${Math.round(metrics.avgPrMergeDays)}d`}
+            />
           )}
           {metrics.staleIssueCount > 0 && (
-            <SignalBar label="Stale Issues" value={String(metrics.staleIssueCount)} />
+            <SignalBar
+              label={t("Stale Issues", "长期未处理议题")}
+              value={String(metrics.staleIssueCount)}
+            />
           )}
           {metrics.daysSinceLastRelease !== null && (
-            <SignalBar label="Last Release" value={days(metrics.daysSinceLastRelease)} />
+            <SignalBar
+              label={t("Last Release", "最近发布")}
+              value={days(metrics.daysSinceLastRelease)}
+            />
           )}
         </div>
       </div>
 
       {assessment && (
         <div>
-          <SectionLabel>Maintenance Rationale</SectionLabel>
-          <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-3 shadow-sm shadow-black/5">
-            <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
-              <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-                  Maintenance Score
+          <SectionLabel>{t("Maintenance Rationale", "维护状况依据")}</SectionLabel>
+          <div>
+            <div className="mb-3 flex flex-wrap gap-x-6 gap-y-2">
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  {t("Maintenance Score", "维护评分")}
                 </p>
                 <p className="mt-1 font-mono text-base font-semibold tabular-nums text-foreground">
                   {assessment.score}/100
                 </p>
               </div>
-              <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-                  Scoring Confidence
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  {t("Scoring Confidence", "评分置信度")}
                 </p>
                 <p className="mt-1 font-mono text-base font-semibold tabular-nums text-foreground">
                   {Math.round(assessment.confidence * 100)}%
@@ -668,16 +624,20 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
 
       {/* ── Community health ────────────────────────────────────────────── */}
       <div>
-        <SectionLabel>Community Health</SectionLabel>
+        <SectionLabel>{t("Community Health", "社区健康状况")}</SectionLabel>
         <div className="flex gap-2 flex-wrap">
-          <HealthPill label="CI Setup" icon={FileCode2} present={metrics.hasCommunityFiles.ci} />
           <HealthPill
-            label="Contributing Guide"
+            label={t("CI Setup", "CI 配置")}
+            icon={FileCode2}
+            present={metrics.hasCommunityFiles.ci}
+          />
+          <HealthPill
+            label={t("Contributing Guide", "贡献指南")}
             icon={BookOpen}
             present={metrics.hasCommunityFiles.contributingGuide}
           />
           <HealthPill
-            label="Code of Conduct"
+            label={t("Code of Conduct", "行为准则")}
             icon={Shield}
             present={metrics.hasCommunityFiles.codeOfConduct}
           />
@@ -687,17 +647,11 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       {/* ── Pain points ─────────────────────────────────────────────────── */}
       {intel.topPainPoints.length > 0 && (
         <div>
-          <SectionLabel>Known Pain Points</SectionLabel>
+          <SectionLabel>{t("Known Pain Points", "已知问题")}</SectionLabel>
           <ul className="flex flex-col gap-2">
             {intel.topPainPoints.map((point, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-2.5 rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2.5"
-              >
-                <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border border-orange-500/25 bg-orange-500/15 font-mono text-[10px] font-bold leading-none text-orange-700 dark:text-orange-400">
-                  {i + 1}
-                </span>
-                <p className="text-xs leading-relaxed text-muted-foreground">{point}</p>
+              <li key={i} className="text-xs leading-relaxed text-muted-foreground">
+                {i + 1}. {point}
               </li>
             ))}
           </ul>
@@ -705,26 +659,20 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
       )}
 
       {/* ── Recommendation ──────────────────────────────────────────────── */}
-      <div className="flex gap-3 rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 py-3 dark:bg-blue-500/8">
-        <Zap
-          className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
-          aria-hidden="true"
-        />
-        <div>
-          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-blue-700/80 dark:text-blue-400/80">
-            Recommendation
-          </p>
-          <p className="text-sm leading-relaxed text-blue-900 dark:text-blue-100">
-            {intel.recommendation}
-          </p>
-        </div>
+      <div>
+        <p className="mb-1 text-xs text-muted-foreground">{t("Recommendation", "建议")}</p>
+        <p className="text-sm leading-relaxed text-foreground">{intel.recommendation}</p>
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs text-muted-foreground">
         <span>
-          {data?.cached === false ? "Fresh · " : "Cached · "}
-          Analyzed {formatDistanceToNow(new Date(intel.analyzedAt), { addSuffix: true })}
+          {data?.cached === false ? t("Fresh · ", "最新 · ") : t("Cached · ", "缓存 · ")}
+          {t("Analyzed", "分析于")}{" "}
+          {formatDistanceToNow(new Date(intel.analyzedAt), {
+            addSuffix: true,
+            locale: locale === "zh-CN" ? zhCN : undefined,
+          })}
         </span>
         <div className="flex items-center gap-1">
           <Button
@@ -733,9 +681,9 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
             size="sm"
             className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <Link href={`/intel/${owner}/${name}`}>
+            <Link href={`/health/${owner}/${name}`}>
               <ExternalLink className="h-3 w-3" />
-              Full report
+              {t("Full report", "完整报告")}
             </Link>
           </Button>
           <Tooltip>
@@ -749,7 +697,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <RefreshCw className="h-3 w-3" />
-                  Refresh
+                  {t("Refresh", "刷新")}
                 </Button>
               </span>
             </TooltipTrigger>

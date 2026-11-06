@@ -1,5 +1,6 @@
 "use client"
 
+import { useI18n } from "@/components/i18n-provider"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -39,12 +40,16 @@ const TAG_PALETTE = [
   "#6366f1",
 ]
 
-const formSchema = z.object({
-  label: z.string().min(1, "Label is required").max(30, "Label must be 30 characters or less"),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
-})
+const formSchema = (t: (english: string, chinese: string) => string) =>
+  z.object({
+    label: z
+      .string()
+      .min(1, t("Label is required", "请输入标签名称"))
+      .max(30, t("Label must be 30 characters or less", "标签名称不能超过 30 个字符")),
+    color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, t("Invalid color format", "颜色格式无效")),
+  })
 
-type FormData = z.infer<typeof formSchema>
+type FormData = z.infer<ReturnType<typeof formSchema>>
 
 interface CreateTagModalProps {
   open: boolean
@@ -62,10 +67,11 @@ function pickTagColor(label: string): string {
 }
 
 export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalProps) {
+  const { t } = useI18n()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema(t)),
     defaultValues: {
       label: "",
       color: TAG_PALETTE[0],
@@ -99,9 +105,11 @@ export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
-            Create Tag
+            {t("Create Tag", "创建标签")}
           </DialogTitle>
-          <DialogDescription>Create a new tag to categorize your repositories.</DialogDescription>
+          <DialogDescription>
+            {t("Create a new tag to categorize your repositories.", "创建标签来分类仓库。")}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -111,7 +119,7 @@ export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalP
               name="label"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Label *</FormLabel>
+                  <FormLabel>{t("Label *", "标签名称 *")}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="e.g., machine-learning"
@@ -133,14 +141,14 @@ export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalP
               name="color"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Color</FormLabel>
+                  <FormLabel>{t("Color", "颜色")}</FormLabel>
                   <div className="flex items-center gap-3">
                     <div
                       className="h-8 w-8 rounded-full border"
                       style={{ backgroundColor: selectedColor }}
                     />
                     <span className="text-sm text-muted-foreground">
-                      Auto-selected based on label
+                      {t("Auto-selected based on label", "根据标签名称自动选择")}
                     </span>
                   </div>
                   <FormControl>
@@ -157,7 +165,7 @@ export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalP
                               : "hover:scale-105",
                           )}
                           style={{ backgroundColor: color }}
-                          aria-label={`Select color ${color}`}
+                          aria-label={t(`Select color ${color}`, `选择颜色 ${color}`)}
                           disabled={isSubmitting}
                         />
                       ))}
@@ -175,11 +183,11 @@ export function CreateTagModal({ open, onOpenChange, onCreate }: CreateTagModalP
                 onClick={() => handleOpenChange(false)}
                 disabled={isSubmitting}
               >
-                Cancel
+                {t("Cancel", "取消")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Tag
+                {t("Create Tag", "创建标签")}
               </Button>
             </DialogFooter>
           </form>
