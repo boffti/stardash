@@ -255,7 +255,7 @@ function OpportunityIssueRow({
         </div>
 
         {opportunity.risks.length > 0 && (
-          <div className="mt-3 flex gap-2 rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <div className="mt-3 flex gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>{opportunity.risks.slice(0, 2).join(" · ")}</span>
           </div>

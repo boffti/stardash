@@ -179,7 +179,7 @@ export function IssueViewer({ opportunity, open, onClose }: IssueViewerProps) {
                 prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
                 prose-code:rounded prose-code:text-sm prose-code:font-mono
                 prose-code:before:content-none prose-code:after:content-none
-                prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg
+                prose-pre:bg-muted prose-pre:rounded-lg
                 prose-li:text-muted-foreground
                 prose-strong:text-foreground
                 prose-ul:my-2 prose-li:my-0.5

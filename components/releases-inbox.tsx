@@ -356,7 +356,7 @@ function ReleaseRow({
             </div>
 
             {group.breaking && (
-              <span className="inline-flex min-h-6 items-center gap-1.5 self-start rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium leading-4 text-amber-600 dark:text-amber-400">
+              <span className="inline-flex min-h-6 items-center gap-1.5 self-start rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium leading-4 text-amber-600 dark:text-amber-400">
                 <TriangleAlert className="h-3 w-3" />
                 {t("Breaking changes", "破坏性变更")}
               </span>

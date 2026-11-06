@@ -1027,7 +1027,7 @@ export function ContributionDashboard() {
               return isOpportunityTokenError ? (
                 <TokenExpiredBanner onReconnect={handleReconnect} message={cachedRepoOnlyMessage} />
               ) : (
-                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="mb-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {opportunityError}
                 </div>
               )
@@ -1094,7 +1094,7 @@ export function ContributionDashboard() {
           )}
 
           {briefError && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {briefError}
             </div>
           )}
@@ -1188,7 +1188,7 @@ export function ContributionDashboard() {
                     prose-code:bg-muted prose-code:text-foreground prose-code:px-1.5 prose-code:py-0.5
                     prose-code:rounded prose-code:text-xs prose-code:font-mono
                     prose-code:before:content-none prose-code:after:content-none
-                    prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:my-2
+                    prose-pre:bg-muted prose-pre:rounded-lg prose-pre:my-2
                     prose-li:text-muted-foreground prose-li:my-0.5
                     prose-ul:my-1 prose-ol:my-1
                     prose-strong:text-foreground

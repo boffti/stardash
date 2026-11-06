@@ -110,7 +110,7 @@ export function SearchPipelineTimeline({
     <div className={cn("rounded-lg bg-card/70 p-4 shadow-sm", className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/50">
             <Code2 className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
@@ -150,13 +150,10 @@ export function SearchPipelineTimeline({
           const stepNumber = index + 1
 
           return (
-            <div
-              key={step.id}
-              className="relative flex items-center gap-3 rounded-md border border-border/60 bg-background/50 p-3"
-            >
+            <div key={step.id} className="relative flex items-center gap-3 py-2">
               <div
                 className={cn(
-                  "relative flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground",
+                  "relative flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground",
                   status === "completed" && "border-primary bg-primary text-primary-foreground",
                   status === "running" && "border-primary text-primary",
                   status === "error" &&
@@ -183,7 +180,7 @@ export function SearchPipelineTimeline({
                       .map(([key, value]) => (
                         <span
                           key={key}
-                          className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                          className="rounded bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground"
                         >
                           {key}: {String(value)}
                         </span>

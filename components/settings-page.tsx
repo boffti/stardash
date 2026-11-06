@@ -1,8 +1,8 @@
 "use client"
 
-import { type ReactNode, useMemo, useState, useSyncExternalStore } from "react"
+import { useMemo, useState, useSyncExternalStore } from "react"
 import useSWR from "swr"
-import { FolderOpen, Loader2, Pencil, Plus, Settings, Tag, Trash2 } from "lucide-react"
+import { FolderOpen, Loader2, Pencil, Plus, Tag, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import type { Collection, Tag as TagType, UserMetadata } from "@/lib/types"
@@ -15,7 +15,7 @@ import {
   updateTag,
 } from "@/lib/metadata-actions"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -66,33 +66,6 @@ const fetcher = async (url: string) => {
     throw new Error("Failed to load metadata")
   }
   return response.json()
-}
-
-function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: ReactNode
-  title: string
-  description?: string
-  action?: ReactNode
-}) {
-  return (
-    <Card className="border-0 bg-transparent shadow-none">
-      <CardContent className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/40">
-          {icon}
-        </div>
-        <div className="space-y-1">
-          <p className="font-medium text-foreground">{title}</p>
-          {description && <p className="max-w-md text-sm text-muted-foreground">{description}</p>}
-        </div>
-        {action}
-      </CardContent>
-    </Card>
-  )
 }
 
 function CollectionEditor({
@@ -517,36 +490,15 @@ export function SettingsPage() {
           userId={user.id}
         />
         <SidebarInset className="overflow-x-hidden">
-          <AppPageHeader
-            lastSynced={null}
-            hideNavActions
-            actions={
-              <>
-                <Badge
-                  variant="outline"
-                  className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex"
-                >
-                  {collections.length} {t("collections", "个收藏夹")}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="hidden rounded-full px-2.5 py-1 text-[11px] md:flex"
-                >
-                  {tags.length} {t("tags", "个标签")}
-                </Badge>
-              </>
-            }
-          />
+          <AppPageHeader lastSynced={null} hideNavActions />
 
           <main className="flex-1 p-6">
-            <div className="flex w-full flex-col gap-6">
-              <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-                <CardHeader className="px-5 py-5 sm:px-6">
-                  <CardTitle className="text-base">
-                    {t("Appearance & language", "外观与语言")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-6 p-5 sm:p-6 lg:grid-cols-2">
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+              <section className="space-y-4">
+                <h2 className="text-base font-semibold">
+                  {t("Appearance & language", "外观与语言")}
+                </h2>
+                <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm font-medium">{t("Theme", "主题")}</p>
@@ -605,188 +557,166 @@ export function SettingsPage() {
                       ))}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-              <section className="space-y-3">
-                <AIKeySettings />
+                </div>
               </section>
               <Separator />
-              <section className="space-y-3">
-                <AgentTokens />
-              </section>
+              <AIKeySettings />
               <Separator />
-              <div className="grid gap-5">
-                <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-                  <CardHeader className="px-5 py-5 sm:px-6">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                      <div className="space-y-2">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          {t("Collections and tags", "收藏夹与标签")}
-                        </CardTitle>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          className="rounded-xl"
-                          onClick={() => setCreateCollectionOpen(true)}
-                        >
-                          <Plus className="h-4 w-4" />
-                          {t("New collection", "新建收藏夹")}
-                        </Button>
-                        <Button className="rounded-xl" onClick={() => setCreateTagOpen(true)}>
-                          <Plus className="h-4 w-4" />
-                          {t("New tag", "新建标签")}
-                        </Button>
-                      </div>
+              <AgentTokens />
+              <Separator />
+              <section className="space-y-4">
+                <div>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="space-y-2">
+                      <h2 className="text-base font-semibold">
+                        {t("Collections and tags", "收藏夹与标签")}
+                      </h2>
                     </div>
-                  </CardHeader>
 
-                  <CardContent className="p-5 sm:p-6">
-                    {isLoading ? (
-                      <div className="flex min-h-[280px] items-center justify-center rounded-xl bg-muted/10">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : (
-                      <Tabs defaultValue="collections" className="gap-6">
-                        <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/40 p-1 sm:w-[320px]">
-                          <TabsTrigger value="collections">
-                            <FolderOpen className="h-4 w-4" />
-                            {t("Collections", "收藏夹")}
-                          </TabsTrigger>
-                          <TabsTrigger value="tags">
-                            <Tag className="h-4 w-4" />
-                            {t("Tags", "标签")}
-                          </TabsTrigger>
-                        </TabsList>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() => setCreateCollectionOpen(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                        {t("New collection", "新建收藏夹")}
+                      </Button>
+                      <Button className="rounded-xl" onClick={() => setCreateTagOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                        {t("New tag", "新建标签")}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
 
-                        <TabsContent value="collections" className="space-y-3 pt-1">
-                          {collections.length === 0 ? (
-                            <EmptyState
-                              icon={<FolderOpen className="h-5 w-5 text-muted-foreground" />}
-                              title={t("No collections yet", "还没有收藏夹")}
-                              action={
-                                <Button onClick={() => setCreateCollectionOpen(true)}>
-                                  <Plus className="h-4 w-4" />
-                                  {t("Create collection", "创建收藏夹")}
-                                </Button>
-                              }
-                            />
-                          ) : (
-                            collections.map((collection) => {
-                              const saveKey = `collection-save-${collection.id}`
-                              const deleteKey = `collection-delete-${collection.id}`
-                              return (
-                                <CollectionEditor
-                                  key={collection.id}
-                                  collection={collection}
-                                  repoCount={collectionCounts.get(collection.id) ?? 0}
-                                  isSaving={busyKey === saveKey}
-                                  isDeleting={busyKey === deleteKey}
-                                  onSave={async ({ name, emoji, color }) => {
-                                    setBusyKey(saveKey)
-                                    try {
-                                      await updateCollection(collection.id, name, emoji, color)
-                                      await mutate()
-                                      toast.success(t("Collection updated", "收藏夹已更新"))
-                                    } catch (error) {
-                                      const message = (error as Error).message
-                                      toast.error(
-                                        message.includes("unique")
-                                          ? t("Collection already exists", "收藏夹已存在")
-                                          : t("Failed to update collection", "更新收藏夹失败"),
-                                      )
-                                      throw error
-                                    } finally {
-                                      setBusyKey(null)
-                                    }
-                                  }}
-                                  onDelete={async () => {
-                                    setBusyKey(deleteKey)
-                                    try {
-                                      await deleteCollection(collection.id)
-                                      await mutate()
-                                      toast.success(t("Collection deleted", "收藏夹已删除"))
-                                    } catch {
-                                      toast.error(
-                                        t("Failed to delete collection", "删除收藏夹失败"),
-                                      )
-                                      throw new Error("delete failed")
-                                    } finally {
-                                      setBusyKey(null)
-                                    }
-                                  }}
-                                />
-                              )
-                            })
-                          )}
-                        </TabsContent>
+                <div>
+                  {isLoading ? (
+                    <div className="flex min-h-[280px] items-center justify-center rounded-xl bg-muted/10">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <Tabs defaultValue="collections" className="gap-6">
+                      <TabsList className="gap-2 bg-transparent p-0">
+                        <TabsTrigger value="collections">
+                          <FolderOpen className="h-4 w-4" />
+                          {t("Collections", "收藏夹")}
+                        </TabsTrigger>
+                        <TabsTrigger value="tags">
+                          <Tag className="h-4 w-4" />
+                          {t("Tags", "标签")}
+                        </TabsTrigger>
+                      </TabsList>
 
-                        <TabsContent value="tags" className="space-y-3 pt-1">
-                          {tags.length === 0 ? (
-                            <EmptyState
-                              icon={<Tag className="h-5 w-5 text-muted-foreground" />}
-                              title={t("No tags yet", "还没有标签")}
-                              action={
-                                <Button onClick={() => setCreateTagOpen(true)}>
-                                  <Plus className="h-4 w-4" />
-                                  {t("Create tag", "创建标签")}
-                                </Button>
-                              }
-                            />
-                          ) : (
-                            tags.map((tag) => {
-                              const saveKey = `tag-save-${tag.id}`
-                              const deleteKey = `tag-delete-${tag.id}`
-                              return (
-                                <TagEditor
-                                  key={tag.id}
-                                  tag={tag}
-                                  repoCount={tagCounts.get(tag.id) ?? 0}
-                                  isSaving={busyKey === saveKey}
-                                  isDeleting={busyKey === deleteKey}
-                                  onSave={async ({ label, color }) => {
-                                    setBusyKey(saveKey)
-                                    try {
-                                      await updateTag(tag.id, label, color)
-                                      await mutate()
-                                      toast.success(t("Tag updated", "标签已更新"))
-                                    } catch (error) {
-                                      const message = (error as Error).message
-                                      toast.error(
-                                        message.includes("unique")
-                                          ? t("Tag already exists", "标签已存在")
-                                          : t("Failed to update tag", "更新标签失败"),
-                                      )
-                                      throw error
-                                    } finally {
-                                      setBusyKey(null)
-                                    }
-                                  }}
-                                  onDelete={async () => {
-                                    setBusyKey(deleteKey)
-                                    try {
-                                      await deleteTag(tag.id)
-                                      await mutate()
-                                      toast.success(t("Tag deleted", "标签已删除"))
-                                    } catch {
-                                      toast.error(t("Failed to delete tag", "删除标签失败"))
-                                      throw new Error("delete failed")
-                                    } finally {
-                                      setBusyKey(null)
-                                    }
-                                  }}
-                                />
-                              )
-                            })
-                          )}
-                        </TabsContent>
-                      </Tabs>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                      <TabsContent value="collections" className="space-y-3 pt-1">
+                        {collections.length === 0 ? (
+                          <p className="py-4 text-sm text-muted-foreground">
+                            {t("No collections yet", "还没有收藏夹")}
+                          </p>
+                        ) : (
+                          collections.map((collection) => {
+                            const saveKey = `collection-save-${collection.id}`
+                            const deleteKey = `collection-delete-${collection.id}`
+                            return (
+                              <CollectionEditor
+                                key={collection.id}
+                                collection={collection}
+                                repoCount={collectionCounts.get(collection.id) ?? 0}
+                                isSaving={busyKey === saveKey}
+                                isDeleting={busyKey === deleteKey}
+                                onSave={async ({ name, emoji, color }) => {
+                                  setBusyKey(saveKey)
+                                  try {
+                                    await updateCollection(collection.id, name, emoji, color)
+                                    await mutate()
+                                    toast.success(t("Collection updated", "收藏夹已更新"))
+                                  } catch (error) {
+                                    const message = (error as Error).message
+                                    toast.error(
+                                      message.includes("unique")
+                                        ? t("Collection already exists", "收藏夹已存在")
+                                        : t("Failed to update collection", "更新收藏夹失败"),
+                                    )
+                                    throw error
+                                  } finally {
+                                    setBusyKey(null)
+                                  }
+                                }}
+                                onDelete={async () => {
+                                  setBusyKey(deleteKey)
+                                  try {
+                                    await deleteCollection(collection.id)
+                                    await mutate()
+                                    toast.success(t("Collection deleted", "收藏夹已删除"))
+                                  } catch {
+                                    toast.error(t("Failed to delete collection", "删除收藏夹失败"))
+                                    throw new Error("delete failed")
+                                  } finally {
+                                    setBusyKey(null)
+                                  }
+                                }}
+                              />
+                            )
+                          })
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="tags" className="space-y-3 pt-1">
+                        {tags.length === 0 ? (
+                          <p className="py-4 text-sm text-muted-foreground">
+                            {t("No tags yet", "还没有标签")}
+                          </p>
+                        ) : (
+                          tags.map((tag) => {
+                            const saveKey = `tag-save-${tag.id}`
+                            const deleteKey = `tag-delete-${tag.id}`
+                            return (
+                              <TagEditor
+                                key={tag.id}
+                                tag={tag}
+                                repoCount={tagCounts.get(tag.id) ?? 0}
+                                isSaving={busyKey === saveKey}
+                                isDeleting={busyKey === deleteKey}
+                                onSave={async ({ label, color }) => {
+                                  setBusyKey(saveKey)
+                                  try {
+                                    await updateTag(tag.id, label, color)
+                                    await mutate()
+                                    toast.success(t("Tag updated", "标签已更新"))
+                                  } catch (error) {
+                                    const message = (error as Error).message
+                                    toast.error(
+                                      message.includes("unique")
+                                        ? t("Tag already exists", "标签已存在")
+                                        : t("Failed to update tag", "更新标签失败"),
+                                    )
+                                    throw error
+                                  } finally {
+                                    setBusyKey(null)
+                                  }
+                                }}
+                                onDelete={async () => {
+                                  setBusyKey(deleteKey)
+                                  try {
+                                    await deleteTag(tag.id)
+                                    await mutate()
+                                    toast.success(t("Tag deleted", "标签已删除"))
+                                  } catch {
+                                    toast.error(t("Failed to delete tag", "删除标签失败"))
+                                    throw new Error("delete failed")
+                                  } finally {
+                                    setBusyKey(null)
+                                  }
+                                }}
+                              />
+                            )
+                          })
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  )}
+                </div>
+              </section>
             </div>
           </main>
         </SidebarInset>

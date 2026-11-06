@@ -669,7 +669,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
           <SectionLabel>{t("Maintenance Rationale", "维护状况依据")}</SectionLabel>
           <div className="rounded-lg bg-background/60 px-3 py-3">
             <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
-              <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
+              <div className="rounded-md bg-muted/25 px-2.5 py-2">
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
                   {t("Maintenance Score", "维护评分")}
                 </p>
@@ -677,7 +677,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
                   {assessment.score}/100
                 </p>
               </div>
-              <div className="rounded-md border border-border/60 bg-muted/25 px-2.5 py-2">
+              <div className="rounded-md bg-muted/25 px-2.5 py-2">
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
                   {t("Scoring Confidence", "评分置信度")}
                 </p>
@@ -733,7 +733,7 @@ export function RepoIntelTab({ owner, name }: RepoIntelTabProps) {
                 key={i}
                 className="flex items-start gap-2.5 rounded-lg bg-orange-500/5 px-3 py-2.5"
               >
-                <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border border-orange-500/25 bg-orange-500/15 font-mono text-[10px] font-bold leading-none text-orange-700 dark:text-orange-400">
+                <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md bg-orange-500/15 font-mono text-[10px] font-bold leading-none text-orange-700 dark:text-orange-400">
                   {i + 1}
                 </span>
                 <p className="text-xs leading-relaxed text-muted-foreground">{point}</p>

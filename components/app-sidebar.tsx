@@ -275,14 +275,18 @@ export function AppSidebar({
 
         <SidebarGroup>
           <Collapsible open={collectionsOpen} onOpenChange={setCollectionsOpen}>
-            <div className="flex items-center justify-between px-2">
+            <div className="flex h-8 items-center gap-1">
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer hover:text-foreground flex items-center gap-1">
-                  <Codicon
-                    name="chevron-down"
-                    className={`h-3 w-3 transition-transform ${collectionsOpen ? "" : "-rotate-90"}`}
-                  />
-                  {t("Collections", "收藏夹")}
+                <SidebarGroupLabel asChild className="flex-1 gap-2 hover:text-foreground">
+                  <button type="button">
+                    <span className="grid size-4 shrink-0 place-items-center">
+                      <Codicon
+                        name="chevron-down"
+                        className={`transition-transform ${collectionsOpen ? "" : "-rotate-90"}`}
+                      />
+                    </span>
+                    {t("Collections", "收藏夹")}
+                  </button>
                 </SidebarGroupLabel>
               </CollapsibleTrigger>
               <Button
@@ -365,14 +369,18 @@ export function AppSidebar({
 
         <SidebarGroup>
           <Collapsible open={tagsOpen} onOpenChange={setTagsOpen}>
-            <div className="flex items-center justify-between px-2">
+            <div className="flex h-8 items-center gap-1">
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer hover:text-foreground flex items-center gap-1">
-                  <Codicon
-                    name="chevron-down"
-                    className={`h-3 w-3 transition-transform ${tagsOpen ? "" : "-rotate-90"}`}
-                  />
-                  {t("Tags", "标签")}
+                <SidebarGroupLabel asChild className="flex-1 gap-2 hover:text-foreground">
+                  <button type="button">
+                    <span className="grid size-4 shrink-0 place-items-center">
+                      <Codicon
+                        name="chevron-down"
+                        className={`transition-transform ${tagsOpen ? "" : "-rotate-90"}`}
+                      />
+                    </span>
+                    {t("Tags", "标签")}
+                  </button>
                 </SidebarGroupLabel>
               </CollapsibleTrigger>
               <Button

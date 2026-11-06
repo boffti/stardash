@@ -87,16 +87,8 @@ export function AIKeySettings() {
     : null
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-medium">{t("AI Provider", "AI 服务商")}</h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          {t(
-            "Optional. Server settings are used unless you configure a provider here. Settings are stored in this browser and sent with each AI request. Ollama runs on the server; use AI_BASE_URL for remote or Docker hosts.",
-            "可选。未在此设置时使用服务器配置。设置仅保存在此浏览器中，并随每次 AI 请求发送。Ollama 在服务器上运行；远程或 Docker 主机请使用 AI_BASE_URL。",
-          )}
-        </p>
-      </div>
+    <section className="space-y-4">
+      <h2 className="text-base font-semibold">{t("AI Provider", "AI 服务商")}</h2>
 
       {config ? (
         <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
@@ -114,11 +106,13 @@ export function AIKeySettings() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="max-w-md space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">{t("Provider", "服务商")}</Label>
+            <Label htmlFor="ai-provider" className="text-xs">
+              {t("Provider", "服务商")}
+            </Label>
             <Select value={provider} onValueChange={(v) => setProvider(v as AIProvider)}>
-              <SelectTrigger className="h-8 text-sm">
+              <SelectTrigger id="ai-provider" className="h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -133,9 +127,12 @@ export function AIKeySettings() {
 
           {provider !== "ollama" && (
             <div className="space-y-1.5">
-              <Label className="text-xs">{t("API Key", "API 密钥")}</Label>
+              <Label htmlFor="ai-api-key" className="text-xs">
+                {t("API key", "API 密钥")}
+              </Label>
               <div className="flex gap-2">
                 <Input
+                  id="ai-api-key"
                   type={showKey ? "text" : "password"}
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
@@ -155,10 +152,11 @@ export function AIKeySettings() {
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-xs">
-              {t("Model", "模型")} {provider !== "ollama" && t("(optional)", "（可选）")}
+            <Label htmlFor="ai-model" className="text-xs">
+              {t("Model", "模型")}
             </Label>
             <Input
+              id="ai-model"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder={
@@ -169,8 +167,11 @@ export function AIKeySettings() {
           </div>
           {provider === "ollama" && (
             <div className="space-y-1.5">
-              <Label className="text-xs">Ollama URL</Label>
+              <Label htmlFor="ollama-url" className="text-xs">
+                {t("Server loopback URL", "服务器本机地址")}
+              </Label>
               <Input
+                id="ollama-url"
                 value={baseURL}
                 onChange={(e) => setBaseURL(e.target.value)}
                 className="h-8 text-sm"
@@ -183,6 +184,6 @@ export function AIKeySettings() {
           </Button>
         </div>
       )}
-    </div>
+    </section>
   )
 }

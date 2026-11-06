@@ -3,10 +3,9 @@
 import { useI18n } from "@/components/i18n-provider"
 import { useState } from "react"
 import useSWR from "swr"
-import { Bot, Copy, Loader2, Plus, Trash2 } from "lucide-react"
+import { Copy, Loader2, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 
 interface TokenRow {
@@ -71,23 +70,13 @@ export function AgentTokens() {
     : null
 
   return (
-    <Card className="border-border/60 bg-card shadow-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Bot className="h-4 w-4 text-muted-foreground" />
-          {t("Agents (MCP)", "智能体（MCP）")}
-        </CardTitle>
-        <CardDescription>
-          {t(
-            "Let Claude Code, Cursor or any MCP client search, organize and triage your stars. Tokens are shown once.",
-            "让 Claude Code、Cursor 或其他 MCP 客户端搜索、整理和处理你的星标。令牌仅显示一次。",
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <section className="space-y-4">
+      <h2 className="text-base font-semibold">{t("Agents (MCP)", "智能体（MCP）")}</h2>
+      <div className="space-y-4">
         <form onSubmit={create} className="flex gap-2">
           <Input
-            placeholder={t("Token name, e.g. claude-code", "令牌名称，例如 claude-code")}
+            aria-label={t("Token name", "令牌名称")}
+            placeholder={t("Token name", "令牌名称")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="max-w-xs"
@@ -102,8 +91,8 @@ export function AgentTokens() {
           <div className="space-y-2 rounded-xl bg-muted/20 p-3">
             <p className="text-xs text-muted-foreground">
               {t(
-                "Copy this now. Paste it into .mcp.json (Claude Code) or your client’s MCP settings.",
-                "请立即复制，并粘贴到 .mcp.json（Claude Code）或客户端的 MCP 设置中。",
+                "Copy before leaving. This token is shown once.",
+                "离开前请复制，令牌仅显示一次。",
               )}
             </p>
             <pre className="overflow-x-auto rounded-lg bg-background p-3 font-mono text-xs">
@@ -151,7 +140,7 @@ export function AgentTokens() {
             ))}
           </ul>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }

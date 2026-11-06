@@ -41,18 +41,15 @@ export function SearchHero({
             event.preventDefault()
             if (query.trim()) onSearch(query.trim())
           }}
-          className="flex items-center gap-2 rounded-lg bg-card p-2 shadow-sm dark:shadow-black/20"
+          className="flex items-center gap-2 rounded-lg bg-muted/60 p-2 shadow-sm dark:shadow-black/20 focus-within:ring-2 focus-within:ring-ring/50"
         >
           <Search className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             aria-label={t("Search repositories", "搜索仓库")}
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={t(
-              "Search by name, description, topic, or language",
-              "按名称、描述、主题或语言搜索",
-            )}
-            className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+
+            className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none"
           />
           {query && (
             <button

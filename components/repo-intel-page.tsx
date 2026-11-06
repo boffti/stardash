@@ -644,7 +644,7 @@ function EvidencePanel({ intel, velocity }: { intel: RepoIntel; velocity: StarVe
       <CardHeader className="border-b border-border/40 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/20 text-muted-foreground">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/20 text-muted-foreground">
               <Activity className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0">

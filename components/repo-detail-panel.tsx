@@ -306,13 +306,14 @@ export function RepoDetailPanel({
 
         {/* Tab bar */}
         <div className="mt-5 flex items-center gap-2">
-          <div className="flex flex-1 gap-1 p-1 rounded-lg bg-muted/40">
+          <div className="flex flex-1 gap-1">
             <button
               onClick={() => setActiveTab("overview")}
+              aria-pressed={activeTab === "overview"}
               className={cn(
-                "flex-1 text-xs font-medium py-1.5 rounded-md transition-all",
+                "text-xs font-medium px-3 py-1.5 rounded-md transition-colors",
                 activeTab === "overview"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -320,10 +321,11 @@ export function RepoDetailPanel({
             </button>
             <button
               onClick={() => setActiveTab("intel")}
+              aria-pressed={activeTab === "intel"}
               className={cn(
-                "flex-1 text-xs font-medium py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5",
+                "text-xs font-medium px-3 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5",
                 activeTab === "intel"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -454,7 +456,7 @@ export function RepoDetailPanel({
 
             {/* Personal Organization */}
             <div className="space-y-5">
-              <h3 className="text-sm font-medium">{t("Your Organization", "整理")}</h3>
+              <h3 className="text-sm font-medium">{t("Organize", "整理")}</h3>
 
               {/* Status */}
               <div>
@@ -775,7 +777,7 @@ export function RepoDetailPanel({
     return (
       <aside
         aria-label={t("Repository details", "仓库详情")}
-        className="sticky top-14 h-[calc(100vh-3.5rem)] w-[min(34rem,40%)] shrink-0 overflow-hidden border-l border-border bg-background"
+        className="sticky top-14 h-[calc(100vh-3.5rem)] w-[min(34rem,40%)] shrink-0 overflow-hidden bg-card"
       >
         <button
           type="button"
@@ -794,7 +796,7 @@ export function RepoDetailPanel({
     <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <SheetContent
         aria-label={t("Repository details", "仓库详情")}
-        className="w-full sm:max-w-lg p-0 border-l border-border overflow-hidden"
+        className="w-full sm:max-w-lg p-0 border-0 bg-card overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <SheetTitle className="sr-only">{t("Repository details", "仓库详情")}</SheetTitle>
