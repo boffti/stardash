@@ -7,6 +7,9 @@ import { db, nowIso, toJson, fromJson } from "@/lib/db"
 const GITHUB_LIST_CAP = 32 // GitHub's per-account limit on lists
 const MAX_WRITES_PER_RUN = 400 // GitHub allows ~500 content writes an hour; the rest go next run
 const WRITE_GAP_MS = 800
+// A full run takes ~6 min (400 writes, 0.8 s apart). A "running" status older than this was
+// left behind by a restart mid-run, so it is reported as interrupted and can be started again.
+const STALE_RUN_MS = 30 * 60 * 1000
 
 type Gql = <T>(query: string, variables?: Record<string, unknown>) => Promise<T>
 
@@ -125,6 +128,7 @@ export interface ListsSyncStatus {
   /** The token could not write lists, so this run only imported from GitHub. */
   readOnly?: boolean
   error?: string
+  startedAt?: string
   finishedAt?: string
 }
 
@@ -133,7 +137,7 @@ const statusKey = (userId: string) => `lists-sync:${userId}`
 export function getListsSyncStatus(userId: string): ListsSyncStatus {
   const row = db.prepare("select value from meta where key = ?").get(statusKey(userId)) as
     { value: string } | undefined
-  return fromJson<ListsSyncStatus>(row?.value, {
+  const status = fromJson<ListsSyncStatus>(row?.value, {
     state: "idle",
     done: 0,
     total: 0,
@@ -142,6 +146,15 @@ export function getListsSyncStatus(userId: string): ListsSyncStatus {
     createdCollections: 0,
     pending: 0,
   })
+  const started = status.startedAt ? Date.parse(status.startedAt) : 0
+  if (status.state === "running" && Date.now() - started > STALE_RUN_MS) {
+    return {
+      ...status,
+      state: "error",
+      error: "The last sync was interrupted. Press Sync now to finish it.",
+    }
+  }
+  return status
 }
 
 function setStatus(userId: string, status: ListsSyncStatus) {
@@ -167,6 +180,7 @@ export async function syncGitHubLists(
     createdLists: 0,
     createdCollections: 0,
     pending: 0,
+    startedAt: nowIso(),
   }
   setStatus(userId, status)
   try {

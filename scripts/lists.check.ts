@@ -214,4 +214,21 @@ login = "someone-else"
 s = await sync()
 assert(s.state === "error" && s.error?.includes("someone-else"), `wrong account: ${s.error}`)
 
+// 8. A "running" status left by a restart mid-run reads as interrupted, so a sync can start again.
+const { getListsSyncStatus } = await import("../lib/github-lists")
+const statusRow = (startedAt: string) =>
+  db
+    .prepare("insert or replace into meta (key, value) values ('lists-sync:u1', ?)")
+    .run(JSON.stringify({ ...s, state: "running", startedAt }))
+statusRow(new Date(Date.now() - 31 * 60 * 1000).toISOString())
+assert(
+  getListsSyncStatus("u1").state === "error",
+  "a stale running status is reported as interrupted",
+)
+statusRow(new Date().toISOString())
+assert(getListsSyncStatus("u1").state === "running", "a fresh running status stays running")
+login = "me"
+s = await sync()
+assert(s.state === "done", `a sync runs after an interruption: ${s.error}`)
+
 console.log("lists check ok")
