@@ -217,6 +217,15 @@ const MIGRATIONS: string[] = [
   );
   create index repo_releases_published on repo_releases (repo_id, published_at);
   alter table user_starred_repos add column releases_seen_at text;`,
+  // 2: GitHub Lists sync. A null side means unlinked: deleted there, kept here, never re-created.
+  `create table github_list_links (
+    user_id text not null,
+    collection_id text references collections(id) on delete set null,
+    list_id text,
+    synced text not null default '[]',
+    unique (user_id, collection_id),
+    unique (user_id, list_id)
+  );`,
 ]
 
 function open() {
