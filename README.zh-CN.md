@@ -55,7 +55,7 @@ Radar 给每个人读的是同一批新仓库。哪个排在最前，取决于�
 | 在家里自托管的应用      | 一个你关注的三个人昨天点过星的家庭实验室面板。_People you follow_ 高于任何主题匹配。                 |
 
 > [!NOTE]
-> AI 是可选的。搜索、状态、笔记、Radar 和 Contribute 都不需要密钥。Categorize、Intel 和 Discover 使用 OpenRouter 密钥（`OPENROUTER_API_KEY`），或你在设置里粘贴的自己的 OpenAI 或 Anthropic 密钥。用默认模型给 500 个仓库完整分类一次，大约一美分。
+> AI 是可选的。搜索、状态、笔记、Radar 以及浏览 Contribute 议题列表都不需要密钥。生成 Contribute 简报或编程助手提示词则需要配置 AI 服务商。Categorize、Intel 和 Discover 同样需要 AI。你可以配置 OpenRouter 密钥（`OPENROUTER_API_KEY`）、在设置中粘贴自己的 OpenAI 或 Anthropic 密钥，或通过 Ollama 等 OpenAI 兼容服务使用本地模型（`AI_BASE_URL`）。使用默认模型为 500 个仓库完整分类一次，大约一美分。
 
 ## 快速开始
 
@@ -67,14 +67,27 @@ docker run -d --name stardash -p 3000:3000 -v stardash-data:/data ghcr.io/boffti
 
 打开 `http://localhost:3000`，点 **Connect GitHub**。GitHub 会显示一个页面，创建一个归你所有的 GitHub App：点 **Create GitHub App**，再点 **Authorize**。不用注册 OAuth 应用，也不用复制密钥。你的星标会同步，Radar 在第一次夜间扫描后填满，或者点 **Scan now** 立即开始。
 
-有 AI 密钥时，用 Compose：
+### 替代方案：使用 Docker Compose 安装
+
+Compose 是另一种全新安装方式；请用它替代上面的 `docker run` 命令，不要与其同时运行。它同样占用主机的 `3000` 端口，并创建自己的命名卷（通常为 `stardash_stardash-data`），因此会启动一个使用独立数据库的实例。
 
 ```bash
 curl -O https://raw.githubusercontent.com/boffti/stardash/main/docker-compose.yml
 OPENROUTER_API_KEY=sk-or-... docker compose up -d
 ```
 
-更新时，拉取新镜像并重建容器。数据保存在 `stardash-data` 卷上。
+更新任一种安装时，拉取新镜像并重建对应容器。请始终使用原来的数据卷。
+
+**将现有 `docker run` 安装迁移到 Compose：** 停止并删除旧容器，但不要删除它的数据卷；然后编辑下载的 Compose 文件，将顶层卷声明改为复用现有卷：
+
+```yaml
+volumes:
+  stardash-data:
+    external: true
+    name: stardash-data
+```
+
+之后再启动 Compose。不要让两个容器同时占用 `3000` 端口；如果要继续使用原数据库，也不要省略 `external` 映射。
 
 ## 工作原理
 
@@ -126,14 +139,14 @@ Next.js 16 单进程，通过 `node:sqlite` 使用 SQLite，没有外部服务�
 
 然后用平常的话跟智能体说：
 
-| 你说                                                        | 会发生什么                                                |
-| ----------------------------------------------------------- | --------------------------------------------------------- |
-| _“我点过星的向量数据库有哪些？”_                            | `search_stars` 在名称、描述、你的笔记、标签和合集中搜索。 |
-| _“介绍一下 duckdb，还有我写过的笔记。”_                     | `get_repo` 返回仓库以及你的状态、笔记、标签和合集。       |
-| _“把我点过星的 MCP 服务器都放进 Agents，并打上 mcp 标签。”_ | `list_taxonomy` 和 `organize_repo` 创建并分配标签和合集。 |
-| _“这周我的 Radar 上有什么？”_                               | `radar_feed` 返回排好序的收件箱，以及每一行的理由。       |
-| _“把 Radar 上又一个 Electron 套壳的都忽略掉。”_             | `radar_action` 忽略、推迟或撤销。                         |
-| _“给前两个点星，放进 Want to try。”_                        | `star_repo` 在 GitHub 上点星并一步完成归类。              |
+| 你说                                                        | 会发生什么                                                                                                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| _“我点过星的向量数据库有哪些？”_                            | `search_stars` 在名称、描述、你的笔记、标签和合集中搜索。                                                                                   |
+| _“介绍一下 duckdb，还有我写过的笔记。”_                     | `get_repo` 返回仓库以及你的状态、笔记、标签和合集。                                                                                         |
+| _“把我点过星的 MCP 服务器都放进 Agents，并打上 mcp 标签。”_ | `list_taxonomy` 和 `organize_repo` 创建并分配标签和合集。请先在 StarDash 中同步 GitHub 星标；`organize_repo` 只能处理已同步到实例中的仓库。 |
+| _“这周我的 Radar 上有什么？”_                               | `radar_feed` 返回排好序的收件箱，以及每一行的理由。                                                                                         |
+| _“把 Radar 上又一个 Electron 套壳的都忽略掉。”_             | `radar_action` 忽略、推迟或撤销。                                                                                                           |
+| _“给前两个点星，放进 Want to try。”_                        | `star_repo` 只会在 GitHub 上点星。请先在 StarDash 中同步星标，再用 `organize_repo` 设置状态、标签或合集。                                   |
 
 ## 看看里面
 
@@ -193,7 +206,7 @@ Next.js 16 单进程，通过 `node:sqlite` 使用 SQLite，没有外部服务�
 ## 你的数据
 
 > [!IMPORTANT]
-> 所有东西都在 `/data` 卷上的一个 SQLite 文件里：你的星标、状态、笔记、分类、Radar 历史和 GitHub App 的凭据。除了 GitHub、Hacker News 的搜索 API，以及你设置了密钥时的 AI 服务商，不会发送到任何地方。
+> 你的星标、状态、笔记、分类、Radar 历史和 GitHub App 凭据都保存在 `/data` 卷上的一个 SQLite 文件中。StarDash 会连接 GitHub 和 Hacker News 搜索 API；使用 AI 功能时，会向你配置的 AI 服务商发送请求。可选的可观测性集成也会向其配置的服务发送遥测数据：设置 Sentry DSN 后，Sentry 会接收错误和性能事件；只有同时设置 `LANGFUSE_PUBLIC_KEY` 与 `LANGFUSE_SECRET_KEY` 时，Langfuse 才会接收 AI traces。
 
 | 内容                         | 位置                                    |
 | ---------------------------- | --------------------------------------- |
