@@ -178,6 +178,15 @@ export function RadarFeed() {
     [hide],
   )
 
+  const copyUrl = useCallback(async (item: RadarItem) => {
+    try {
+      await navigator.clipboard.writeText(item.htmlUrl)
+      toast(`Copied ${item.fullName} URL`)
+    } catch {
+      toast.error("Couldn't copy the URL.")
+    }
+  }, [])
+
   const scanNow = useCallback(async () => {
     setScanning(true)
     try {
@@ -196,7 +205,7 @@ export function RadarFeed() {
     }
   }, [mutate])
 
-  // Keyboard triage: j/k move, x dismiss, z snooze, o open. Releases has its own.
+  // Keyboard triage: j/k move, x dismiss, z snooze, o open, c copy URL. Releases has its own.
   useEffect(() => {
     if (tab !== "inbox") return
     const handler = (e: KeyboardEvent) => {
@@ -220,6 +229,9 @@ export function RadarFeed() {
         case "o":
           if (current) window.open(current.htmlUrl, "_blank", "noopener")
           break
+        case "c":
+          if (current) void copyUrl(current)
+          break
         default:
           return
       }
@@ -227,7 +239,7 @@ export function RadarFeed() {
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [tab, items, activeIndex, triage])
+  }, [tab, items, activeIndex, triage, copyUrl])
 
   useEffect(() => {
     document
@@ -472,6 +484,7 @@ export function RadarFeed() {
                           <ShortcutRow keys={["x"]} label="Dismiss" />
                           <ShortcutRow keys={["z"]} label="Snooze a week" />
                           <ShortcutRow keys={["o"]} label="Open on GitHub" />
+                          <ShortcutRow keys={["c"]} label="Copy URL" />
                         </dl>
                       </div>
                       <div className="rounded-lg border border-border/60 bg-card">
