@@ -33,6 +33,7 @@
 開発者にとって、スターはブックマークの代わりです。ところが数百件を超えると、リストは使いづらくなります。StarDash は、この問題の両面を解決します。
 
 - **付けたスターを見つける。** すべてのスターを、名前、説明、自分のメモ、タグ、コレクションで検索できます。それぞれに `want-to-try`、`currently-using`、`tried-liked`、`tried-dropped`、`just-interesting`、`reference` のいずれかを付ければ、そのリポジトリをどうしたかがリストでわかります。
+- **GitHub Lists と揃える。** コレクションと GitHub のスターのリストは双方向に同期されます。同期は Settings から行えるほか、毎晩も実行されます。リストへの書き込みには `GITHUB_PAT` が必要です。GitHub がアプリにリストの変更を許していないためです。
 - **面倒なく仕分ける。** AI が 1 回の処理で最大 500 件のスターを読み込み、5 から 12 個のコレクションと 15 から 25 個のタグを提案して、すべてを振り分けます。作られたものは、そのまま残すことも、名前を変えることも、削除することもできます。
 - **次の一つに出会う。** Radar は、新着と急上昇のリポジトリの受信箱です。すでにスターを付けたものとの相性順に並び、どの行にも表示された理由が付いています。
 
@@ -222,18 +223,18 @@ Settings で **Agents (MCP)** を開き、**New token** を押して、表示さ
 
 すべて任意です。
 
-| 変数                                        | 用途                                                                                                                        |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `OPENROUTER_API_KEY`                        | AI 機能を有効にします。                                                                                                     |
-| `AI_MODEL`                                  | 任意の OpenRouter のモデル ID。既定は、構造化出力を扱える安価なモデルです。                                                 |
-| `AI_BASE_URL`                               | OpenAI 互換のエンドポイント（Ollama、LM Studio、vLLM）。OpenRouter の代わりに使われ、`AI_MODEL` が必要です。                |
-| `AI_API_KEY`                                | `AI_BASE_URL` 用のキー。サーバーが必要とする場合のみ。                                                                      |
-| `APP_URL`                                   | 公開オリジン。リバースプロキシが `X-Forwarded-Host` と `X-Forwarded-Proto` を送らない場合に使います。                       |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | ワンクリックの手順の代わりに、自分で作成した GitHub App を使います。                                                        |
-| `GITHUB_PAT`                                | 夜間ジョブ用のトークン。既定ではオーナーのトークンです。                                                                    |
-| `CRON_SECRET`                               | 外部のスケジューラーから `/api/cron/*` を呼び出せるようにします。`DISABLE_SCHEDULER=1` でプロセス内のジョブを無効にします。 |
-| `NEXT_PUBLIC_RADAR_ENABLED`                 | `false` で Radar を非表示にします。                                                                                         |
-| `DATABASE_PATH`                             | SQLite ファイル。コンテナ内では `/data/stardash.db` です。                                                                  |
+| 変数                                        | 用途                                                                                                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY`                        | AI 機能を有効にします。                                                                                                                                   |
+| `AI_MODEL`                                  | 任意の OpenRouter のモデル ID。既定は、構造化出力を扱える安価なモデルです。                                                                               |
+| `AI_BASE_URL`                               | OpenAI 互換のエンドポイント（Ollama、LM Studio、vLLM）。OpenRouter の代わりに使われ、`AI_MODEL` が必要です。                                              |
+| `AI_API_KEY`                                | `AI_BASE_URL` 用のキー。サーバーが必要とする場合のみ。                                                                                                    |
+| `APP_URL`                                   | 公開オリジン。リバースプロキシが `X-Forwarded-Host` と `X-Forwarded-Proto` を送らない場合に使います。                                                     |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | ワンクリックの手順の代わりに、自分で作成した GitHub App を使います。                                                                                      |
+| `GITHUB_PAT`                                | 夜間ジョブ用のトークン。既定ではオーナーのトークンです。GitHub Lists の同期では、リストへの書き込みに必要です（`user` スコープ付きの classic トークン）。 |
+| `CRON_SECRET`                               | 外部のスケジューラーから `/api/cron/*` を呼び出せるようにします。`DISABLE_SCHEDULER=1` でプロセス内のジョブを無効にします。                               |
+| `NEXT_PUBLIC_RADAR_ENABLED`                 | `false` で Radar を非表示にします。                                                                                                                       |
+| `DATABASE_PATH`                             | SQLite ファイル。コンテナ内では `/data/stardash.db` です。                                                                                                |
 
 **ローカルモデル：** ホストで Ollama を実行し、JSON 出力をうまく扱えるモデルを pull して（`ollama pull qwen3:8b`）、`AI_BASE_URL=http://host.docker.internal:11434/v1` と `AI_MODEL=qwen3:8b` を設定します。`pnpm dev` から実行する場合は `http://localhost:11434/v1` を使ってください。8B のモデルには、空きメモリが約 8 GB 必要です。2B 未満のモデルも動きますが、分類の質が低くなります（すべてが 1 つのコレクションに入ってしまいます）。Categorize や Intel が失敗したり、結果がおかしかったりする場合は、もっと大きなモデルを試してください。
 
