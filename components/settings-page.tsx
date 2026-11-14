@@ -38,6 +38,7 @@ import { AppPageHeader } from "@/components/app-page-header"
 import { Separator } from "@/components/ui/separator"
 import { AIKeySettings } from "@/components/ai-key-settings"
 import { AgentTokens } from "@/components/agent-tokens"
+import { GitHubListsSync } from "@/components/github-lists-sync"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/components/providers/user-provider"
 
@@ -528,6 +529,10 @@ export function SettingsPage() {
               <Separator />
               <section className="space-y-3">
                 <AgentTokens />
+              </section>
+              <Separator />
+              <section className="space-y-3">
+                <GitHubListsSync />
               </section>
               <Separator />
               <section className="space-y-3">

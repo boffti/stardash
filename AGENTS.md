@@ -13,7 +13,7 @@ pnpm lint       # ESLint
 pnpm start      # Start production server
 ```
 
-No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:db` exercises the SQLite data layer in memory; `pnpm check:radar` runs the Radar scoring self-check.
+No test suite is configured. Use `pnpm lint` and `pnpm typecheck` before committing. `pnpm check:db` exercises the SQLite data layer in memory; `pnpm check:radar` runs the Radar scoring self-check; `pnpm check:releases`, `check:ask` and `check:lists` cover those features.
 
 ## Mandatory Workflows
 
@@ -84,6 +84,8 @@ app/
 │   ├── cron/radar-ingest     # Radar candidates from GitHub search, HN, social graph (same scheduler)
 │   ├── cron/releases-ingest  # GitHub Releases for currently-using repos (same scheduler, lib/releases.ts)
 │   ├── releases/             # GET unread feed · seen (mark read / undo) · scan ("Check now")
+│   ├── github/lists          # GitHub Lists sync: POST starts (background), GET progress (lib/github-lists.ts)
+│   ├── cron/lists-sync       # Nightly Lists sync, only for users who synced once (same scheduler)
 │   ├── health                # Container healthcheck
 │   ├── mcp                   # MCP server (mcp-handler, bearer tokens from api_tokens)
 │   ├── tokens                # Mint/list/revoke agent tokens (Settings → Agents)
@@ -141,25 +143,28 @@ Inbound feed. Nightly `radar-ingest` pulls candidates from three sources: GitHub
 
 `GET /api/radar` builds a taste profile from the user's stars (`lib/radar.ts`: topic/language weights × status, `tried-dropped` is negative) and scores every candidate. Social signal outranks a full topic match. Reasons are returned as plain-language strings and rendered as the row's evidence line. Triage actions live in `radar_actions`; starring uses the existing `/api/github/star` route.
 
+**GitHub Lists.** `lib/github-lists.ts` syncs collections and GitHub star lists both ways over GraphQL. Each link stores the repos on both sides at the last sync, so `mergeMembers()` keeps adds from either side and lets a removal on either side win. First sync pairs by name, imports the rest of the lists and pushes the rest of the collections as private lists (GitHub caps lists at 32). Deletes only unlink. Writes are paced and capped per run; unfinished writes keep their old synced state so the next run completes them. GitHub App tokens can read lists but not write them, so writing needs `GITHUB_PAT`; without it a run is import-only (`readOnly`). `pnpm check:lists` runs the whole sync against a fake GitHub.
+
 **Releases tab.** Nightly `releases-ingest` fetches GitHub Releases (ETag, skips drafts and prereleases, first sight stores only the latest) for repos any user marks `currently-using`. `isBreaking()` flags major bumps and breaking-change wording at once; with an AI key one batched call adds summaries and may raise the flag, never lower it.
 
 ### Database Schema
 
-| Table                                     | Purpose                                                                                |
-| ----------------------------------------- | -------------------------------------------------------------------------------------- |
-| `profiles`                                | Owner identity, GitHub token + refresh token, sync timestamps                          |
-| `repos`                                   | Repo catalog (one row per GitHub repo)                                                 |
-| `user_starred_repos`                      | Per-user: status, notes, pinned                                                        |
-| `tags` / `collections`                    | User-owned taxonomy                                                                    |
-| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                                                 |
-| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)                             |
-| `radar_candidates`                        | Pool of new/rising repos                                                               |
-| `radar_signals`                           | Per-user: people you follow starred repo X                                             |
-| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred                                         |
-| `repo_releases`                           | Releases of currently-using repos; read state is `user_starred_repos.releases_seen_at` |
-| `discover_searches`                       | Cached Discover search results per user                                                |
-| `repo_insights`                           | AI repo intel cache (7d)                                                               |
-| `meta`                                    | Key/value: session secret, GitHub App client id/secret                                 |
+| Table                                     | Purpose                                                                                  |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `profiles`                                | Owner identity, GitHub token + refresh token, sync timestamps                            |
+| `repos`                                   | Repo catalog (one row per GitHub repo)                                                   |
+| `user_starred_repos`                      | Per-user: status, notes, pinned                                                          |
+| `tags` / `collections`                    | User-owned taxonomy                                                                      |
+| `user_starred_repo_tags` / `_collections` | Many-to-many junctions                                                                   |
+| `repo_star_snapshots`                     | Daily star history for velocity (stars + radar candidates)                               |
+| `radar_candidates`                        | Pool of new/rising repos                                                                 |
+| `radar_signals`                           | Per-user: people you follow starred repo X                                               |
+| `radar_actions`                           | Per-user triage: dismissed / snoozed / starred                                           |
+| `repo_releases`                           | Releases of currently-using repos; read state is `user_starred_repos.releases_seen_at`   |
+| `github_list_links`                       | Collection ↔ GitHub list pairs, repos on both sides at last sync; a null side = unlinked |
+| `discover_searches`                       | Cached Discover search results per user                                                  |
+| `repo_insights`                           | AI repo intel cache (7d)                                                                 |
+| `meta`                                    | Key/value: session secret, GitHub App client id/secret                                   |
 
 **Scoping:** there is no RLS. Every query on a per-user table carries `where user_id = ?`. Postgres arrays/jsonb became JSON text (`topics`, `sources`, `results`, `pipeline_events`, `metrics`, `top_pain_points`), booleans are 0/1, timestamps are ISO strings.
 
@@ -192,7 +197,7 @@ OPENROUTER_API_KEY
 AI_MODEL                        # Optional OpenRouter model id override (required with AI_BASE_URL)
 AI_BASE_URL / AI_API_KEY        # Optional OpenAI-compatible endpoint (Ollama, LM Studio, vLLM) instead of OpenRouter
 CRON_SECRET                     # Optional: lets an external scheduler call /api/cron/*; DISABLE_SCHEDULER turns in-process jobs off
-GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token
+GITHUB_PAT                      # Optional token for background jobs; defaults to the owner's token. Lists sync needs it to write (classic, user scope)
 GITHUB_CLIENT_ID / _SECRET      # Optional: use a pre-made GitHub App instead of the manifest flow
 APP_URL                         # Optional: public origin when proxy headers are missing
 
