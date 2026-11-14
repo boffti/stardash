@@ -21,7 +21,8 @@
   <a href="#功能">功能</a> ·
   <a href="#路线图">路线图</a> ·
   <a href="CONTRIBUTING.md">参与贡献</a> ·
-  <a href="README.md">English</a>
+  <a href="README.md">English</a> ·
+  <a href="README.ja.md">日本語</a>
 </p>
 
 <p align="center">
